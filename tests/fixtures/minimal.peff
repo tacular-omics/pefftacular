@@ -1,0 +1,13 @@
+# PEFF 1.0
+# //
+# DbName=testdb
+# Prefix=sp
+# DbVersion=2024-01
+# DbSource=http://example.com
+# NumberOfEntries=2
+# SequenceType=AA
+# //
+>sp:P12345 \PName=Albumin \GName=ALB \Length=10
+MKTLLLTLVV
+>sp:Q99999 \Length=5
+ACDEF

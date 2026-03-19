@@ -1,0 +1,21 @@
+# PEFF 1.0
+# GeneralComment=File with two databases
+# //
+# DbName=database-one
+# Prefix=d1
+# DbVersion=1.0
+# DbSource=http://db1.example.com
+# NumberOfEntries=1
+# SequenceType=AA
+# //
+# DbName=database-two
+# Prefix=d2
+# DbVersion=2.0
+# DbSource=http://db2.example.com
+# NumberOfEntries=1
+# SequenceType=AA
+# //
+>d1:A0001 \PName=Protein Alpha \Length=8
+ACDEFGHI
+>d2:B0001 \PName=Protein Beta \Length=6
+KLMNPQ
