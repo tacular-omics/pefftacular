@@ -19,14 +19,16 @@ class TestPeffVersion:
 
     def test_missing_version_line(self):
         with pytest.raises(PeffParseError, match="First line"):
-            PeffReader(StringIO("not a header\n")).header
+            PeffReader(StringIO("not a header\n")).header  # noqa: B018
 
     def test_empty_file(self):
         with pytest.raises(PeffParseError, match="Empty file"):
-            PeffReader(StringIO("")).header
+            PeffReader(StringIO("")).header  # noqa: B018
 
     def test_unsupported_version_warns(self):
-        data = "# PEFF 2.0\n# //\n# Prefix=x\n# DbVersion=1\n# DbSource=x\n# NumberOfEntries=0\n# SequenceType=AA\n# //\n"
+        data = (
+            "# PEFF 2.0\n# //\n# Prefix=x\n# DbVersion=1\n# DbSource=x\n# NumberOfEntries=0\n# SequenceType=AA\n# //\n"
+        )
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             reader = PeffReader(StringIO(data))
@@ -52,7 +54,7 @@ class TestDatabaseHeaders:
         assert db.prefix == "sp"
         assert db.db_name == "testdb"
         assert db.db_version == "2024-01"
-        assert db.db_source == "http://example.com"
+        assert db.db_sources == ("http://example.com",)
         assert db.number_of_entries == 2
         assert db.sequence_type == "AA"
 

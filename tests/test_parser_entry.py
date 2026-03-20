@@ -118,7 +118,10 @@ class TestContextManager:
         assert len(entries) == 2
 
     def test_string_io(self):
-        data = "# PEFF 1.0\n# //\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n# NumberOfEntries=1\n# SequenceType=AA\n# //\n>t:X1 \\PName=Test \\Length=3\nABC\n"
+        data = (
+            "# PEFF 1.0\n# //\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n"
+            "# NumberOfEntries=1\n# SequenceType=AA\n# //\n>t:X1 \\PName=Test \\Length=3\nABC\n"
+        )
         with PeffReader(StringIO(data)) as reader:
             entries = list(reader)
         assert entries[0].sequence == "ABC"

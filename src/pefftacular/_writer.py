@@ -8,11 +8,13 @@ from typing import IO
 
 from pefftacular._models import (
     CustomKeyDef,
+    DisulfideBond,
     FileHeader,
     ModRes,
     ModResPsi,
     ModResUnimod,
     Processed,
+    Proteoform,
     SequenceEntry,
     VariantComplex,
     VariantSimple,
@@ -54,10 +56,19 @@ def _fmt_positions(positions: tuple[int | str, ...]) -> str:
     return ",".join(_fmt_position(p) for p in positions)
 
 
+def _fmt_annot_position(annot_id: int | None, p: int | str) -> str:
+    return f"{annot_id}:{p}" if annot_id is not None else _fmt_position(p)
+
+
+def _fmt_annot_positions(annot_id: int | None, positions: tuple[int | str, ...]) -> str:
+    raw = _fmt_positions(positions)
+    return f"{annot_id}:{raw}" if annot_id is not None else raw
+
+
 def _serialize_variant_simple(items: tuple[VariantSimple, ...]) -> str:
     parts: list[str] = []
     for v in items:
-        fields = [_fmt_position(v.position), v.new_amino_acid]
+        fields = [_fmt_annot_position(v.annot_id, v.position), v.new_amino_acid]
         if v.tag:
             fields.append(v.tag)
         parts.append(f"({'|'.join(fields)})")
@@ -67,7 +78,7 @@ def _serialize_variant_simple(items: tuple[VariantSimple, ...]) -> str:
 def _serialize_variant_complex(items: tuple[VariantComplex, ...]) -> str:
     parts: list[str] = []
     for v in items:
-        fields = [_fmt_position(v.start_pos), _fmt_position(v.end_pos), v.new_sequence]
+        fields = [_fmt_annot_position(v.annot_id, v.start_pos), _fmt_position(v.end_pos), v.new_sequence]
         if v.tag:
             fields.append(v.tag)
         parts.append(f"({'|'.join(fields)})")
@@ -77,7 +88,7 @@ def _serialize_variant_complex(items: tuple[VariantComplex, ...]) -> str:
 def _serialize_mod_res_like(items: tuple[ModResUnimod | ModResPsi | ModRes, ...]) -> str:
     parts: list[str] = []
     for m in items:
-        fields = [_fmt_positions(m.positions), m.accession, m.name]
+        fields = [_fmt_annot_positions(m.annot_id, m.positions), m.accession, m.name]
         if m.tag:
             fields.append(m.tag)
         parts.append(f"({'|'.join(fields)})")
@@ -87,9 +98,33 @@ def _serialize_mod_res_like(items: tuple[ModResUnimod | ModResPsi | ModRes, ...]
 def _serialize_processed(items: tuple[Processed, ...]) -> str:
     parts: list[str] = []
     for p in items:
-        fields = [_fmt_position(p.start_pos), _fmt_position(p.end_pos), p.accession, p.name]
+        fields = [_fmt_annot_position(p.annot_id, p.start_pos), _fmt_position(p.end_pos), p.accession, p.name]
         if p.tag:
             fields.append(p.tag)
+        parts.append(f"({'|'.join(fields)})")
+    return "".join(parts)
+
+
+def _serialize_disulfide_bond(items: tuple[DisulfideBond, ...]) -> str:
+    parts: list[str] = []
+    for d in items:
+        fields = [_fmt_annot_positions(d.annot_id, d.positions)]
+        if d.description is not None:
+            fields.append(d.description)
+        parts.append(f"({'|'.join(fields)})")
+    return "".join(parts)
+
+
+def _serialize_proteoform(items: tuple[Proteoform, ...]) -> str:
+    parts: list[str] = []
+    for p in items:
+        pf_id = f"{p.annot_id}:{p.proteoform_id}" if p.annot_id is not None else p.proteoform_id
+        ranges_str = ",".join(f"{r.start}-{r.end}" for r in p.ranges)
+        refs_str = ",".join(str(i) for i in p.annot_id_refs)
+        fields = [pf_id, ranges_str, refs_str, p.name or ""]
+        # strip trailing empty fields but keep at least 3
+        while len(fields) > 3 and not fields[-1]:
+            fields.pop()
         parts.append(f"({'|'.join(fields)})")
     return "".join(parts)
 
@@ -123,14 +158,28 @@ def _write_header(header: FileHeader, out: IO[str]) -> None:
             out.write(f"# DbName={db.db_name}\n")
         if db.prefix is not None:
             out.write(f"# Prefix={db.prefix}\n")
+        if db.db_description is not None:
+            out.write(f"# DbDescription={db.db_description}\n")
         if db.db_version is not None:
             out.write(f"# DbVersion={db.db_version}\n")
-        if db.db_source is not None:
-            out.write(f"# DbSource={db.db_source}\n")
+        if db.db_date is not None:
+            out.write(f"# DbDate={db.db_date}\n")
+        for src in db.db_sources:
+            out.write(f"# DbSource={src}\n")
         if db.number_of_entries is not None:
             out.write(f"# NumberOfEntries={db.number_of_entries}\n")
         if db.sequence_type is not None:
             out.write(f"# SequenceType={db.sequence_type}\n")
+        if db.decoy is not None:
+            out.write(f"# Decoy={'true' if db.decoy else 'false'}\n")
+        if db.conversion is not None:
+            out.write(f"# Conversion={db.conversion}\n")
+        if db.has_annotation_identifiers:
+            out.write("# HasAnnotationIdentifiers=true\n")
+        if db.proteoform_db:
+            out.write("# ProteoformDb=true\n")
+        for otd in db.optional_tag_defs:
+            out.write(f"# OptionalTagDef={otd.tag}:{otd.description}\n")
         for ckd in db.custom_key_defs:
             out.write(f"# CustomKeyDef={_serialize_custom_key_def(ckd)}\n")
         for k, v in db.extra.items():
@@ -148,6 +197,10 @@ def _write_entry(entry: SequenceEntry, out: IO[str]) -> None:
     # Build key-value pairs in canonical order
     kv_parts: list[str] = []
 
+    if entry.id is not None:
+        kv_parts.append(f"\\ID={entry.id}")
+    if entry.db_unique_id_key is not None:
+        kv_parts.append(f"\\DbUniqueId={entry.db_unique_id_key}")
     if entry.length is not None:
         kv_parts.append(f"\\Length={entry.length}")
     if entry.pname is not None:
@@ -166,6 +219,8 @@ def _write_entry(entry: SequenceEntry, out: IO[str]) -> None:
         kv_parts.append(f"\\PE={entry.pe}")
     if entry.decoy is not None:
         kv_parts.append(f"\\Decoy={'true' if entry.decoy else 'false'}")
+    if entry.comment is not None:
+        kv_parts.append(f"\\Comment={entry.comment}")
     if entry.variant_simple:
         kv_parts.append(f"\\VariantSimple={_serialize_variant_simple(entry.variant_simple)}")
     if entry.variant_complex:
@@ -178,6 +233,10 @@ def _write_entry(entry: SequenceEntry, out: IO[str]) -> None:
         kv_parts.append(f"\\ModRes={_serialize_mod_res_like(entry.mod_res)}")
     if entry.processed:
         kv_parts.append(f"\\Processed={_serialize_processed(entry.processed)}")
+    if entry.disulfide_bond:
+        kv_parts.append(f"\\DisulfideBond={_serialize_disulfide_bond(entry.disulfide_bond)}")
+    if entry.proteoform:
+        kv_parts.append(f"\\Proteoform={_serialize_proteoform(entry.proteoform)}")
     for k, v in entry.extra.items():
         kv_parts.append(f"\\{k}={v}")
 
@@ -206,17 +265,11 @@ def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str |
     entry_list = list(entries)
     for entry in entry_list:
         if not entry.prefix:
-            raise PeffWriteError(
-                f"SequenceEntry has an empty prefix: db_unique_id={entry.db_unique_id!r}"
-            )
+            raise PeffWriteError(f"SequenceEntry has an empty prefix: db_unique_id={entry.db_unique_id!r}")
         if not entry.db_unique_id:
-            raise PeffWriteError(
-                f"SequenceEntry has an empty db_unique_id: prefix={entry.prefix!r}"
-            )
+            raise PeffWriteError(f"SequenceEntry has an empty db_unique_id: prefix={entry.prefix!r}")
         if not entry.sequence:
-            raise PeffWriteError(
-                f"SequenceEntry {entry.prefix}:{entry.db_unique_id!r} has an empty sequence"
-            )
+            raise PeffWriteError(f"SequenceEntry {entry.prefix}:{entry.db_unique_id!r} has an empty sequence")
 
     if isinstance(dest, (str, Path)):
         with Path(dest).open("w") as f:

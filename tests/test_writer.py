@@ -27,7 +27,7 @@ def _make_minimal_header() -> FileHeader:
                 prefix="sp",
                 db_name="testdb",
                 db_version="2024-01",
-                db_source="http://example.com",
+                db_sources=("http://example.com",),
                 number_of_entries=1,
                 sequence_type="AA",
             ),
@@ -47,7 +47,7 @@ class TestHeaderWriting:
             peff_version="1.0",
             general_comments=("Comment one", "Comment two"),
             databases=(
-                DatabaseHeader(prefix="sp", db_version="1", db_source="x", number_of_entries=0, sequence_type="AA"),
+                DatabaseHeader(prefix="sp", db_version="1", db_sources=("x",), number_of_entries=0, sequence_type="AA"),
             ),
         )
         buf = StringIO()
@@ -73,11 +73,16 @@ class TestHeaderWriting:
                 DatabaseHeader(
                     prefix="sp",
                     db_version="1",
-                    db_source="x",
+                    db_sources=("x",),
                     number_of_entries=0,
                     sequence_type="AA",
                     custom_key_defs=(
-                        CustomKeyDef(key_name="MyKey", description="A custom key", field_names=("a", "b"), field_types=("string", "integer")),
+                        CustomKeyDef(
+                            key_name="MyKey",
+                            description="A custom key",
+                            field_names=("a", "b"),
+                            field_types=("string", "integer"),
+                        ),
                     ),
                 ),
             ),
@@ -107,7 +112,7 @@ class TestEntryWriting:
         write_peff(_make_minimal_header(), [entry], buf)
         lines = buf.getvalue().splitlines()
         # Find sequence lines (after description)
-        seq_lines = [l for l in lines if l and not l.startswith("#") and not l.startswith(">")]
+        seq_lines = [ln for ln in lines if ln and not ln.startswith("#") and not ln.startswith(">")]
         assert len(seq_lines) == 3  # 60 + 60 + 10
         assert len(seq_lines[0]) == 60
         assert len(seq_lines[1]) == 60
@@ -191,7 +196,7 @@ class TestEntryWriting:
         )
         buf = StringIO()
         write_peff(_make_minimal_header(), [entry], buf)
-        desc_line = [l for l in buf.getvalue().splitlines() if l.startswith(">")][0]
+        desc_line = [ln for ln in buf.getvalue().splitlines() if ln.startswith(">")][0]
         # Length should come before PName
         assert desc_line.index("\\Length") < desc_line.index("\\PName")
         # PName before GName

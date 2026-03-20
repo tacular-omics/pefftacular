@@ -5,7 +5,6 @@ import pytest
 from pefftacular._lexer import split_description_keys, split_fields, split_items
 from pefftacular.errors import PeffParseError
 
-
 # ---------------------------------------------------------------------------
 # split_items
 # ---------------------------------------------------------------------------

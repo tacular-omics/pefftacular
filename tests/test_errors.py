@@ -12,44 +12,41 @@ from pefftacular.errors import PeffParseError
 # Minimal PEFF header shared across integer-parsing and length-mismatch tests
 # ---------------------------------------------------------------------------
 
-_HEADER = (
-    "# PEFF 1.0\n"
-    "# //\n"
-    "# Prefix=t\n"
-    "# DbVersion=1\n"
-    "# DbSource=x\n"
-    "# NumberOfEntries=1\n"
-    "# SequenceType=AA\n"
-    "# //\n"
-)
+_HEADER = "# PEFF 1.0\n# //\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n# NumberOfEntries=1\n# SequenceType=AA\n# //\n"
 
 
 class TestMalformedHeader:
     def test_no_peff_line(self):
         with pytest.raises(PeffParseError, match="First line"):
-            PeffReader(StringIO(">sp:X1\nACDEF\n")).header
+            PeffReader(StringIO(">sp:X1\nACDEF\n")).header  # noqa: B018
 
     def test_garbage_first_line(self):
         with pytest.raises(PeffParseError, match="First line"):
-            PeffReader(StringIO("garbage\n")).header
+            PeffReader(StringIO("garbage\n")).header  # noqa: B018
 
     def test_empty_file(self):
         with pytest.raises(PeffParseError, match="Empty file"):
-            PeffReader(StringIO("")).header
+            PeffReader(StringIO("")).header  # noqa: B018
 
     def test_whitespace_only(self):
         with pytest.raises(PeffParseError):
-            PeffReader(StringIO("   \n  \n")).header
+            PeffReader(StringIO("   \n  \n")).header  # noqa: B018
 
 
 class TestMalformedEntry:
     def test_bad_description_line(self):
-        data = "# PEFF 1.0\n# //\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n# NumberOfEntries=1\n# SequenceType=AA\n# //\n>NOCOLON \\Length=3\nABC\n"
+        data = (
+            "# PEFF 1.0\n# //\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n"
+            "# NumberOfEntries=1\n# SequenceType=AA\n# //\n>NOCOLON \\Length=3\nABC\n"
+        )
         with pytest.raises(PeffParseError, match="Invalid description"):
             list(PeffReader(StringIO(data)))
 
     def test_variant_simple_too_few_fields(self):
-        data = "# PEFF 1.0\n# //\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n# NumberOfEntries=1\n# SequenceType=AA\n# //\n>t:X1 \\VariantSimple=(5)\nACDEF\n"
+        data = (
+            "# PEFF 1.0\n# //\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n"
+            "# NumberOfEntries=1\n# SequenceType=AA\n# //\n>t:X1 \\VariantSimple=(5)\nACDEF\n"
+        )
         with pytest.raises(PeffParseError, match="VariantSimple"):
             list(PeffReader(StringIO(data)))
 
@@ -67,7 +64,7 @@ class TestIntegerParsingErrors:
             "# //\n"
         )
         with pytest.raises(PeffParseError, match="NumberOfEntries"):
-            PeffReader(StringIO(data)).header
+            PeffReader(StringIO(data)).header  # noqa: B018
 
     def test_ncbi_tax_id_non_integer_raises(self) -> None:
         data = _HEADER + ">t:X1 \\NcbiTaxId=bad\nACDEF\n"

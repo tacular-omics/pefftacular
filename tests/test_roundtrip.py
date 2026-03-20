@@ -3,7 +3,7 @@
 from io import StringIO
 from pathlib import Path
 
-from pefftacular._parser import PeffReader, read_peff
+from pefftacular._parser import read_peff
 from pefftacular._writer import write_peff
 
 FIXTURES = Path(__file__).parent / "fixtures"

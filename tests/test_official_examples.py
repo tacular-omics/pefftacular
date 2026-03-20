@@ -191,13 +191,13 @@ class TestAnnotIdInsulinValid:
         _, entries = read_peff(FIXTURES / "PEFF_AnnotID_Insulin_Valid.peff")
         assert len(entries[0].processed) == 4
 
-    def test_disulfide_bond_in_extra(self) -> None:
+    def test_disulfide_bond_parsed(self) -> None:
         _, entries = read_peff(FIXTURES / "PEFF_AnnotID_Insulin_Valid.peff")
-        assert "DisulfideBond" in entries[0].extra
+        assert len(entries[0].disulfide_bond) == 3
 
-    def test_proteoform_in_extra(self) -> None:
+    def test_proteoform_parsed(self) -> None:
         _, entries = read_peff(FIXTURES / "PEFF_AnnotID_Insulin_Valid.peff")
-        assert "Proteoform" in entries[0].extra
+        assert len(entries[0].proteoform) == 11
 
     def test_gene_name(self) -> None:
         _, entries = read_peff(FIXTURES / "PEFF_AnnotID_Insulin_Valid.peff")
@@ -222,7 +222,7 @@ class TestProteoformEnst:
 
     def test_proteoform_db_header_flag(self) -> None:
         header, _ = read_peff(FIXTURES / "proteoform_ENST00000000412.peff")
-        assert header.databases[0].extra.get("ProteoformDb") == "true"
+        assert header.databases[0].proteoform_db is True
 
     def test_first_entry_id(self) -> None:
         _, entries = read_peff(FIXTURES / "proteoform_ENST00000000412.peff")
@@ -231,7 +231,7 @@ class TestProteoformEnst:
     def test_entries_have_proteoform_annotation(self) -> None:
         _, entries = read_peff(FIXTURES / "proteoform_ENST00000000412.peff")
         for entry in entries:
-            assert "Proteoform" in entry.extra
+            assert len(entry.proteoform) > 0
 
     def test_first_entry_has_variant_simple(self) -> None:
         _, entries = read_peff(FIXTURES / "proteoform_ENST00000000412.peff")

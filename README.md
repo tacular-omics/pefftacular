@@ -60,7 +60,7 @@ with PeffReader("proteins.peff") as reader:
 | `ev` | `int \| None` | Entry version (`\\EV=`) |
 | `pe` | `int \| None` | Protein existence level (`\\PE=`) |
 | `variant_simple` | `list[VariantSimple]` | Simple sequence variants |
-| `variant_complex` | `list[str]` | Complex variant strings (unparsed) |
+| `variant_complex` | `tuple[VariantComplex, ...]` | Multi-residue variants (start, end, new sequence, optional tag) |
 | `mod_res_unimod` | `list[ModResUnimod]` | UniMod modification sites |
 | `mod_res_psi` | `list[ModResPsi]` | PSI-MOD modification sites |
 | `mod_res` | `list[ModRes]` | Other named modification sites |

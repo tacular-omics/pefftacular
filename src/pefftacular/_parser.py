@@ -13,12 +13,16 @@ from pefftacular._lexer import split_description_keys, split_fields, split_items
 from pefftacular._models import (
     CustomKeyDef,
     DatabaseHeader,
+    DisulfideBond,
     FileHeader,
     ModRes,
     ModResPsi,
     ModResUnimod,
+    OptionalTagDef,
     Processed,
+    Proteoform,
     SequenceEntry,
+    SequenceRange,
     VariantComplex,
     VariantSimple,
 )
@@ -44,6 +48,17 @@ def parse_positions(s: str) -> tuple[int | str, ...]:
     return tuple(parse_position(p.strip()) for p in s.split(","))
 
 
+def _extract_annot_id(s: str) -> tuple[int | None, str]:
+    """Split 'annotID:rest' into (annotID, rest). Returns (None, s) if no valid prefix."""
+    colon = s.find(":")
+    if colon > 0:
+        try:
+            return int(s[:colon]), s[colon + 1 :]
+        except ValueError:
+            pass
+    return None, s
+
+
 # ---------------------------------------------------------------------------
 # Annotation parsers
 # ---------------------------------------------------------------------------
@@ -56,8 +71,11 @@ def _parse_variant_simple(raw: str) -> tuple[VariantSimple, ...]:
         fields = split_fields(item)
         if len(fields) < 2:
             raise PeffParseError(f"VariantSimple needs >= 2 fields, got {len(fields)}", context=item)
+        annot_id, pos_str = _extract_annot_id(fields[0])
         tag = fields[2] if len(fields) > 2 and fields[2] else None
-        results.append(VariantSimple(position=parse_position(fields[0]), new_amino_acid=fields[1], tag=tag))
+        results.append(
+            VariantSimple(position=parse_position(pos_str), new_amino_acid=fields[1], tag=tag, annot_id=annot_id)
+        )
     return tuple(results)
 
 
@@ -68,44 +86,53 @@ def _parse_variant_complex(raw: str) -> tuple[VariantComplex, ...]:
         fields = split_fields(item)
         if len(fields) < 3:
             raise PeffParseError(f"VariantComplex needs >= 3 fields, got {len(fields)}", context=item)
+        annot_id, pos_str = _extract_annot_id(fields[0])
         tag = fields[3] if len(fields) > 3 and fields[3] else None
         results.append(
             VariantComplex(
-                start_pos=parse_position(fields[0]),
+                start_pos=parse_position(pos_str),
                 end_pos=parse_position(fields[1]),
                 new_sequence=fields[2],
                 tag=tag,
+                annot_id=annot_id,
             )
         )
     return tuple(results)
 
 
-def _parse_mod_res_like(raw: str) -> list[tuple[tuple[int | str, ...], str, str, str | None]]:
+def _parse_mod_res_like(raw: str) -> list[tuple[tuple[int | str, ...], str, str, str | None, int | None]]:
     """Shared parser for ModResUnimod / ModResPsi / ModRes."""
     items = split_items(raw)
-    results: list[tuple[tuple[int | str, ...], str, str, str | None]] = []
+    results: list[tuple[tuple[int | str, ...], str, str, str | None, int | None]] = []
     for item in items:
         fields = split_fields(item)
         if len(fields) < 3:
             raise PeffParseError(f"ModRes-like key needs >= 3 fields, got {len(fields)}", context=item)
-        positions = parse_positions(fields[0])
+        annot_id, positions_str = _extract_annot_id(fields[0])
+        positions = parse_positions(positions_str)
         accession = fields[1]
         name = fields[2]
         tag = fields[3] if len(fields) > 3 and fields[3] else None
-        results.append((positions, accession, name, tag))
+        results.append((positions, accession, name, tag, annot_id))
     return results
 
 
 def _parse_mod_res_unimod(raw: str) -> tuple[ModResUnimod, ...]:
-    return tuple(ModResUnimod(positions=p, accession=a, name=n, tag=t) for p, a, n, t in _parse_mod_res_like(raw))
+    return tuple(
+        ModResUnimod(positions=p, accession=a, name=n, tag=t, annot_id=i) for p, a, n, t, i in _parse_mod_res_like(raw)
+    )
 
 
 def _parse_mod_res_psi(raw: str) -> tuple[ModResPsi, ...]:
-    return tuple(ModResPsi(positions=p, accession=a, name=n, tag=t) for p, a, n, t in _parse_mod_res_like(raw))
+    return tuple(
+        ModResPsi(positions=p, accession=a, name=n, tag=t, annot_id=i) for p, a, n, t, i in _parse_mod_res_like(raw)
+    )
 
 
 def _parse_mod_res(raw: str) -> tuple[ModRes, ...]:
-    return tuple(ModRes(positions=p, accession=a, name=n, tag=t) for p, a, n, t in _parse_mod_res_like(raw))
+    return tuple(
+        ModRes(positions=p, accession=a, name=n, tag=t, annot_id=i) for p, a, n, t, i in _parse_mod_res_like(raw)
+    )
 
 
 def _parse_processed(raw: str) -> tuple[Processed, ...]:
@@ -115,15 +142,65 @@ def _parse_processed(raw: str) -> tuple[Processed, ...]:
         fields = split_fields(item)
         if len(fields) < 4:
             raise PeffParseError(f"Processed needs >= 4 fields, got {len(fields)}", context=item)
+        annot_id, pos_str = _extract_annot_id(fields[0])
         tag = fields[4] if len(fields) > 4 and fields[4] else None
         results.append(
             Processed(
-                start_pos=parse_position(fields[0]),
+                start_pos=parse_position(pos_str),
                 end_pos=parse_position(fields[1]),
                 accession=fields[2],
                 name=fields[3],
                 tag=tag,
+                annot_id=annot_id,
             )
+        )
+    return tuple(results)
+
+
+def _parse_disulfide_bond(raw: str) -> tuple[DisulfideBond, ...]:
+    items = split_items(raw)
+    results: list[DisulfideBond] = []
+    for item in items:
+        fields = split_fields(item)
+        if len(fields) < 1:
+            raise PeffParseError("DisulfideBond needs >= 1 field", context=item)
+        annot_id, positions_str = _extract_annot_id(fields[0])
+        positions = parse_positions(positions_str)
+        description = fields[1] if len(fields) > 1 and fields[1] else None
+        results.append(DisulfideBond(positions=positions, description=description, annot_id=annot_id))
+    return tuple(results)
+
+
+def _parse_sequence_range(s: str) -> SequenceRange:
+    """Parse 'start-end' into a SequenceRange."""
+    if "-" in s:
+        parts = s.split("-", 1)
+        return SequenceRange(start=parse_position(parts[0]), end=parse_position(parts[1]))
+    # fallback: treat whole string as start with unknown end
+    return SequenceRange(start=parse_position(s), end=parse_position(s))
+
+
+def _parse_proteoform(raw: str) -> tuple[Proteoform, ...]:
+    items = split_items(raw)
+    results: list[Proteoform] = []
+    for item in items:
+        fields = split_fields(item)
+        if len(fields) < 2:
+            raise PeffParseError("Proteoform needs >= 2 fields", context=item)
+        annot_id, pf_id = _extract_annot_id(fields[0])
+        # field[1]: comma-separated ranges like "1-110" or "90-110,25-54"
+        range_strs = [r.strip() for r in fields[1].split(",") if r.strip()]
+        ranges = tuple(_parse_sequence_range(r) for r in range_strs)
+        # field[2]: comma-separated annotation ID refs (may be empty)
+        annot_id_refs: tuple[int, ...] = ()
+        if len(fields) > 2 and fields[2]:
+            try:
+                annot_id_refs = tuple(int(x.strip()) for x in fields[2].split(",") if x.strip())
+            except ValueError as err:
+                raise PeffParseError(f"Invalid annotation ID refs in Proteoform: {fields[2]!r}", context=item) from err
+        name = fields[3] if len(fields) > 3 and fields[3] else None
+        results.append(
+            Proteoform(proteoform_id=pf_id, ranges=ranges, annot_id_refs=annot_id_refs, name=name, annot_id=annot_id)
         )
     return tuple(results)
 
@@ -238,47 +315,84 @@ def _parse_file_header(lines: Iterable[str]) -> tuple[FileHeader, Iterator[str]]
 
 def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
     """Build a DatabaseHeader from the key=value lines inside a ``# //`` block."""
-    kv: dict[str, str] = {}
+    # Collect values; multi-value keys accumulate into lists
+    multi: dict[str, list[str]] = {}
+    single: dict[str, str] = {}
     for _line_no, content in lines:
         eq_idx = content.find("=")
         if eq_idx == -1:
             continue
         key = content[:eq_idx]
         value = content[eq_idx + 1 :]
-        kv[key] = value
+        if key in ("DbSource", "OptionalTagDef", "GeneralComment", "SpecificKey", "SpecificValue"):
+            multi.setdefault(key, []).append(value)
+        else:
+            single[key] = value
 
     # Warn on missing mandatory keys
+    all_keys = set(single) | set(multi)
     for mk in _MANDATORY_DB_KEYS:
-        if mk not in kv:
+        if mk not in all_keys:
             warnings.warn(f"Database header missing mandatory key: {mk}", stacklevel=3)
 
-    custom_key_defs = _parse_custom_key_def(kv.pop("CustomKeyDef", "")) if "CustomKeyDef" in kv else ()
+    custom_key_defs = _parse_custom_key_def(single.pop("CustomKeyDef", "")) if "CustomKeyDef" in single else ()
 
-    prefix = kv.pop("Prefix", None)
-    db_name = kv.pop("DbName", None)
-    db_version = kv.pop("DbVersion", None)
-    db_source = kv.pop("DbSource", None)
-    num_str = kv.pop("NumberOfEntries", None)
+    optional_tag_defs: tuple[OptionalTagDef, ...] = ()
+    if "OptionalTagDef" in multi:
+        defs: list[OptionalTagDef] = []
+        for raw in multi.pop("OptionalTagDef"):
+            colon = raw.find(":")
+            if colon > 0:
+                defs.append(OptionalTagDef(tag=raw[:colon], description=raw[colon + 1 :]))
+            else:
+                defs.append(OptionalTagDef(tag=raw, description=""))
+        optional_tag_defs = tuple(defs)
+
+    db_sources = tuple(multi.pop("DbSource", []))
+
+    # Remove known multi keys that we don't expose further
+    for k in ("GeneralComment", "SpecificKey", "SpecificValue"):
+        multi.pop(k, None)
+
+    prefix = single.pop("Prefix", None)
+    db_name = single.pop("DbName", None)
+    db_description = single.pop("DbDescription", None)
+    db_version = single.pop("DbVersion", None)
+    db_date = single.pop("DbDate", None)
+    conversion = single.pop("Conversion", None)
+
+    num_str = single.pop("NumberOfEntries", None)
     number_of_entries: int | None = None
     if num_str is not None:
         try:
             number_of_entries = int(num_str)
-        except ValueError:
-            raise PeffParseError(
-                f"Invalid integer for NumberOfEntries: {num_str!r}",
-                context=num_str,
-            )
-    sequence_type = kv.pop("SequenceType", None)
+        except ValueError as err:
+            raise PeffParseError(f"Invalid integer for NumberOfEntries: {num_str!r}", context=num_str) from err
+
+    sequence_type = single.pop("SequenceType", None)
+
+    decoy_str = single.pop("Decoy", None)
+    decoy = decoy_str.lower() in ("true", "1", "yes") if decoy_str is not None else None
+
+    has_annotation_identifiers = single.pop("HasAnnotationIdentifiers", "false").lower() in ("true", "1", "yes")
+    proteoform_db = single.pop("ProteoformDb", "false").lower() in ("true", "1", "yes")
 
     return DatabaseHeader(
         prefix=prefix,
         db_name=db_name,
+        db_description=db_description,
         db_version=db_version,
-        db_source=db_source,
+        db_date=db_date,
+        db_sources=db_sources,
         number_of_entries=number_of_entries,
         sequence_type=sequence_type,
+        decoy=decoy,
+        conversion=conversion,
+        has_annotation_identifiers=has_annotation_identifiers,
+        proteoform_db=proteoform_db,
         custom_key_defs=custom_key_defs,
-        extra=kv,
+        optional_tag_defs=optional_tag_defs,
+        extra=single,
     )
 
 
@@ -303,6 +417,8 @@ def _parse_entry(description: str, seq_lines: list[str], *, line_no: int | None 
     sequence = "".join(sl.strip() for sl in seq_lines)
 
     # Defaults
+    entry_id: str | None = None
+    db_unique_id_key: str | None = None
     pname: str | None = None
     gname: str | None = None
     ncbi_tax_id: int | None = None
@@ -312,73 +428,89 @@ def _parse_entry(description: str, seq_lines: list[str], *, line_no: int | None 
     ev: int | None = None
     pe: int | None = None
     decoy: bool | None = None
+    comment: str | None = None
     variant_simple: tuple[VariantSimple, ...] = ()
     variant_complex: tuple[VariantComplex, ...] = ()
     mod_res_unimod: tuple[ModResUnimod, ...] = ()
     mod_res_psi: tuple[ModResPsi, ...] = ()
     mod_res: tuple[ModRes, ...] = ()
     processed: tuple[Processed, ...] = ()
+    disulfide_bond: tuple[DisulfideBond, ...] = ()
+    proteoform: tuple[Proteoform, ...] = ()
     extra: dict[str, str] = {}
 
     for key, value in raw_keys.items():
         match key:
+            case "ID":
+                entry_id = value
+            case "DbUniqueId":
+                db_unique_id_key = value
             case "PName":
                 pname = value
             case "GName":
                 gname = value
-            case "NcbiTaxId":
+            case "NcbiTaxId" | "OX":
                 try:
                     ncbi_tax_id = int(value)
-                except ValueError:
+                except ValueError as err:
                     raise PeffParseError(
-                        f"Invalid integer for NcbiTaxId: {value!r}",
+                        f"Invalid integer for {key}: {value!r}",
                         line=line_no,
                         context=value,
-                    )
+                    ) from err
             case "TaxName":
                 tax_name = value
             case "Length":
                 try:
                     length = int(value)
-                except ValueError:
+                except ValueError as err:
                     raise PeffParseError(
                         f"Invalid integer for Length: {value!r}",
                         line=line_no,
                         context=value,
-                    )
+                    ) from err
             case "SV":
                 try:
                     sv = int(value)
-                except ValueError:
+                except ValueError as err:
                     raise PeffParseError(
                         f"Invalid integer for SV: {value!r}",
                         line=line_no,
                         context=value,
-                    )
+                    ) from err
             case "EV":
                 try:
                     ev = int(value)
-                except ValueError:
+                except ValueError as err:
                     raise PeffParseError(
                         f"Invalid integer for EV: {value!r}",
                         line=line_no,
                         context=value,
-                    )
+                    ) from err
             case "PE":
                 try:
                     pe = int(value)
-                except ValueError:
+                except ValueError as err:
                     raise PeffParseError(
                         f"Invalid integer for PE: {value!r}",
                         line=line_no,
                         context=value,
-                    )
+                    ) from err
             case "Decoy":
                 decoy = value.lower() in ("true", "1", "yes")
+            case "Comment":
+                comment = value
             case "VariantSimple":
                 variant_simple = _parse_variant_simple(value)
             case "VariantComplex":
                 variant_complex = _parse_variant_complex(value)
+            case "Variant":
+                warnings.warn(
+                    r"\Variant= is deprecated since PEFF 2015; use \VariantSimple= or \VariantComplex=",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                extra[key] = value
             case "ModResUnimod":
                 mod_res_unimod = _parse_mod_res_unimod(value)
             case "ModResPsi":
@@ -387,6 +519,10 @@ def _parse_entry(description: str, seq_lines: list[str], *, line_no: int | None 
                 mod_res = _parse_mod_res(value)
             case "Processed":
                 processed = _parse_processed(value)
+            case "DisulfideBond":
+                disulfide_bond = _parse_disulfide_bond(value)
+            case "Proteoform":
+                proteoform = _parse_proteoform(value)
             case _:
                 extra[key] = value
 
@@ -401,6 +537,8 @@ def _parse_entry(description: str, seq_lines: list[str], *, line_no: int | None 
         prefix=prefix,
         db_unique_id=db_unique_id,
         sequence=sequence,
+        id=entry_id,
+        db_unique_id_key=db_unique_id_key,
         pname=pname,
         gname=gname,
         ncbi_tax_id=ncbi_tax_id,
@@ -410,12 +548,15 @@ def _parse_entry(description: str, seq_lines: list[str], *, line_no: int | None 
         ev=ev,
         pe=pe,
         decoy=decoy,
+        comment=comment,
         variant_simple=variant_simple,
         variant_complex=variant_complex,
         mod_res_unimod=mod_res_unimod,
         mod_res_psi=mod_res_psi,
         mod_res=mod_res,
         processed=processed,
+        disulfide_bond=disulfide_bond,
+        proteoform=proteoform,
         extra=extra,
     )
 
