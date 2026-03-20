@@ -1,7 +1,7 @@
 # pefftacular
 
 [![PyPI](https://img.shields.io/pypi/v/pefftacular)](https://pypi.org/project/pefftacular/)
-[![CI](https://github.com/tacular-omics/pefftacular/actions/workflows/ci.yml/badge.svg)](https://github.com/tacular-omics/pefftacular/actions/workflows/ci.yml)
+[![Python Package](https://github.com/tacular-omics/pefftacular/actions/workflows/python-package.yml/badge.svg)](https://github.com/tacular-omics/pefftacular/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/tacular-omics/pefftacular)](LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/pefftacular)](https://pypi.org/project/pefftacular/)
 
@@ -21,7 +21,7 @@ just install
 
 ## Quick start
 
-**Small files** — load everything into memory at once:
+**read_peff** — load everything into memory at once:
 
 ```python
 from pefftacular import read_peff
@@ -32,7 +32,7 @@ for entry in entries:
     print(entry.db_unique_id, entry.pname, len(entry.sequence))
 ```
 
-**Large files** — iterate lazily without loading the full file:
+**PeffReader** — iterate lazily without loading the full file:
 
 ```python
 from pefftacular import PeffReader
