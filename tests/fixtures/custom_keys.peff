@@ -1,0 +1,15 @@
+# PEFF 1.0
+# //
+# DbName=customkeydb
+# Prefix=cu
+# DbVersion=1
+# DbSource=hand-crafted
+# NumberOfEntries=2
+# SequenceType=AA
+# CustomKeyDef=(KeyName=SecondaryStructure|Description="Secondary structure information"|ConceptCURIE=BAO:0000014|RegExp="([0-9]+)\|([0-9]+)\|([A-Za-z]+:[A-Za-z0-9]+)?\|(.+)"|FieldNames=StartPosition,EndPosition,CURIE,Description|FieldTypes=integer,integer,string,string)
+# CustomKeyDef=(KeyName=Score|Description="Plain pipe-split confidence"|FieldNames=method,value,passed|FieldTypes=string,decimal,boolean)
+# //
+>cu:P00001 \Length=5 \SecondaryStructure=(10|20|ncithesaurus:C47937|Helix)(25|40||Sheet) \Score=(blast|0.99|true)
+ACDEF
+>cu:P00002 \Length=4
+GHIK

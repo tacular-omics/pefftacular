@@ -65,7 +65,8 @@ with PeffReader("proteins.peff") as reader:
 | `mod_res_psi` | `list[ModResPsi]` | PSI-MOD modification sites |
 | `mod_res` | `list[ModRes]` | Other named modification sites |
 | `processed` | `list[Processed]` | Processed sequence forms |
-| `extra` | `dict[str, str]` | Non-standard key/value pairs |
+| `custom_values` | `dict[str, tuple[CustomKeyValue, ...]]` | Header-declared custom keys, parsed by their `CustomKeyDef` |
+| `extra` | `dict[str, str]` | Non-standard keys with no `CustomKeyDef` |
 
 ## Annotations
 
@@ -106,7 +107,41 @@ for proc in entry.processed:
     # e.g. 1, 24, "PRO_0000012345", "Signal peptide"
 ```
 
-**Non-standard keys:**
+**Custom keys (declared via `# CustomKeyDef=` in the header):**
+
+When the database header declares a custom key, entry values for that key are
+parsed using its `RegExp` / `FieldNames` / `FieldTypes` and exposed as typed
+fields on `entry.custom_values`. The original item text is preserved in `raw`
+for lossless round-trips.
+
+Header excerpt:
+
+```
+# CustomKeyDef=(KeyName=SecondaryStructure|Description="..."|ConceptCURIE=BAO:0000014|RegExp="([0-9]+)\|([0-9]+)\|([A-Za-z]+:[0-9]+)?\|(.+)"|FieldNames=StartPosition,EndPosition,CURIE,Description|FieldTypes=integer,integer,string,string)
+```
+
+Entry usage:
+
+```
+>cu:P00001 \SecondaryStructure=(10|20|ncithesaurus:C47937|Helix)
+```
+
+Access:
+
+```python
+ss = entry.custom_values["SecondaryStructure"]
+ss[0].fields["StartPosition"]    # 10 (int)
+ss[0].fields["Description"]      # "Helix"
+```
+
+Supported `FieldTypes` are XSD basic types (`string`, `integer`, `decimal`,
+`boolean`, `date`, `time`) plus `enumeration(a|b|c)`. Coercion failures and
+enumeration mismatches emit `UserWarning` and fall back to the raw string.
+If no `RegExp` is declared, the value is split on `|` and zipped with
+`FieldNames`.
+
+**Other non-standard keys** (no `CustomKeyDef` registered) still land in
+`entry.extra` as raw strings:
 
 ```python
 value = entry.extra.get("MyCustomKey")

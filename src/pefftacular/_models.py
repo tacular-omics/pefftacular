@@ -1,6 +1,9 @@
 """Frozen dataclass models for PEFF file structures."""
 
 from dataclasses import dataclass, field
+from datetime import date, time
+
+CustomFieldValue = str | int | float | bool | date | time
 
 # ---------------------------------------------------------------------------
 # Header types
@@ -13,6 +16,7 @@ class CustomKeyDef:
 
     key_name: str
     description: str
+    concept_curie: str | None = None
     regexp: str | None = None
     field_names: tuple[str, ...] = ()
     field_types: tuple[str, ...] = ()
@@ -155,6 +159,15 @@ class Proteoform:
     annot_id: int | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class CustomKeyValue:
+    """A parsed value for a header-declared custom key on an entry."""
+
+    key_name: str
+    fields: dict[str, CustomFieldValue] = field(default_factory=dict)
+    raw: str = ""
+
+
 # ---------------------------------------------------------------------------
 # Sequence entry
 # ---------------------------------------------------------------------------
@@ -187,4 +200,5 @@ class SequenceEntry:
     processed: tuple[Processed, ...] = ()
     disulfide_bond: tuple[DisulfideBond, ...] = ()
     proteoform: tuple[Proteoform, ...] = ()
+    custom_values: dict[str, tuple[CustomKeyValue, ...]] = field(default_factory=dict)
     extra: dict[str, str] = field(default_factory=dict)

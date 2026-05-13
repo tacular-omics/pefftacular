@@ -5,13 +5,16 @@ from __future__ import annotations
 import itertools
 import re
 import warnings
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
+from datetime import date, time
 from pathlib import Path
 from typing import IO, Self
 
 from pefftacular._lexer import split_description_keys, split_fields, split_items
 from pefftacular._models import (
+    CustomFieldValue,
     CustomKeyDef,
+    CustomKeyValue,
     DatabaseHeader,
     DisulfideBond,
     FileHeader,
@@ -27,6 +30,10 @@ from pefftacular._models import (
     VariantSimple,
 )
 from pefftacular.errors import PeffParseError
+
+# Compiled regex cache for CustomKeyDef.regexp.
+_REGEXP_CACHE: dict[str, re.Pattern[str]] = {}
+_ENUM_RE = re.compile(r"^enumeration\((.*)\)$")
 
 # ---------------------------------------------------------------------------
 # Position helpers
@@ -209,31 +216,175 @@ def _parse_proteoform(raw: str) -> tuple[Proteoform, ...]:
 # CustomKeyDef parser
 # ---------------------------------------------------------------------------
 
-_CUSTOM_KEY_FIELD_RE = re.compile(r'(\w+)="?([^"]*)"?')
+
+def _parse_keydef_field(fr: str) -> tuple[str, str] | None:
+    """Parse one ``defKey=value`` or ``defKey="value"`` token from a CustomKeyDef item.
+
+    The value may be quoted with ``"..."`` (with ``\\"`` escaping inner quotes) or
+    bare. Returns ``None`` for malformed fragments rather than raising.
+    """
+    s = fr.strip()
+    eq = s.find("=")
+    if eq <= 0:
+        return None
+    key = s[:eq]
+    rest = s[eq + 1 :]
+    if rest.startswith('"'):
+        # Walk until matching close-quote. Only ``\"`` and ``\\`` are treated as
+        # escapes; other backslashes are passed through so embedded regexes keep
+        # their meaning.
+        out: list[str] = []
+        i = 1
+        while i < len(rest):
+            ch = rest[i]
+            if ch == "\\" and i + 1 < len(rest) and rest[i + 1] in ('"', "\\"):
+                out.append(rest[i + 1])
+                i += 2
+                continue
+            if ch == '"':
+                break
+            out.append(ch)
+            i += 1
+        return key, "".join(out)
+    return key, rest
 
 
 def _parse_custom_key_def(raw: str) -> tuple[CustomKeyDef, ...]:
-    """Parse ``# CustomKeyDef=(KeyName=X|Description="Y"|...)``."""
+    """Parse a ``# CustomKeyDef=(KeyName=X|Description="Y"|...)`` line value.
+
+    Multiple parenthesized items on the same line are supported, though the
+    spec example uses one item per line.
+    """
     items = split_items(raw)
     results: list[CustomKeyDef] = []
     for item in items:
         fields_raw = split_fields(item)
         kv: dict[str, str] = {}
         for fr in fields_raw:
-            m = _CUSTOM_KEY_FIELD_RE.match(fr.strip())
-            if m:
-                kv[m.group(1)] = m.group(2)
-        fn = tuple(kv.get("FieldNames", "").split(",")) if kv.get("FieldNames") else ()
-        ft = tuple(kv.get("FieldTypes", "").split(",")) if kv.get("FieldTypes") else ()
+            parsed = _parse_keydef_field(fr)
+            if parsed is not None:
+                kv[parsed[0]] = parsed[1]
+        fn = tuple(kv["FieldNames"].split(",")) if kv.get("FieldNames") else ()
+        ft = tuple(kv["FieldTypes"].split(",")) if kv.get("FieldTypes") else ()
         results.append(
             CustomKeyDef(
                 key_name=kv.get("KeyName", ""),
                 description=kv.get("Description", ""),
+                concept_curie=kv.get("ConceptCURIE"),
                 regexp=kv.get("RegExp"),
                 field_names=fn,
                 field_types=ft,
             )
         )
+    return tuple(results)
+
+
+# ---------------------------------------------------------------------------
+# Custom-key value parser (entry side)
+# ---------------------------------------------------------------------------
+
+
+def _coerce_field(raw: str, xsd_type: str | None, *, key_name: str, field_name: str) -> CustomFieldValue:
+    """Coerce a captured field string per the declared XSD type.
+
+    On coercion failure, emit a warning and return the raw string. ``None``
+    type or unknown type falls back to string.
+    """
+    if xsd_type is None:
+        return raw
+    t = xsd_type.strip()
+    try:
+        if t == "integer":
+            return int(raw)
+        if t == "decimal":
+            return float(raw)
+        if t == "boolean":
+            return raw.strip().lower() in ("true", "1", "yes")
+        if t == "date":
+            return date.fromisoformat(raw)
+        if t == "time":
+            return time.fromisoformat(raw)
+        if t == "string":
+            return raw
+        m = _ENUM_RE.match(t)
+        if m:
+            allowed = {opt.strip() for opt in m.group(1).split("|") if opt.strip()}
+            if raw not in allowed:
+                warnings.warn(
+                    f"Custom key {key_name!r}: field {field_name!r}={raw!r} not in enumeration {sorted(allowed)}",
+                    UserWarning,
+                    stacklevel=3,
+                )
+            return raw
+    except ValueError:
+        warnings.warn(
+            f"Custom key {key_name!r}: cannot coerce field {field_name!r}={raw!r} to {t}",
+            UserWarning,
+            stacklevel=3,
+        )
+        return raw
+    return raw
+
+
+def _compile_regexp(pattern: str) -> re.Pattern[str] | None:
+    """Compile and cache a CustomKeyDef regexp. Returns None on bad pattern."""
+    cached = _REGEXP_CACHE.get(pattern)
+    if cached is not None:
+        return cached
+    try:
+        compiled = re.compile(pattern)
+    except re.error as err:
+        warnings.warn(f"Invalid CustomKeyDef RegExp {pattern!r}: {err}", UserWarning, stacklevel=3)
+        return None
+    _REGEXP_CACHE[pattern] = compiled
+    return compiled
+
+
+def _parse_custom_value(raw: str, ckd: CustomKeyDef) -> tuple[CustomKeyValue, ...]:
+    """Parse the value of a declared custom key into one or more CustomKeyValues.
+
+    The value may be a single bare token or a sequence of parenthesized items.
+    If the def has a ``RegExp``, it's applied per item and groups are mapped
+    onto ``FieldNames``. Otherwise the item is split on ``|`` and zipped with
+    ``FieldNames``. ``FieldTypes`` drives coercion in either case.
+    """
+    items = split_items(raw)
+    results: list[CustomKeyValue] = []
+
+    pattern = _compile_regexp(ckd.regexp) if ckd.regexp else None
+
+    for item in items:
+        fields: dict[str, CustomFieldValue] = {}
+        if pattern is not None:
+            m = pattern.fullmatch(item)
+            if m is None:
+                warnings.warn(
+                    f"Custom key {ckd.key_name!r}: value {item!r} does not match RegExp {ckd.regexp!r}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            else:
+                groups = m.groups()
+                for idx, raw_group in enumerate(groups):
+                    if raw_group is None:
+                        continue
+                    fname = ckd.field_names[idx] if idx < len(ckd.field_names) else f"field{idx + 1}"
+                    ftype = ckd.field_types[idx] if idx < len(ckd.field_types) else None
+                    fields[fname] = _coerce_field(raw_group, ftype, key_name=ckd.key_name, field_name=fname)
+        else:
+            parts = split_fields(item)
+            for idx, raw_part in enumerate(parts):
+                if idx >= len(ckd.field_names) and not ckd.field_names:
+                    fname = f"field{idx + 1}"
+                elif idx < len(ckd.field_names):
+                    fname = ckd.field_names[idx]
+                else:
+                    fname = f"field{idx + 1}"
+                ftype = ckd.field_types[idx] if idx < len(ckd.field_types) else None
+                fields[fname] = _coerce_field(raw_part, ftype, key_name=ckd.key_name, field_name=fname)
+
+        results.append(CustomKeyValue(key_name=ckd.key_name, fields=fields, raw=item))
+
     return tuple(results)
 
 
@@ -324,7 +475,7 @@ def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
             continue
         key = content[:eq_idx]
         value = content[eq_idx + 1 :]
-        if key in ("DbSource", "OptionalTagDef", "GeneralComment", "SpecificKey", "SpecificValue"):
+        if key in ("DbSource", "OptionalTagDef", "CustomKeyDef", "GeneralComment", "SpecificKey", "SpecificValue"):
             multi.setdefault(key, []).append(value)
         else:
             single[key] = value
@@ -335,7 +486,12 @@ def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
         if mk not in all_keys:
             warnings.warn(f"Database header missing mandatory key: {mk}", stacklevel=3)
 
-    custom_key_defs = _parse_custom_key_def(single.pop("CustomKeyDef", "")) if "CustomKeyDef" in single else ()
+    custom_key_defs: tuple[CustomKeyDef, ...] = ()
+    if "CustomKeyDef" in multi:
+        accumulated: list[CustomKeyDef] = []
+        for raw in multi.pop("CustomKeyDef"):
+            accumulated.extend(_parse_custom_key_def(raw))
+        custom_key_defs = tuple(accumulated)
 
     optional_tag_defs: tuple[OptionalTagDef, ...] = ()
     if "OptionalTagDef" in multi:
@@ -403,7 +559,13 @@ def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
 _DESC_PREFIX_RE = re.compile(r"^>(\S+?):(\S+)\s*(.*)")
 
 
-def _parse_entry(description: str, seq_lines: list[str], *, line_no: int | None = None) -> SequenceEntry:
+def _parse_entry(
+    description: str,
+    seq_lines: list[str],
+    *,
+    line_no: int | None = None,
+    custom_key_defs: Mapping[str, CustomKeyDef] | None = None,
+) -> SequenceEntry:
     """Parse a description line and sequence lines into a SequenceEntry."""
     m = _DESC_PREFIX_RE.match(description)
     if not m:
@@ -437,6 +599,7 @@ def _parse_entry(description: str, seq_lines: list[str], *, line_no: int | None 
     processed: tuple[Processed, ...] = ()
     disulfide_bond: tuple[DisulfideBond, ...] = ()
     proteoform: tuple[Proteoform, ...] = ()
+    custom_values: dict[str, tuple[CustomKeyValue, ...]] = {}
     extra: dict[str, str] = {}
 
     for key, value in raw_keys.items():
@@ -524,7 +687,10 @@ def _parse_entry(description: str, seq_lines: list[str], *, line_no: int | None 
             case "Proteoform":
                 proteoform = _parse_proteoform(value)
             case _:
-                extra[key] = value
+                if custom_key_defs is not None and key in custom_key_defs:
+                    custom_values[key] = _parse_custom_value(value, custom_key_defs[key])
+                else:
+                    extra[key] = value
 
     if length is not None and len(sequence) != length:
         warnings.warn(
@@ -557,6 +723,7 @@ def _parse_entry(description: str, seq_lines: list[str], *, line_no: int | None 
         processed=processed,
         disulfide_bond=disulfide_bond,
         proteoform=proteoform,
+        custom_values=custom_values,
         extra=extra,
     )
 
@@ -580,10 +747,14 @@ class PeffReader:
 
         self._header: FileHeader | None = None
         self._remaining: Iterator[str] | None = None
+        self._defs_by_prefix: dict[str, dict[str, CustomKeyDef]] = {}
 
     def _ensure_header(self) -> None:
         if self._header is None:
             self._header, self._remaining = _parse_file_header(self._lines)
+            for db in self._header.databases:
+                if db.prefix and db.custom_key_defs:
+                    self._defs_by_prefix[db.prefix] = {ckd.key_name: ckd for ckd in db.custom_key_defs}
 
     @property
     def header(self) -> FileHeader:
@@ -609,7 +780,12 @@ class PeffReader:
             if line.startswith(">"):
                 # Emit previous entry if any
                 if current_desc is not None:
-                    yield _parse_entry(current_desc, seq_lines, line_no=current_desc_line)
+                    yield _parse_entry(
+                        current_desc,
+                        seq_lines,
+                        line_no=current_desc_line,
+                        custom_key_defs=self._defs_for(current_desc),
+                    )
                 current_desc = line
                 current_desc_line = line_no
                 seq_lines = []
@@ -618,7 +794,21 @@ class PeffReader:
 
         # Emit last entry
         if current_desc is not None:
-            yield _parse_entry(current_desc, seq_lines, line_no=current_desc_line)
+            yield _parse_entry(
+                current_desc,
+                seq_lines,
+                line_no=current_desc_line,
+                custom_key_defs=self._defs_for(current_desc),
+            )
+
+    def _defs_for(self, description: str) -> dict[str, CustomKeyDef] | None:
+        """Look up the custom-key def map for the database matching the entry prefix."""
+        if not self._defs_by_prefix:
+            return None
+        m = _DESC_PREFIX_RE.match(description)
+        if m is None:
+            return None
+        return self._defs_by_prefix.get(m.group(1))
 
     def __enter__(self) -> Self:
         return self

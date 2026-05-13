@@ -43,20 +43,38 @@ def split_items(raw: str) -> list[str]:
 
 
 def split_fields(item: str) -> list[str]:
-    """Split on ``|`` at paren depth 0 only, preserving empty strings."""
+    """Split on ``|`` at paren depth 0, ignoring ``|`` inside ``"..."`` quoted spans.
+
+    Empty strings between separators are preserved. A ``\\`` inside a quoted
+    span escapes the next character (most commonly ``\\"`` to embed a quote);
+    outside quoted spans backslashes are taken literally.
+    """
     fields: list[str] = []
     depth = 0
     start = 0
+    in_quote = False
+    i = 0
+    length = len(item)
 
-    for i, ch in enumerate(item):
-        match ch:
-            case "(":
+    while i < length:
+        ch = item[i]
+        if in_quote:
+            if ch == "\\" and i + 1 < length:
+                i += 2
+                continue
+            if ch == '"':
+                in_quote = False
+        else:
+            if ch == '"':
+                in_quote = True
+            elif ch == "(":
                 depth += 1
-            case ")":
+            elif ch == ")":
                 depth -= 1
-            case "|" if depth == 0:
+            elif ch == "|" and depth == 0:
                 fields.append(item[start:i])
                 start = i + 1
+        i += 1
 
     fields.append(item[start:])
     return fields
