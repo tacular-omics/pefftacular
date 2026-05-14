@@ -1,5 +1,14 @@
 # History
 
+## 0.3.0 (2026-05-14)
+
+* Header-declared custom keys (`# CustomKeyDef=`) now drive typed parsing of entry values: registered keys are parsed via their `RegExp` (with pipe-split as fallback) and coerced per `FieldTypes` (`integer`, `decimal`, `boolean`, `date`, `time`, `string`, `enumeration`).
+* Parsed custom-key values are exposed on `SequenceEntry.custom_values`, with the raw string preserved alongside for lossless round-trip writing.
+* Undeclared custom keys continue to land in `SequenceEntry.extra` unchanged.
+* `CustomKeyDef` now captures the `ConceptCURIE` field.
+* Multiple `# CustomKeyDef=` lines per database are preserved instead of silently overwriting each other.
+* Field tokenization is now quote-aware so a `RegExp` value containing escaped pipes survives splitting.
+
 ## 0.2.0 (2026-03-18)
 
 * Added `DisulfideBond`, `Proteoform`, `SequenceRange`, and `OptionalTagDef` models.

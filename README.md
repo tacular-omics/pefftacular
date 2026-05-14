@@ -1,7 +1,7 @@
 # pefftacular
 
 [![PyPI](https://img.shields.io/pypi/v/pefftacular)](https://pypi.org/project/pefftacular/)
-[![Python Package](https://github.com/tacular-omics/pefftacular/actions/workflows/python-package.yml/badge.svg)](https://github.com/tacular-omics/pefftacular/actions/workflows/ci.yml)
+[![Python Package](https://github.com/tacular-omics/pefftacular/actions/workflows/python-package.yml/badge.svg)](https://github.com/tacular-omics/pefftacular/actions/workflows/python-package.yml)
 [![License](https://img.shields.io/github/license/tacular-omics/pefftacular)](LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/pefftacular)](https://pypi.org/project/pefftacular/)
 
@@ -59,12 +59,12 @@ with PeffReader("proteins.peff") as reader:
 | `sv` | `int \| None` | Sequence version (`\\SV=`) |
 | `ev` | `int \| None` | Entry version (`\\EV=`) |
 | `pe` | `int \| None` | Protein existence level (`\\PE=`) |
-| `variant_simple` | `list[VariantSimple]` | Simple sequence variants |
+| `variant_simple` | `tuple[VariantSimple, ...]` | Simple sequence variants |
 | `variant_complex` | `tuple[VariantComplex, ...]` | Multi-residue variants (start, end, new sequence, optional tag) |
-| `mod_res_unimod` | `list[ModResUnimod]` | UniMod modification sites |
-| `mod_res_psi` | `list[ModResPsi]` | PSI-MOD modification sites |
-| `mod_res` | `list[ModRes]` | Other named modification sites |
-| `processed` | `list[Processed]` | Processed sequence forms |
+| `mod_res_unimod` | `tuple[ModResUnimod, ...]` | UniMod modification sites |
+| `mod_res_psi` | `tuple[ModResPsi, ...]` | PSI-MOD modification sites |
+| `mod_res` | `tuple[ModRes, ...]` | Other named modification sites |
+| `processed` | `tuple[Processed, ...]` | Processed sequence forms |
 | `custom_values` | `dict[str, tuple[CustomKeyValue, ...]]` | Header-declared custom keys, parsed by their `CustomKeyDef` |
 | `extra` | `dict[str, str]` | Non-standard keys with no `CustomKeyDef` |
 
@@ -152,8 +152,7 @@ value = entry.extra.get("MyCustomKey")
 Build a header and entries, then write:
 
 ```python
-from pefftacular import write_peff
-from pefftacular.models import FileHeader, DatabaseHeader, SequenceEntry
+from pefftacular import DatabaseHeader, FileHeader, SequenceEntry, write_peff
 
 db_header = DatabaseHeader(
     prefix="sp",
@@ -163,8 +162,8 @@ db_header = DatabaseHeader(
 )
 
 file_header = FileHeader(
-    version="1.0",
-    databases=[db_header],
+    peff_version="1.0",
+    databases=(db_header,),
 )
 
 entry = SequenceEntry(
@@ -178,15 +177,14 @@ entry = SequenceEntry(
 write_peff(file_header, [entry], "output.peff")
 ```
 
-`dest` can be a file path string or a `pathlib.Path`. Pass an open binary file object to write to an existing stream.
+`dest` can be a file path string, a `pathlib.Path`, or a text-mode file object.
 
 ## Error handling
 
 Parse errors raise `PeffParseError`:
 
 ```python
-from pefftacular import read_peff
-from pefftacular.exceptions import PeffParseError
+from pefftacular import PeffParseError, read_peff
 
 try:
     header, entries = read_peff("malformed.peff")
@@ -198,7 +196,7 @@ except PeffParseError as e:
 Write errors raise `PeffWriteError`:
 
 ```python
-from pefftacular.exceptions import PeffWriteError
+from pefftacular import PeffWriteError
 
 try:
     write_peff(file_header, entries, "/read-only/output.peff")

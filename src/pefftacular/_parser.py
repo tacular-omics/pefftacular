@@ -66,6 +66,18 @@ def _extract_annot_id(s: str) -> tuple[int | None, str]:
     return None, s
 
 
+def _parse_int_field(key: str, value: str, line_no: int | None) -> int:
+    """Parse an integer field value, raising PeffParseError with context on failure."""
+    try:
+        return int(value)
+    except ValueError as err:
+        raise PeffParseError(
+            f"Invalid integer for {key}: {value!r}",
+            line=line_no,
+            context=value,
+        ) from err
+
+
 # ---------------------------------------------------------------------------
 # Annotation parsers
 # ---------------------------------------------------------------------------
@@ -169,8 +181,6 @@ def _parse_disulfide_bond(raw: str) -> tuple[DisulfideBond, ...]:
     results: list[DisulfideBond] = []
     for item in items:
         fields = split_fields(item)
-        if len(fields) < 1:
-            raise PeffParseError("DisulfideBond needs >= 1 field", context=item)
         annot_id, positions_str = _extract_annot_id(fields[0])
         positions = parse_positions(positions_str)
         description = fields[1] if len(fields) > 1 and fields[1] else None
@@ -374,12 +384,7 @@ def _parse_custom_value(raw: str, ckd: CustomKeyDef) -> tuple[CustomKeyValue, ..
         else:
             parts = split_fields(item)
             for idx, raw_part in enumerate(parts):
-                if idx >= len(ckd.field_names) and not ckd.field_names:
-                    fname = f"field{idx + 1}"
-                elif idx < len(ckd.field_names):
-                    fname = ckd.field_names[idx]
-                else:
-                    fname = f"field{idx + 1}"
+                fname = ckd.field_names[idx] if idx < len(ckd.field_names) else f"field{idx + 1}"
                 ftype = ckd.field_types[idx] if idx < len(ckd.field_types) else None
                 fields[fname] = _coerce_field(raw_part, ftype, key_name=ckd.key_name, field_name=fname)
 
@@ -395,8 +400,13 @@ def _parse_custom_value(raw: str, ckd: CustomKeyDef) -> tuple[CustomKeyValue, ..
 _MANDATORY_DB_KEYS = {"Prefix", "DbVersion", "DbSource", "NumberOfEntries", "SequenceType"}
 
 
-def _parse_file_header(lines: Iterable[str]) -> tuple[FileHeader, Iterator[str]]:
-    """Parse the header section and return (FileHeader, remaining_lines_iterator)."""
+def _parse_file_header(lines: Iterable[str]) -> tuple[FileHeader, Iterator[str], int]:
+    """Parse the header section and return (FileHeader, remaining_lines_iterator, first_remaining_line_no).
+
+    ``first_remaining_line_no`` is the absolute line number that the first
+    yielded line from the remaining iterator will be at (1-based). If the file
+    ended inside the header it has no meaning since the iterator is empty.
+    """
     line_iter = iter(lines)
     line_no = 0
 
@@ -461,7 +471,7 @@ def _parse_file_header(lines: Iterable[str]) -> tuple[FileHeader, Iterator[str]]
         general_comments=tuple(general_comments),
         databases=tuple(databases),
     )
-    return header, remaining
+    return header, remaining, line_no
 
 
 def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
@@ -518,12 +528,7 @@ def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
     conversion = single.pop("Conversion", None)
 
     num_str = single.pop("NumberOfEntries", None)
-    number_of_entries: int | None = None
-    if num_str is not None:
-        try:
-            number_of_entries = int(num_str)
-        except ValueError as err:
-            raise PeffParseError(f"Invalid integer for NumberOfEntries: {num_str!r}", context=num_str) from err
+    number_of_entries = _parse_int_field("NumberOfEntries", num_str, None) if num_str is not None else None
 
     sequence_type = single.pop("SequenceType", None)
 
@@ -613,52 +618,17 @@ def _parse_entry(
             case "GName":
                 gname = value
             case "NcbiTaxId" | "OX":
-                try:
-                    ncbi_tax_id = int(value)
-                except ValueError as err:
-                    raise PeffParseError(
-                        f"Invalid integer for {key}: {value!r}",
-                        line=line_no,
-                        context=value,
-                    ) from err
+                ncbi_tax_id = _parse_int_field(key, value, line_no)
             case "TaxName":
                 tax_name = value
             case "Length":
-                try:
-                    length = int(value)
-                except ValueError as err:
-                    raise PeffParseError(
-                        f"Invalid integer for Length: {value!r}",
-                        line=line_no,
-                        context=value,
-                    ) from err
+                length = _parse_int_field("Length", value, line_no)
             case "SV":
-                try:
-                    sv = int(value)
-                except ValueError as err:
-                    raise PeffParseError(
-                        f"Invalid integer for SV: {value!r}",
-                        line=line_no,
-                        context=value,
-                    ) from err
+                sv = _parse_int_field("SV", value, line_no)
             case "EV":
-                try:
-                    ev = int(value)
-                except ValueError as err:
-                    raise PeffParseError(
-                        f"Invalid integer for EV: {value!r}",
-                        line=line_no,
-                        context=value,
-                    ) from err
+                ev = _parse_int_field("EV", value, line_no)
             case "PE":
-                try:
-                    pe = int(value)
-                except ValueError as err:
-                    raise PeffParseError(
-                        f"Invalid integer for PE: {value!r}",
-                        line=line_no,
-                        context=value,
-                    ) from err
+                pe = _parse_int_field("PE", value, line_no)
             case "Decoy":
                 decoy = value.lower() in ("true", "1", "yes")
             case "Comment":
@@ -739,7 +709,7 @@ class PeffReader:
     def __init__(self, source: str | Path | IO[str]) -> None:
         if isinstance(source, (str, Path)):
             path = Path(source)
-            self._owned_file: IO[str] | None = path.open()
+            self._owned_file: IO[str] | None = path.open(encoding="utf-8")
             self._lines: Iterator[str] = iter(self._owned_file)
         else:
             self._owned_file = None
@@ -747,11 +717,12 @@ class PeffReader:
 
         self._header: FileHeader | None = None
         self._remaining: Iterator[str] | None = None
+        self._first_entry_line_no: int = 1
         self._defs_by_prefix: dict[str, dict[str, CustomKeyDef]] = {}
 
     def _ensure_header(self) -> None:
         if self._header is None:
-            self._header, self._remaining = _parse_file_header(self._lines)
+            self._header, self._remaining, self._first_entry_line_no = _parse_file_header(self._lines)
             for db in self._header.databases:
                 if db.prefix and db.custom_key_defs:
                     self._defs_by_prefix[db.prefix] = {ckd.key_name: ckd for ckd in db.custom_key_defs}
@@ -767,39 +738,54 @@ class PeffReader:
         """Yield sequence entries after the header."""
         self._ensure_header()
         assert self._remaining is not None
+        assert self._header is not None
 
         current_desc: str | None = None
         current_desc_line: int | None = None
         seq_lines: list[str] = []
-        line_no = 0
+        line_no = self._first_entry_line_no - 1
+        counts_by_prefix: dict[str, int] = {}
 
         for raw_line in self._remaining:
             line_no += 1
             line = raw_line.rstrip("\n\r")
 
             if line.startswith(">"):
-                # Emit previous entry if any
                 if current_desc is not None:
-                    yield _parse_entry(
+                    entry = _parse_entry(
                         current_desc,
                         seq_lines,
                         line_no=current_desc_line,
                         custom_key_defs=self._defs_for(current_desc),
                     )
+                    counts_by_prefix[entry.prefix] = counts_by_prefix.get(entry.prefix, 0) + 1
+                    yield entry
                 current_desc = line
                 current_desc_line = line_no
                 seq_lines = []
             elif line.strip():
                 seq_lines.append(line)
 
-        # Emit last entry
         if current_desc is not None:
-            yield _parse_entry(
+            entry = _parse_entry(
                 current_desc,
                 seq_lines,
                 line_no=current_desc_line,
                 custom_key_defs=self._defs_for(current_desc),
             )
+            counts_by_prefix[entry.prefix] = counts_by_prefix.get(entry.prefix, 0) + 1
+            yield entry
+
+        for db in self._header.databases:
+            if db.prefix and db.number_of_entries is not None:
+                actual = counts_by_prefix.get(db.prefix, 0)
+                if actual != db.number_of_entries:
+                    warnings.warn(
+                        f"Database {db.prefix!r}: NumberOfEntries={db.number_of_entries} "
+                        f"but file contains {actual} entries",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
     def _defs_for(self, description: str) -> dict[str, CustomKeyDef] | None:
         """Look up the custom-key def map for the database matching the entry prefix."""

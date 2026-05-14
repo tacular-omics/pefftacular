@@ -25,25 +25,6 @@ from pefftacular.errors import PeffWriteError
 
 _SEQ_LINE_WIDTH = 60
 
-# Canonical key order for entry description lines.
-_ENTRY_KEY_ORDER = (
-    "Length",
-    "PName",
-    "GName",
-    "NcbiTaxId",
-    "TaxName",
-    "SV",
-    "EV",
-    "PE",
-    "Decoy",
-    "VariantSimple",
-    "VariantComplex",
-    "ModResUnimod",
-    "ModResPsi",
-    "ModRes",
-    "Processed",
-)
-
 
 # ---------------------------------------------------------------------------
 # Serialization helpers
@@ -317,7 +298,7 @@ def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str |
             defs_by_prefix[db.prefix] = {ckd.key_name: ckd for ckd in db.custom_key_defs}
 
     if isinstance(dest, (str, Path)):
-        with Path(dest).open("w") as f:
+        with Path(dest).open("w", encoding="utf-8") as f:
             _write_header(header, f)
             for entry in entry_list:
                 _write_entry(entry, f, defs_by_prefix)
