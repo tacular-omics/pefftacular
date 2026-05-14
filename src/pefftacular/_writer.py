@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import date, time
 from pathlib import Path
 from typing import IO
 
 from pefftacular._models import (
     CustomKeyDef,
+    CustomKeyValue,
     DisulfideBond,
     FileHeader,
     ModRes,
@@ -129,16 +131,46 @@ def _serialize_proteoform(items: tuple[Proteoform, ...]) -> str:
     return "".join(parts)
 
 
+def _quote_keydef_value(value: str) -> str:
+    """Escape ``"`` and ``\\`` inside a quoted CustomKeyDef value."""
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _serialize_custom_key_def(ckd: CustomKeyDef) -> str:
     """Serialize a single CustomKeyDef to its parenthesized form."""
-    parts = [f"KeyName={ckd.key_name}", f'Description="{ckd.description}"']
+    parts = [f"KeyName={ckd.key_name}", f'Description="{_quote_keydef_value(ckd.description)}"']
+    if ckd.concept_curie is not None:
+        parts.append(f"ConceptCURIE={ckd.concept_curie}")
     if ckd.regexp is not None:
-        parts.append(f'RegExp="{ckd.regexp}"')
+        parts.append(f'RegExp="{_quote_keydef_value(ckd.regexp)}"')
     if ckd.field_names:
         parts.append(f"FieldNames={','.join(ckd.field_names)}")
     if ckd.field_types:
         parts.append(f"FieldTypes={','.join(ckd.field_types)}")
     return f"({'|'.join(parts)})"
+
+
+def _fmt_custom_field(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (date, time)):
+        return value.isoformat()
+    return str(value)
+
+
+def _serialize_custom_values(items: tuple[CustomKeyValue, ...], ckd: CustomKeyDef | None) -> str:
+    """Serialize the per-key tuple of CustomKeyValue back into its description form."""
+    parts: list[str] = []
+    for v in items:
+        if v.raw:
+            parts.append(f"({v.raw})")
+            continue
+        if ckd is not None and ckd.field_names:
+            ordered = [_fmt_custom_field(v.fields[name]) for name in ckd.field_names if name in v.fields]
+        else:
+            ordered = [_fmt_custom_field(val) for val in v.fields.values()]
+        parts.append(f"({'|'.join(ordered)})")
+    return "".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -193,7 +225,11 @@ def _write_header(header: FileHeader, out: IO[str]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _write_entry(entry: SequenceEntry, out: IO[str]) -> None:
+def _write_entry(
+    entry: SequenceEntry,
+    out: IO[str],
+    defs_by_prefix: dict[str, dict[str, CustomKeyDef]] | None = None,
+) -> None:
     # Build key-value pairs in canonical order
     kv_parts: list[str] = []
 
@@ -237,6 +273,10 @@ def _write_entry(entry: SequenceEntry, out: IO[str]) -> None:
         kv_parts.append(f"\\DisulfideBond={_serialize_disulfide_bond(entry.disulfide_bond)}")
     if entry.proteoform:
         kv_parts.append(f"\\Proteoform={_serialize_proteoform(entry.proteoform)}")
+    if entry.custom_values:
+        defs = (defs_by_prefix or {}).get(entry.prefix, {})
+        for key, items in entry.custom_values.items():
+            kv_parts.append(f"\\{key}={_serialize_custom_values(items, defs.get(key))}")
     for k, v in entry.extra.items():
         kv_parts.append(f"\\{k}={v}")
 
@@ -271,12 +311,17 @@ def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str |
         if not entry.sequence:
             raise PeffWriteError(f"SequenceEntry {entry.prefix}:{entry.db_unique_id!r} has an empty sequence")
 
+    defs_by_prefix: dict[str, dict[str, CustomKeyDef]] = {}
+    for db in header.databases:
+        if db.prefix and db.custom_key_defs:
+            defs_by_prefix[db.prefix] = {ckd.key_name: ckd for ckd in db.custom_key_defs}
+
     if isinstance(dest, (str, Path)):
         with Path(dest).open("w") as f:
             _write_header(header, f)
             for entry in entry_list:
-                _write_entry(entry, f)
+                _write_entry(entry, f, defs_by_prefix)
     else:
         _write_header(header, dest)
         for entry in entry_list:
-            _write_entry(entry, dest)
+            _write_entry(entry, dest, defs_by_prefix)

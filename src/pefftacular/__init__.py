@@ -2,6 +2,7 @@
 
 from pefftacular._models import (
     CustomKeyDef,
+    CustomKeyValue,
     DatabaseHeader,
     DisulfideBond,
     FileHeader,
@@ -22,6 +23,7 @@ from pefftacular.errors import PeffParseError, PeffWriteError
 
 __all__ = [
     "CustomKeyDef",
+    "CustomKeyValue",
     "DatabaseHeader",
     "DisulfideBond",
     "FileHeader",
