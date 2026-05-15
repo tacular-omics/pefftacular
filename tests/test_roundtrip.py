@@ -78,6 +78,34 @@ class TestRoundtripMultidb:
         assert e1[1].prefix == e2[1].prefix == "d2"
 
 
+class TestRoundtripInsulin:
+    """Round-trip the insulin fixture — exercises DisulfideBond and Proteoform writers."""
+
+    def test_disulfide_bonds_preserved(self):
+        _, e1, _, e2 = _roundtrip(FIXTURES / "PEFF_AnnotID_Insulin_Valid.peff")
+        a, b = e1[0], e2[0]
+        assert a.disulfide_bond == b.disulfide_bond
+        assert len(a.disulfide_bond) == 3
+        assert a.disulfide_bond[0].positions == (1, 2)
+        assert a.disulfide_bond[0].description == "between chains"
+        assert a.disulfide_bond[0].annot_id == 81
+
+    def test_proteoforms_preserved(self):
+        _, e1, _, e2 = _roundtrip(FIXTURES / "PEFF_AnnotID_Insulin_Valid.peff")
+        a, b = e1[0], e2[0]
+        assert a.proteoform == b.proteoform
+        assert len(a.proteoform) == 11
+        assert a.proteoform[0].proteoform_id == "NX_P01308-1-pf1"
+        assert a.proteoform[0].name == "preproinsulin"
+        assert a.proteoform[10].annot_id_refs == (81, 82, 83)
+
+    def test_processed_with_annot_id_preserved(self):
+        _, e1, _, e2 = _roundtrip(FIXTURES / "PEFF_AnnotID_Insulin_Valid.peff")
+        a, b = e1[0], e2[0]
+        assert a.processed == b.processed
+        assert a.processed[0].annot_id == 77
+
+
 class TestReadPeffConvenience:
     def test_read_peff_returns_tuple(self):
         header, entries = read_peff(FIXTURES / "minimal.peff")

@@ -107,6 +107,32 @@ class TestLengthMismatchWarning:
             list(PeffReader(StringIO(data)))
 
 
+class TestNumberOfEntriesMismatch:
+    def test_mismatch_emits_warning(self) -> None:
+        _header_n5 = (
+            "# PEFF 1.0\n# //\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n"
+            "# NumberOfEntries=5\n# SequenceType=AA\n# //\n"
+        )
+        data = _header_n5 + ">t:X1 \\Length=2\nAC\n>t:X2 \\Length=2\nAC\n"
+        with pytest.warns(UserWarning, match="NumberOfEntries=5"):
+            list(PeffReader(StringIO(data)))
+
+    def test_match_emits_no_warning(self) -> None:
+        data = _HEADER + ">t:X1 \\Length=2\nAC\n"
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            list(PeffReader(StringIO(data)))
+
+
+class TestEntryLineNumberIsAbsolute:
+    def test_entry_error_reports_absolute_line(self) -> None:
+        # Header is 8 lines; bad SV is on the 9th absolute line.
+        data = _HEADER + ">t:X1 \\SV=bad\nAC\n"
+        with pytest.raises(PeffParseError) as exc:
+            list(PeffReader(StringIO(data)))
+        assert exc.value.line == 9
+
+
 class TestPeffParseErrorAttributes:
     def test_line_number_in_message(self):
         err = PeffParseError("bad thing", line=42)

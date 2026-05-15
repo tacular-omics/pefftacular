@@ -8,10 +8,14 @@ import pytest
 from pefftacular._models import (
     CustomKeyDef,
     DatabaseHeader,
+    DisulfideBond,
     FileHeader,
     ModResUnimod,
+    OptionalTagDef,
     Processed,
+    Proteoform,
     SequenceEntry,
+    SequenceRange,
     VariantComplex,
     VariantSimple,
 )
@@ -203,6 +207,92 @@ class TestEntryWriting:
         assert desc_line.index("\\PName") < desc_line.index("\\GName")
         # GName before NcbiTaxId
         assert desc_line.index("\\GName") < desc_line.index("\\NcbiTaxId")
+
+
+class TestHeaderOptionalFields:
+    def test_all_optional_database_fields_serialized(self) -> None:
+        header = FileHeader(
+            peff_version="1.0",
+            databases=(
+                DatabaseHeader(
+                    prefix="sp",
+                    db_name="testdb",
+                    db_description="A description",
+                    db_version="2024-01",
+                    db_date="20240101",
+                    db_sources=("x",),
+                    number_of_entries=0,
+                    sequence_type="AA",
+                    decoy=False,
+                    conversion="some-conversion",
+                    has_annotation_identifiers=True,
+                    proteoform_db=True,
+                    optional_tag_defs=(OptionalTagDef(tag="t1", description="desc1"),),
+                    extra={"CustomDbKey": "custom_value"},
+                ),
+            ),
+        )
+        buf = StringIO()
+        write_peff(header, [], buf)
+        text = buf.getvalue()
+        assert "# DbDescription=A description\n" in text
+        assert "# DbDate=20240101\n" in text
+        assert "# Decoy=false\n" in text
+        assert "# Conversion=some-conversion\n" in text
+        assert "# HasAnnotationIdentifiers=true\n" in text
+        assert "# ProteoformDb=true\n" in text
+        assert "# OptionalTagDef=t1:desc1\n" in text
+        assert "# CustomDbKey=custom_value\n" in text
+
+
+class TestEntryOptionalFields:
+    def test_comment_serialized(self) -> None:
+        entry = SequenceEntry(
+            prefix="sp", db_unique_id="P1", sequence="AC", comment="An entry comment"
+        )
+        buf = StringIO()
+        write_peff(_make_minimal_header(), [entry], buf)
+        assert "\\Comment=An entry comment" in buf.getvalue()
+
+    def test_disulfide_bond_serialized(self) -> None:
+        entry = SequenceEntry(
+            prefix="sp",
+            db_unique_id="P1",
+            sequence="ACDEF",
+            disulfide_bond=(
+                DisulfideBond(positions=(1, 2), description="between chains", annot_id=81),
+                DisulfideBond(positions=(3, 4)),
+            ),
+        )
+        buf = StringIO()
+        write_peff(_make_minimal_header(), [entry], buf)
+        text = buf.getvalue()
+        assert "\\DisulfideBond=(81:1,2|between chains)(3,4)" in text
+
+    def test_proteoform_serialized(self) -> None:
+        entry = SequenceEntry(
+            prefix="sp",
+            db_unique_id="P1",
+            sequence="ACDEF",
+            proteoform=(
+                Proteoform(
+                    proteoform_id="pf1",
+                    ranges=(SequenceRange(start=1, end=10),),
+                    annot_id_refs=(1, 2),
+                    name="some form",
+                    annot_id=100,
+                ),
+                Proteoform(
+                    proteoform_id="pf2",
+                    ranges=(SequenceRange(start=5, end=20),),
+                    annot_id_refs=(),
+                ),
+            ),
+        )
+        buf = StringIO()
+        write_peff(_make_minimal_header(), [entry], buf)
+        text = buf.getvalue()
+        assert "\\Proteoform=(100:pf1|1-10|1,2|some form)(pf2|5-20|)" in text
 
 
 class TestWritePeffValidation:
