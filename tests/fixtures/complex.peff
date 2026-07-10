@@ -8,5 +8,5 @@
 # NumberOfEntries=1
 # SequenceType=AA
 # //
->cx:ENTRY1 \PName=Test protein kinase \GName=TPK1 \NcbiTaxId=9606 \TaxName=Homo sapiens \Length=20 \SV=3 \EV=1 \PE=1 \VariantSimple=(5|A)(10|G|rs12345) \VariantComplex=(3|7|AAALLL|complex_var) \ModResUnimod=(42,57|UNIMOD:21|Phospho) \ModResPsi=(681|MOD:00048|O4'-phospho-L-tyrosine)(686|MOD:00048|O4'-phospho-L-tyrosine) \ModRes=(380||N-linked (GlcNAc...)) \Processed=(1|20|PEFF:0001|mature protein)
+>cx:ENTRY1 \PName=Test protein kinase \GName=TPK1 \NcbiTaxId=9606 \TaxName=Homo sapiens \Length=20 \SV=3 \EV=1 \PE=1 \VariantSimple=(5|A)(10|G|rs12345) \VariantComplex=(3|7|AAALLL|complex_var) \ModResUnimod=(4,7|UNIMOD:21|Phospho) \ModResPsi=(6|MOD:00048|O4'-phospho-L-tyrosine)(8|MOD:00048|O4'-phospho-L-tyrosine) \ModRes=(3||N-linked (GlcNAc...)) \Processed=(1|20|PEFF:0001|mature protein)
 ACDEFGHIKLMNPQRSTVWY

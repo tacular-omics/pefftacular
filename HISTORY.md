@@ -1,5 +1,31 @@
 # History
 
+## 0.4.0 (2026-07-10)
+
+### Breaking
+
+* `DisulfideBond.positions` renamed to `DisulfideBond.annot_id_refs` to reflect that a `\DisulfideBond` references prior `ModResPsi` entries by annotation ID, not by residue position (spec section 3.4.2).
+
+### Spec compliance
+
+* Entry-item components now honor the spec's backslash escaping (section 3.3.3): `\|`, `\(`, `\)`, and `\\` parse as literals, and `write_peff()` emits those escapes so values containing pipes or unpaired parens round-trip. Balanced parens (e.g. `N-linked (GlcNAc...)`) are left unescaped.
+* Database-level `# GeneralComment=` lines are now preserved on `DatabaseHeader.general_comments` and re-emitted, instead of being silently dropped.
+* `DbName` is now included in the missing-mandatory-key warning for database headers.
+* `ProteoformDb` and `HasAnnotationIdentifiers` header flags are now recognized case-insensitively (tolerating the spec's own `ProteoformDB` / singular-form variants).
+
+### Errors, warnings, and logging
+
+* Added a `PeffError` base class (subclass of `ValueError`); `PeffParseError` and `PeffWriteError` now derive from it, so any library failure can be caught with a single `except PeffError`.
+* Parse/write errors now carry an actionable `hint`, and `PeffParseError` attaches its `context` and `hint` as exception notes (PEP 678) so they appear in tracebacks.
+* Non-fatal spec violations are now emitted through a dedicated `PeffWarning` category (subclass of `UserWarning`), so they can be filtered or escalated on their own: annotation `MUST`-rule checks (positions outside `1..len(sequence)`, empty `VariantSimple` `newAminoAcid`, missing required accession/name on `ModRes*`) plus the existing version/header/count/custom-value warnings.
+* Added `logging` throughout the reader and writer under the `pefftacular.parser` / `pefftacular.writer` loggers (with a package-level `NullHandler`), for a behavioral trace at `DEBUG`/`INFO`.
+
+### Tooling & docs
+
+* Added `AGENTS.md` and `CLAUDE.md` guidance for AI coding agents.
+* Reworked the `justfile`: `just check` is a single read-only pre-commit gate (format-check + lint + types + tests over `src` and `tests`), and `just fix` auto-applies fixes.
+* Documented error handling, spec-violation warnings, and logging in the README.
+
 ## 0.3.0 (2026-05-14)
 
 * Header-declared custom keys (`# CustomKeyDef=`) now drive typed parsing of entry values: registered keys are parsed via their `RegExp` (with pipe-split as fallback) and coerced per `FieldTypes` (`integer`, `decimal`, `boolean`, `date`, `time`, `string`, `enumeration`).

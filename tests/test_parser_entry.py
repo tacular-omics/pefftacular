@@ -76,22 +76,22 @@ class TestComplexEntry:
         e = self._get_entry()
         assert len(e.mod_res_unimod) == 1
         m = e.mod_res_unimod[0]
-        assert m.positions == (42, 57)
+        assert m.positions == (4, 7)
         assert m.accession == "UNIMOD:21"
         assert m.name == "Phospho"
 
     def test_mod_res_psi(self):
         e = self._get_entry()
         assert len(e.mod_res_psi) == 2
-        assert e.mod_res_psi[0].positions == (681,)
+        assert e.mod_res_psi[0].positions == (6,)
         assert e.mod_res_psi[0].accession == "MOD:00048"
-        assert e.mod_res_psi[1].positions == (686,)
+        assert e.mod_res_psi[1].positions == (8,)
 
     def test_mod_res_nested_parens(self):
         e = self._get_entry()
         assert len(e.mod_res) == 1
         m = e.mod_res[0]
-        assert m.positions == (380,)
+        assert m.positions == (3,)
         assert m.accession == ""
         assert "GlcNAc" in m.name
 
@@ -119,7 +119,7 @@ class TestContextManager:
 
     def test_string_io(self):
         data = (
-            "# PEFF 1.0\n# //\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n"
+            "# PEFF 1.0\n# //\n# DbName=t\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n"
             "# NumberOfEntries=1\n# SequenceType=AA\n# //\n>t:X1 \\PName=Test \\Length=3\nABC\n"
         )
         with PeffReader(StringIO(data)) as reader:
@@ -130,7 +130,7 @@ class TestContextManager:
 class TestMultilineSequence:
     def test_sequence_reassembly(self):
         data = (
-            "# PEFF 1.0\n# //\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n"
+            "# PEFF 1.0\n# //\n# DbName=t\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n"
             "# NumberOfEntries=1\n# SequenceType=AA\n# //\n"
             ">t:X1 \\Length=12\nACDEFG\nHIKLMN\n"
         )

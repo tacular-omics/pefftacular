@@ -247,9 +247,7 @@ class TestHeaderOptionalFields:
 
 class TestEntryOptionalFields:
     def test_comment_serialized(self) -> None:
-        entry = SequenceEntry(
-            prefix="sp", db_unique_id="P1", sequence="AC", comment="An entry comment"
-        )
+        entry = SequenceEntry(prefix="sp", db_unique_id="P1", sequence="AC", comment="An entry comment")
         buf = StringIO()
         write_peff(_make_minimal_header(), [entry], buf)
         assert "\\Comment=An entry comment" in buf.getvalue()
@@ -260,8 +258,8 @@ class TestEntryOptionalFields:
             db_unique_id="P1",
             sequence="ACDEF",
             disulfide_bond=(
-                DisulfideBond(positions=(1, 2), description="between chains", annot_id=81),
-                DisulfideBond(positions=(3, 4)),
+                DisulfideBond(annot_id_refs=(1, 2), description="between chains", annot_id=81),
+                DisulfideBond(annot_id_refs=(3, 4)),
             ),
         )
         buf = StringIO()

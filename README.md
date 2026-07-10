@@ -181,19 +181,25 @@ write_peff(file_header, [entry], "output.peff")
 
 ## Error handling
 
-Parse errors raise `PeffParseError`:
+Every exception derives from `PeffError` (a `ValueError` subclass), so you can
+catch any failure with one clause. Parse errors carry structured, actionable
+detail — `.line`, `.context`, and a `.hint` — and attach the offending text and
+the hint as exception *notes*, so they also show up in tracebacks:
 
 ```python
-from pefftacular import PeffParseError, read_peff
+from pefftacular import PeffError, PeffParseError, read_peff
 
 try:
     header, entries = read_peff("malformed.peff")
 except PeffParseError as e:
-    print(e.line)     # the offending line number
-    print(e.context)  # surrounding context string
+    print(e.line)     # 1-based line number where it failed
+    print(e.context)  # the exact offending text
+    print(e.hint)     # a short suggestion for how to fix it
+except PeffError:
+    ...               # any other pefftacular failure
 ```
 
-Write errors raise `PeffWriteError`:
+Write errors raise `PeffWriteError` (also a `PeffError`), with a `.hint`:
 
 ```python
 from pefftacular import PeffWriteError
@@ -201,25 +207,58 @@ from pefftacular import PeffWriteError
 try:
     write_peff(file_header, entries, "/read-only/output.peff")
 except PeffWriteError as e:
-    print(e)
+    print(e, e.hint)
 ```
+
+## Spec-violation warnings
+
+Reading is **permissive**: the data is always returned, but anything that
+violates a PEFF `MUST` rule (out-of-range positions, missing required fields,
+`NumberOfEntries` mismatches, un-coercible custom values, …) is reported through
+the `PeffWarning` category. Promote them to errors when you want strict parsing:
+
+```python
+import warnings
+from pefftacular import PeffWarning, read_peff
+
+warnings.simplefilter("error", PeffWarning)
+header, entries = read_peff("suspect.peff")  # now raises on any spec violation
+```
+
+## Logging
+
+The library follows the standard logging convention (it attaches a
+`NullHandler` and never configures logging itself). Enable a behavioral trace —
+useful when scripting or debugging with an AI coding agent:
+
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("pefftacular").setLevel(logging.DEBUG)
+```
+
+Milestones (entries read/written) log at `INFO`; file open, header parse, and
+entry counts log at `DEBUG`, under the `pefftacular.parser` / `pefftacular.writer`
+loggers.
 
 ## Development
 
+Contributor and AI-agent guidance lives in [AGENTS.md](AGENTS.md). The one
+command to run before committing is `just check` (formatting, lint, types, and
+tests — the same gate CI enforces); `just fix` auto-applies formatting.
+
 ```bash
 just install      # install dependencies
+just check        # format-check + lint + type-check + test (pre-commit gate)
+just fix          # auto-fix lint + formatting
 just test         # run tests
-just test-v       # run tests (verbose)
-just test-file tests/test_reader.py   # run a single test file
+just test-file tests/test_errors.py   # run a single test file
 just cov          # run tests with coverage
-just lint         # ruff lint
-just format       # ruff format
-just check        # lint + type check + test
 just build        # build the package
 just clean        # remove cache files
-just docs         # serve docs locally
-just docs-deploy  # deploy docs to GitHub Pages
 ```
+
+Run `just` with no arguments to list every recipe.
 
 ## License
 
