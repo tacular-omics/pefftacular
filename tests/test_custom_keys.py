@@ -147,7 +147,7 @@ class TestCustomValueCoercion:
         from datetime import date, time
 
         kv = self._read(
-            "(KeyName=Foo|Description=\"d\"|FieldNames=d,t|FieldTypes=date,time)",
+            '(KeyName=Foo|Description="d"|FieldNames=d,t|FieldTypes=date,time)',
             "(2024-05-13|09:30:00)",
         )
         assert kv.fields["d"] == date(2024, 5, 13)
@@ -159,7 +159,7 @@ class TestCustomValueCoercion:
             data = (
                 "# PEFF 1.0\n# //\n# DbName=x\n# Prefix=sp\n# DbVersion=1\n"
                 "# DbSource=x\n# NumberOfEntries=1\n# SequenceType=AA\n"
-                "# CustomKeyDef=(KeyName=Foo|Description=\"e\"|"
+                '# CustomKeyDef=(KeyName=Foo|Description="e"|'
                 "FieldNames=v|FieldTypes=enumeration(a|b|c))\n# //\n"
                 ">sp:P1 \\Foo=(z)\nAC\n"
             )
@@ -173,7 +173,7 @@ class TestCustomValueCoercion:
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             kv = self._read(
-                "(KeyName=Foo|Description=\"x\"|FieldNames=n|FieldTypes=integer)",
+                '(KeyName=Foo|Description="x"|FieldNames=n|FieldTypes=integer)',
                 "(not_a_number)",
             )
         assert kv.fields["n"] == "not_a_number"
@@ -183,7 +183,7 @@ class TestCustomValueCoercion:
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             kv = self._read(
-                "(KeyName=Foo|Description=\"x\"|RegExp=\"([0-9]+)\"|FieldNames=n|FieldTypes=integer)",
+                '(KeyName=Foo|Description="x"|RegExp="([0-9]+)"|FieldNames=n|FieldTypes=integer)',
                 "(abc)",
             )
         assert kv.fields == {}

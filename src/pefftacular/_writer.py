@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from datetime import date, time
 from pathlib import Path
@@ -23,12 +24,40 @@ from pefftacular._models import (
 )
 from pefftacular.errors import PeffWriteError
 
+logger = logging.getLogger("pefftacular.writer")
+
 _SEQ_LINE_WIDTH = 60
 
 
 # ---------------------------------------------------------------------------
 # Serialization helpers
 # ---------------------------------------------------------------------------
+
+
+def _escape_component(s: str) -> str:
+    r"""Backslash-escape a free-text component for the entry description line.
+
+    ``\`` and ``|`` are always escaped so they don't read as an escape lead-in
+    or a component separator. Parentheses are escaped only when the component's
+    parens are *unbalanced* — balanced pairs (e.g. ``N-linked (GlcNAc...)``) are
+    left intact per spec section 3.3.3, which keeps common names readable.
+    """
+    escaped = s.replace("\\", "\\\\").replace("|", "\\|")
+    depth = 0
+    balanced = True
+    for ch in s:
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth < 0:
+                balanced = False
+                break
+    if depth != 0:
+        balanced = False
+    if not balanced:
+        escaped = escaped.replace("(", "\\(").replace(")", "\\)")
+    return escaped
 
 
 def _fmt_position(p: int | str) -> str:
@@ -51,9 +80,9 @@ def _fmt_annot_positions(annot_id: int | None, positions: tuple[int | str, ...])
 def _serialize_variant_simple(items: tuple[VariantSimple, ...]) -> str:
     parts: list[str] = []
     for v in items:
-        fields = [_fmt_annot_position(v.annot_id, v.position), v.new_amino_acid]
+        fields = [_fmt_annot_position(v.annot_id, v.position), _escape_component(v.new_amino_acid)]
         if v.tag:
-            fields.append(v.tag)
+            fields.append(_escape_component(v.tag))
         parts.append(f"({'|'.join(fields)})")
     return "".join(parts)
 
@@ -61,9 +90,13 @@ def _serialize_variant_simple(items: tuple[VariantSimple, ...]) -> str:
 def _serialize_variant_complex(items: tuple[VariantComplex, ...]) -> str:
     parts: list[str] = []
     for v in items:
-        fields = [_fmt_annot_position(v.annot_id, v.start_pos), _fmt_position(v.end_pos), v.new_sequence]
+        fields = [
+            _fmt_annot_position(v.annot_id, v.start_pos),
+            _fmt_position(v.end_pos),
+            _escape_component(v.new_sequence),
+        ]
         if v.tag:
-            fields.append(v.tag)
+            fields.append(_escape_component(v.tag))
         parts.append(f"({'|'.join(fields)})")
     return "".join(parts)
 
@@ -71,9 +104,13 @@ def _serialize_variant_complex(items: tuple[VariantComplex, ...]) -> str:
 def _serialize_mod_res_like(items: tuple[ModResUnimod | ModResPsi | ModRes, ...]) -> str:
     parts: list[str] = []
     for m in items:
-        fields = [_fmt_annot_positions(m.annot_id, m.positions), m.accession, m.name]
+        fields = [
+            _fmt_annot_positions(m.annot_id, m.positions),
+            _escape_component(m.accession),
+            _escape_component(m.name),
+        ]
         if m.tag:
-            fields.append(m.tag)
+            fields.append(_escape_component(m.tag))
         parts.append(f"({'|'.join(fields)})")
     return "".join(parts)
 
@@ -81,9 +118,14 @@ def _serialize_mod_res_like(items: tuple[ModResUnimod | ModResPsi | ModRes, ...]
 def _serialize_processed(items: tuple[Processed, ...]) -> str:
     parts: list[str] = []
     for p in items:
-        fields = [_fmt_annot_position(p.annot_id, p.start_pos), _fmt_position(p.end_pos), p.accession, p.name]
+        fields = [
+            _fmt_annot_position(p.annot_id, p.start_pos),
+            _fmt_position(p.end_pos),
+            _escape_component(p.accession),
+            _escape_component(p.name),
+        ]
         if p.tag:
-            fields.append(p.tag)
+            fields.append(_escape_component(p.tag))
         parts.append(f"({'|'.join(fields)})")
     return "".join(parts)
 
@@ -91,9 +133,9 @@ def _serialize_processed(items: tuple[Processed, ...]) -> str:
 def _serialize_disulfide_bond(items: tuple[DisulfideBond, ...]) -> str:
     parts: list[str] = []
     for d in items:
-        fields = [_fmt_annot_positions(d.annot_id, d.positions)]
+        fields = [_fmt_annot_positions(d.annot_id, d.annot_id_refs)]
         if d.description is not None:
-            fields.append(d.description)
+            fields.append(_escape_component(d.description))
         parts.append(f"({'|'.join(fields)})")
     return "".join(parts)
 
@@ -104,7 +146,7 @@ def _serialize_proteoform(items: tuple[Proteoform, ...]) -> str:
         pf_id = f"{p.annot_id}:{p.proteoform_id}" if p.annot_id is not None else p.proteoform_id
         ranges_str = ",".join(f"{r.start}-{r.end}" for r in p.ranges)
         refs_str = ",".join(str(i) for i in p.annot_id_refs)
-        fields = [pf_id, ranges_str, refs_str, p.name or ""]
+        fields = [pf_id, ranges_str, refs_str, _escape_component(p.name) if p.name else ""]
         # strip trailing empty fields but keep at least 3
         while len(fields) > 3 and not fields[-1]:
             fields.pop()
@@ -173,6 +215,8 @@ def _write_header(header: FileHeader, out: IO[str]) -> None:
             out.write(f"# Prefix={db.prefix}\n")
         if db.db_description is not None:
             out.write(f"# DbDescription={db.db_description}\n")
+        for comment in db.general_comments:
+            out.write(f"# GeneralComment={comment}\n")
         if db.db_version is not None:
             out.write(f"# DbVersion={db.db_version}\n")
         if db.db_date is not None:
@@ -281,16 +325,25 @@ def _write_entry(
 def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str | Path | IO[str]) -> None:
     """Write a complete PEFF file."""
     if header is None:
-        raise PeffWriteError("header must not be None")
+        raise PeffWriteError("header must not be None", hint="Pass a FileHeader instance, e.g. from read_peff()")
 
     entry_list = list(entries)
     for entry in entry_list:
         if not entry.prefix:
-            raise PeffWriteError(f"SequenceEntry has an empty prefix: db_unique_id={entry.db_unique_id!r}")
+            raise PeffWriteError(
+                f"SequenceEntry has an empty prefix: db_unique_id={entry.db_unique_id!r}",
+                hint="Every SequenceEntry needs a non-empty prefix matching a database in the header",
+            )
         if not entry.db_unique_id:
-            raise PeffWriteError(f"SequenceEntry has an empty db_unique_id: prefix={entry.prefix!r}")
+            raise PeffWriteError(
+                f"SequenceEntry has an empty db_unique_id: prefix={entry.prefix!r}",
+                hint="Every SequenceEntry needs a non-empty db_unique_id (the accession after the prefix)",
+            )
         if not entry.sequence:
-            raise PeffWriteError(f"SequenceEntry {entry.prefix}:{entry.db_unique_id!r} has an empty sequence")
+            raise PeffWriteError(
+                f"SequenceEntry {entry.prefix}:{entry.db_unique_id!r} has an empty sequence",
+                hint="A PEFF entry must carry at least one residue in its sequence",
+            )
 
     defs_by_prefix: dict[str, dict[str, CustomKeyDef]] = {}
     for db in header.databases:
@@ -298,11 +351,15 @@ def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str |
             defs_by_prefix[db.prefix] = {ckd.key_name: ckd for ckd in db.custom_key_defs}
 
     if isinstance(dest, (str, Path)):
+        logger.debug("writing PEFF file: %s (%d entries)", dest, len(entry_list))
         with Path(dest).open("w", encoding="utf-8") as f:
             _write_header(header, f)
             for entry in entry_list:
                 _write_entry(entry, f, defs_by_prefix)
     else:
+        logger.debug("writing PEFF to in-memory stream: %s (%d entries)", type(dest).__name__, len(entry_list))
         _write_header(header, dest)
         for entry in entry_list:
             _write_entry(entry, dest, defs_by_prefix)
+
+    logger.info("write_peff: wrote %d entries across %d database(s)", len(entry_list), len(header.databases))

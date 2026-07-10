@@ -40,6 +40,7 @@ class DatabaseHeader:
     db_version: str | None = None
     db_date: str | None = None
     db_sources: tuple[str, ...] = ()
+    general_comments: tuple[str, ...] = ()
     number_of_entries: int | None = None
     sequence_type: str | None = None
     decoy: bool | None = None
@@ -133,9 +134,14 @@ class Processed:
 
 @dataclass(frozen=True, slots=True)
 class DisulfideBond:
-    """Disulfide bond between two cysteine residues."""
+    """Disulfide bond linking two previously-declared modification annotations.
 
-    positions: tuple[int | str, ...]
+    Per spec section 3.4.2, a ``\\DisulfideBond`` references two prior
+    ``ModResPsi`` (half-cystine) entries *by their annotation IDs* — not by
+    sequence position. ``annot_id_refs`` therefore holds those referenced IDs.
+    """
+
+    annot_id_refs: tuple[int | str, ...]
     description: str | None = None
     annot_id: int | None = None
 

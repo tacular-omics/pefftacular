@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+import logging
 import re
 import warnings
 from collections.abc import Iterable, Iterator, Mapping
@@ -29,7 +30,9 @@ from pefftacular._models import (
     VariantComplex,
     VariantSimple,
 )
-from pefftacular.errors import PeffParseError
+from pefftacular.errors import PeffParseError, PeffWarning
+
+logger = logging.getLogger("pefftacular.parser")
 
 # Compiled regex cache for CustomKeyDef.regexp.
 _REGEXP_CACHE: dict[str, re.Pattern[str]] = {}
@@ -75,6 +78,7 @@ def _parse_int_field(key: str, value: str, line_no: int | None) -> int:
             f"Invalid integer for {key}: {value!r}",
             line=line_no,
             context=value,
+            hint=f"{key} must be an integer, e.g. {key}=1",
         ) from err
 
 
@@ -87,9 +91,13 @@ def _parse_variant_simple(raw: str) -> tuple[VariantSimple, ...]:
     items = split_items(raw)
     results: list[VariantSimple] = []
     for item in items:
-        fields = split_fields(item)
+        fields = split_fields(item, unescape=True)
         if len(fields) < 2:
-            raise PeffParseError(f"VariantSimple needs >= 2 fields, got {len(fields)}", context=item)
+            raise PeffParseError(
+                f"VariantSimple needs >= 2 fields, got {len(fields)}",
+                context=item,
+                hint="Expected (position|newAminoAcid[|tag]), e.g. (123|A) or (225|C|dbSNP)",
+            )
         annot_id, pos_str = _extract_annot_id(fields[0])
         tag = fields[2] if len(fields) > 2 and fields[2] else None
         results.append(
@@ -102,9 +110,13 @@ def _parse_variant_complex(raw: str) -> tuple[VariantComplex, ...]:
     items = split_items(raw)
     results: list[VariantComplex] = []
     for item in items:
-        fields = split_fields(item)
+        fields = split_fields(item, unescape=True)
         if len(fields) < 3:
-            raise PeffParseError(f"VariantComplex needs >= 3 fields, got {len(fields)}", context=item)
+            raise PeffParseError(
+                f"VariantComplex needs >= 3 fields, got {len(fields)}",
+                context=item,
+                hint="Expected (startPosition|endPosition|newSequence[|tag]), e.g. (100|102|KPA)",
+            )
         annot_id, pos_str = _extract_annot_id(fields[0])
         tag = fields[3] if len(fields) > 3 and fields[3] else None
         results.append(
@@ -124,9 +136,13 @@ def _parse_mod_res_like(raw: str) -> list[tuple[tuple[int | str, ...], str, str,
     items = split_items(raw)
     results: list[tuple[tuple[int | str, ...], str, str, str | None, int | None]] = []
     for item in items:
-        fields = split_fields(item)
+        fields = split_fields(item, unescape=True)
         if len(fields) < 3:
-            raise PeffParseError(f"ModRes-like key needs >= 3 fields, got {len(fields)}", context=item)
+            raise PeffParseError(
+                f"ModRes-like key needs >= 3 fields, got {len(fields)}",
+                context=item,
+                hint="Expected (position|accession|name[|tag]), e.g. (100|UNIMOD:21|Phospho)",
+            )
         annot_id, positions_str = _extract_annot_id(fields[0])
         positions = parse_positions(positions_str)
         accession = fields[1]
@@ -158,9 +174,13 @@ def _parse_processed(raw: str) -> tuple[Processed, ...]:
     items = split_items(raw)
     results: list[Processed] = []
     for item in items:
-        fields = split_fields(item)
+        fields = split_fields(item, unescape=True)
         if len(fields) < 4:
-            raise PeffParseError(f"Processed needs >= 4 fields, got {len(fields)}", context=item)
+            raise PeffParseError(
+                f"Processed needs >= 4 fields, got {len(fields)}",
+                context=item,
+                hint="Expected (startPosition|endPosition|accession|name[|tag]), e.g. (1|40|PEFF:0001021|signal)",
+            )
         annot_id, pos_str = _extract_annot_id(fields[0])
         tag = fields[4] if len(fields) > 4 and fields[4] else None
         results.append(
@@ -180,11 +200,11 @@ def _parse_disulfide_bond(raw: str) -> tuple[DisulfideBond, ...]:
     items = split_items(raw)
     results: list[DisulfideBond] = []
     for item in items:
-        fields = split_fields(item)
-        annot_id, positions_str = _extract_annot_id(fields[0])
-        positions = parse_positions(positions_str)
+        fields = split_fields(item, unescape=True)
+        annot_id, refs_str = _extract_annot_id(fields[0])
+        annot_id_refs = parse_positions(refs_str)
         description = fields[1] if len(fields) > 1 and fields[1] else None
-        results.append(DisulfideBond(positions=positions, description=description, annot_id=annot_id))
+        results.append(DisulfideBond(annot_id_refs=annot_id_refs, description=description, annot_id=annot_id))
     return tuple(results)
 
 
@@ -201,9 +221,13 @@ def _parse_proteoform(raw: str) -> tuple[Proteoform, ...]:
     items = split_items(raw)
     results: list[Proteoform] = []
     for item in items:
-        fields = split_fields(item)
+        fields = split_fields(item, unescape=True)
         if len(fields) < 2:
-            raise PeffParseError("Proteoform needs >= 2 fields", context=item)
+            raise PeffParseError(
+                "Proteoform needs >= 2 fields",
+                context=item,
+                hint="Expected (proteoformId|ranges|annotIdRefs[|name]), e.g. (NX_P01308-1-pf1|1-110||preproinsulin)",
+            )
         annot_id, pf_id = _extract_annot_id(fields[0])
         # field[1]: comma-separated ranges like "1-110" or "90-110,25-54"
         range_strs = [r.strip() for r in fields[1].split(",") if r.strip()]
@@ -214,7 +238,11 @@ def _parse_proteoform(raw: str) -> tuple[Proteoform, ...]:
             try:
                 annot_id_refs = tuple(int(x.strip()) for x in fields[2].split(",") if x.strip())
             except ValueError as err:
-                raise PeffParseError(f"Invalid annotation ID refs in Proteoform: {fields[2]!r}", context=item) from err
+                raise PeffParseError(
+                    f"Invalid annotation ID refs in Proteoform: {fields[2]!r}",
+                    context=item,
+                    hint="annotIdRefs must be a comma-separated list of integers, e.g. 81,82,83",
+                ) from err
         name = fields[3] if len(fields) > 3 and fields[3] else None
         results.append(
             Proteoform(proteoform_id=pf_id, ranges=ranges, annot_id_refs=annot_id_refs, name=name, annot_id=annot_id)
@@ -322,14 +350,14 @@ def _coerce_field(raw: str, xsd_type: str | None, *, key_name: str, field_name: 
             if raw not in allowed:
                 warnings.warn(
                     f"Custom key {key_name!r}: field {field_name!r}={raw!r} not in enumeration {sorted(allowed)}",
-                    UserWarning,
+                    PeffWarning,
                     stacklevel=3,
                 )
             return raw
     except ValueError:
         warnings.warn(
             f"Custom key {key_name!r}: cannot coerce field {field_name!r}={raw!r} to {t}",
-            UserWarning,
+            PeffWarning,
             stacklevel=3,
         )
         return raw
@@ -344,7 +372,7 @@ def _compile_regexp(pattern: str) -> re.Pattern[str] | None:
     try:
         compiled = re.compile(pattern)
     except re.error as err:
-        warnings.warn(f"Invalid CustomKeyDef RegExp {pattern!r}: {err}", UserWarning, stacklevel=3)
+        warnings.warn(f"Invalid CustomKeyDef RegExp {pattern!r}: {err}", PeffWarning, stacklevel=3)
         return None
     _REGEXP_CACHE[pattern] = compiled
     return compiled
@@ -370,7 +398,7 @@ def _parse_custom_value(raw: str, ckd: CustomKeyDef) -> tuple[CustomKeyValue, ..
             if m is None:
                 warnings.warn(
                     f"Custom key {ckd.key_name!r}: value {item!r} does not match RegExp {ckd.regexp!r}",
-                    UserWarning,
+                    PeffWarning,
                     stacklevel=2,
                 )
             else:
@@ -382,7 +410,7 @@ def _parse_custom_value(raw: str, ckd: CustomKeyDef) -> tuple[CustomKeyValue, ..
                     ftype = ckd.field_types[idx] if idx < len(ckd.field_types) else None
                     fields[fname] = _coerce_field(raw_group, ftype, key_name=ckd.key_name, field_name=fname)
         else:
-            parts = split_fields(item)
+            parts = split_fields(item, unescape=True)
             for idx, raw_part in enumerate(parts):
                 fname = ckd.field_names[idx] if idx < len(ckd.field_names) else f"field{idx + 1}"
                 ftype = ckd.field_types[idx] if idx < len(ckd.field_types) else None
@@ -397,7 +425,21 @@ def _parse_custom_value(raw: str, ckd: CustomKeyDef) -> tuple[CustomKeyValue, ..
 # Header parsing
 # ---------------------------------------------------------------------------
 
-_MANDATORY_DB_KEYS = {"Prefix", "DbVersion", "DbSource", "NumberOfEntries", "SequenceType"}
+_MANDATORY_DB_KEYS = {"DbName", "Prefix", "DbVersion", "DbSource", "NumberOfEntries", "SequenceType"}
+
+
+def _pop_ci(single: dict[str, str], *aliases: str) -> str | None:
+    """Pop the first key matching any of *aliases* case-insensitively.
+
+    Tolerates the casing/spelling variants the spec itself uses inconsistently
+    (e.g. ``ProteoformDb`` vs ``ProteoformDB``, ``HasAnnotationIdentifiers`` vs
+    the singular form). Returns the matched value, or ``None`` if absent.
+    """
+    lowered = {a.lower() for a in aliases}
+    for key in list(single):
+        if key.lower() in lowered:
+            return single.pop(key)
+    return None
 
 
 def _parse_file_header(lines: Iterable[str]) -> tuple[FileHeader, Iterator[str], int]:
@@ -418,15 +460,28 @@ def _parse_file_header(lines: Iterable[str]) -> tuple[FileHeader, Iterator[str],
         if first_line.strip():
             break
     else:
-        raise PeffParseError("Empty file — no PEFF header found")
+        raise PeffParseError(
+            "Empty file — no PEFF header found",
+            hint="A PEFF file must begin with a '# PEFF 1.0' line",
+        )
 
     m = _HEADER_RE.match(first_line)
     if not m:
-        raise PeffParseError("First line must be '# PEFF <version>'", line=line_no, context=first_line)
+        raise PeffParseError(
+            "First line must be '# PEFF <version>'",
+            line=line_no,
+            context=first_line,
+            hint="The first non-blank line must be exactly '# PEFF 1.0' (note the space after '#')",
+        )
 
     peff_version = m.group(1)
     if peff_version != "1.0":
-        warnings.warn(f"PEFF version {peff_version} detected; only 1.0 is fully supported", stacklevel=2)
+        warnings.warn(
+            f"PEFF version {peff_version} detected; only 1.0 is fully supported",
+            PeffWarning,
+            stacklevel=2,
+        )
+    logger.debug("parsed PEFF version line: %s", peff_version)
 
     # --- General comments and database blocks ---
     general_comments: list[str] = []
@@ -471,6 +526,12 @@ def _parse_file_header(lines: Iterable[str]) -> tuple[FileHeader, Iterator[str],
         general_comments=tuple(general_comments),
         databases=tuple(databases),
     )
+    logger.debug(
+        "parsed file header: version=%s, databases=%d, prefixes=%s",
+        peff_version,
+        len(databases),
+        [db.prefix for db in databases],
+    )
     return header, remaining, line_no
 
 
@@ -492,9 +553,9 @@ def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
 
     # Warn on missing mandatory keys
     all_keys = set(single) | set(multi)
-    for mk in _MANDATORY_DB_KEYS:
+    for mk in sorted(_MANDATORY_DB_KEYS):
         if mk not in all_keys:
-            warnings.warn(f"Database header missing mandatory key: {mk}", stacklevel=3)
+            warnings.warn(f"Database header missing mandatory key: {mk}", PeffWarning, stacklevel=3)
 
     custom_key_defs: tuple[CustomKeyDef, ...] = ()
     if "CustomKeyDef" in multi:
@@ -515,9 +576,10 @@ def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
         optional_tag_defs = tuple(defs)
 
     db_sources = tuple(multi.pop("DbSource", []))
+    general_comments = tuple(multi.pop("GeneralComment", []))
 
     # Remove known multi keys that we don't expose further
-    for k in ("GeneralComment", "SpecificKey", "SpecificValue"):
+    for k in ("SpecificKey", "SpecificValue"):
         multi.pop(k, None)
 
     prefix = single.pop("Prefix", None)
@@ -535,8 +597,10 @@ def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
     decoy_str = single.pop("Decoy", None)
     decoy = decoy_str.lower() in ("true", "1", "yes") if decoy_str is not None else None
 
-    has_annotation_identifiers = single.pop("HasAnnotationIdentifiers", "false").lower() in ("true", "1", "yes")
-    proteoform_db = single.pop("ProteoformDb", "false").lower() in ("true", "1", "yes")
+    haid_str = _pop_ci(single, "HasAnnotationIdentifiers", "HasAnnotationIdentifier")
+    has_annotation_identifiers = haid_str is not None and haid_str.lower() in ("true", "1", "yes")
+    pdb_str = _pop_ci(single, "ProteoformDb", "IsProteoformDB")
+    proteoform_db = pdb_str is not None and pdb_str.lower() in ("true", "1", "yes")
 
     return DatabaseHeader(
         prefix=prefix,
@@ -545,6 +609,7 @@ def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
         db_version=db_version,
         db_date=db_date,
         db_sources=db_sources,
+        general_comments=general_comments,
         number_of_entries=number_of_entries,
         sequence_type=sequence_type,
         decoy=decoy,
@@ -564,6 +629,64 @@ def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
 _DESC_PREFIX_RE = re.compile(r"^>(\S+?):(\S+)\s*(.*)")
 
 
+def _warn_on_invalid_annotations(entry: SequenceEntry) -> None:
+    """Emit UserWarnings for annotations that violate the spec's ``MUST`` rules.
+
+    Parsing stays permissive — the data is always returned as-is — but the
+    reader flags the common validity violations from spec sections 3.3.8–3.3.13:
+    empty required fields, and residue positions outside ``1..len(sequence)``.
+    Positions given as non-integers (e.g. ``?`` for "unknown") are not bounded.
+    Note that ``DisulfideBond`` values are annotation-ID references, not residue
+    positions, so they are intentionally not range-checked here.
+    """
+    uid = entry.db_unique_id
+
+    # --- Required non-empty fields ---
+    for v in entry.variant_simple:
+        if not v.new_amino_acid.strip():
+            warnings.warn(f"Entry {uid!r}: VariantSimple newAminoAcid must not be empty", PeffWarning, stacklevel=2)
+    for label, mods, needs_accession in (
+        ("ModResUnimod", entry.mod_res_unimod, True),
+        ("ModResPsi", entry.mod_res_psi, True),
+        ("ModRes", entry.mod_res, False),
+    ):
+        for m in mods:
+            if needs_accession and not m.accession.strip():
+                warnings.warn(f"Entry {uid!r}: {label} accession must be provided", PeffWarning, stacklevel=2)
+            if not m.name.strip():
+                warnings.warn(f"Entry {uid!r}: {label} name must be provided", PeffWarning, stacklevel=2)
+
+    # --- Position bounds (only when the sequence length is known) ---
+    seq_len = len(entry.sequence)
+    if seq_len == 0:
+        return
+
+    positions: list[tuple[str, int | str]] = []
+    for v in entry.variant_simple:
+        positions.append(("VariantSimple", v.position))
+    for vc in entry.variant_complex:
+        positions.append(("VariantComplex", vc.start_pos))
+        positions.append(("VariantComplex", vc.end_pos))
+    for label, mods in (
+        ("ModResUnimod", entry.mod_res_unimod),
+        ("ModResPsi", entry.mod_res_psi),
+        ("ModRes", entry.mod_res),
+    ):
+        for m in mods:
+            positions.extend((label, p) for p in m.positions)
+    for pr in entry.processed:
+        positions.append(("Processed", pr.start_pos))
+        positions.append(("Processed", pr.end_pos))
+
+    for label, pos in positions:
+        if isinstance(pos, int) and not (1 <= pos <= seq_len):
+            warnings.warn(
+                f"Entry {uid!r}: {label} position {pos} is out of range 1..{seq_len}",
+                PeffWarning,
+                stacklevel=2,
+            )
+
+
 def _parse_entry(
     description: str,
     seq_lines: list[str],
@@ -574,7 +697,12 @@ def _parse_entry(
     """Parse a description line and sequence lines into a SequenceEntry."""
     m = _DESC_PREFIX_RE.match(description)
     if not m:
-        raise PeffParseError("Invalid description line format", line=line_no, context=description)
+        raise PeffParseError(
+            "Invalid description line format",
+            line=line_no,
+            context=description,
+            hint=r"Entry lines must start with '>Prefix:UniqueId' then optional ' \Key=value' pairs",
+        )
 
     prefix = m.group(1)
     db_unique_id = m.group(2)
@@ -665,11 +793,11 @@ def _parse_entry(
     if length is not None and len(sequence) != length:
         warnings.warn(
             f"Entry {db_unique_id!r}: Length={length} but sequence has {len(sequence)} residues",
-            UserWarning,
+            PeffWarning,
             stacklevel=2,
         )
 
-    return SequenceEntry(
+    entry = SequenceEntry(
         prefix=prefix,
         db_unique_id=db_unique_id,
         sequence=sequence,
@@ -696,6 +824,8 @@ def _parse_entry(
         custom_values=custom_values,
         extra=extra,
     )
+    _warn_on_invalid_annotations(entry)
+    return entry
 
 
 # ---------------------------------------------------------------------------
@@ -709,9 +839,11 @@ class PeffReader:
     def __init__(self, source: str | Path | IO[str]) -> None:
         if isinstance(source, (str, Path)):
             path = Path(source)
+            logger.debug("opening PEFF file: %s", path)
             self._owned_file: IO[str] | None = path.open(encoding="utf-8")
             self._lines: Iterator[str] = iter(self._owned_file)
         else:
+            logger.debug("reading PEFF from in-memory stream: %r", type(source).__name__)
             self._owned_file = None
             self._lines = iter(source)
 
@@ -783,9 +915,11 @@ class PeffReader:
                     warnings.warn(
                         f"Database {db.prefix!r}: NumberOfEntries={db.number_of_entries} "
                         f"but file contains {actual} entries",
-                        UserWarning,
+                        PeffWarning,
                         stacklevel=2,
                     )
+
+        logger.debug("finished iterating entries: counts_by_prefix=%s", counts_by_prefix)
 
     def _defs_for(self, description: str) -> dict[str, CustomKeyDef] | None:
         """Look up the custom-key def map for the database matching the entry prefix."""
@@ -807,4 +941,7 @@ class PeffReader:
 def read_peff(source: str | Path | IO[str]) -> tuple[FileHeader, list[SequenceEntry]]:
     """Convenience: parse an entire PEFF file into header + list of entries."""
     with PeffReader(source) as reader:
-        return reader.header, list(reader)
+        header = reader.header
+        entries = list(reader)
+    logger.info("read_peff: parsed %d entries across %d database(s)", len(entries), len(header.databases))
+    return header, entries
