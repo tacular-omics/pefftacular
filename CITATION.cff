@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use pefftacular in your research, please cite the software using these metadata."
+type: software
+title: "pefftacular: Reading and writing PSI Extended FASTA files in Python"
+abstract: >-
+  A pure-Python library for reading and writing PSI Extended FASTA Format
+  (PEFF) files, including rich per-entry proteomics annotations for
+  modifications, variants, processed forms, proteoforms, and disulfide bonds.
+authors:
+  - given-names: Patrick T.
+    family-names: Garrett
+    orcid: https://orcid.org/0000-0002-8434-9693
+    affiliation: Scripps Research Institute
+repository-code: https://github.com/tacular-omics/pefftacular
+url: https://pypi.org/project/pefftacular/
+license: MIT
+version: 0.4.0
+keywords:
+  - Python
+  - Proteomics
+  - Mass Spectrometry
+  - PEFF
+  - FASTA
+  - Bioinformatics
