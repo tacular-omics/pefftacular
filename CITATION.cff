@@ -3,9 +3,21 @@ message: "If you use pefftacular in your research, please cite the software usin
 type: software
 title: "pefftacular: Reading and writing PSI Extended FASTA files in Python"
 abstract: >-
-  A pure-Python library for reading and writing PSI Extended FASTA Format
-  (PEFF) files, including per-entry proteomics annotations for
-  modifications, variants, processed forms, proteoforms, and disulfide bonds.
+  pefftacular is a pure-Python library for reading and writing PSI Extended
+  FASTA Format (PEFF) files, a FASTA extension for proteomics annotations. It
+  provides an eager read_peff function and a lazy PeffReader for processing
+  files without loading every sequence into memory. The parser represents file
+  headers, database headers, sequences, and annotations as frozen typed data
+  classes. Supported entry annotations include simple and complex variants,
+  UniMod and PSI-MOD modifications, processed regions, proteoforms, disulfide
+  bonds, and header-defined custom values. The writer serializes these models
+  to canonical PEFF text and preserves the escaping rules used in description
+  lines. Parsing follows the PEFF 1.0 specification. Structural failures raise
+  errors with line, context, and repair hints, while recoverable specification
+  violations produce warnings and retain the parsed data. The package targets
+  proteomics tools that need programmatic PEFF validation, conversion,
+  inspection, or generation. It requires Python 3.12 or later and has no
+  runtime dependencies.
 authors:
   - given-names: Patrick T.
     family-names: Garrett
