@@ -4,7 +4,7 @@ type: software
 title: "pefftacular: Reading and writing PSI Extended FASTA files in Python"
 abstract: >-
   A pure-Python library for reading and writing PSI Extended FASTA Format
-  (PEFF) files, including rich per-entry proteomics annotations for
+  (PEFF) files, including per-entry proteomics annotations for
   modifications, variants, processed forms, proteoforms, and disulfide bonds.
 authors:
   - given-names: Patrick T.
