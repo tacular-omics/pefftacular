@@ -263,3 +263,7 @@ Run `just` with no arguments to list every recipe.
 ## License
 
 [MIT](LICENSE)
+
+## Funding
+
+Supported by NIH grants R01AG077046, R01MH132570, R01MH100175, R01HL165168 and U01AG088679.
