@@ -366,8 +366,7 @@ except PeffWarning as w:
 ```
 
 `PeffWarning` subclasses `UserWarning`, so existing `UserWarning` filters still apply. The
-deprecated `\Variant=` key is the one exception: it raises a standard `DeprecationWarning` and its
-value lands in `entry.extra`.
+deprecated `\Variant=` key also warns with `PeffWarning`, and its value lands in `entry.extra`.
 
 ## Logging
 

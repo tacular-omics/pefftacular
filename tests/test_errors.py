@@ -133,6 +133,20 @@ class TestEntryLineNumberIsAbsolute:
             list(PeffReader(StringIO(data)))
         assert exc.value.line == 10
 
+    def test_annotation_error_reports_absolute_line(self) -> None:
+        data = _HEADER + ">t:X1 \\VariantSimple=(1)\nAC\n"
+        with pytest.raises(PeffParseError, match="VariantSimple") as exc:
+            list(PeffReader(StringIO(data)))
+        assert exc.value.line == 10
+        assert exc.value.context == "1"
+        assert exc.value.hint is not None
+
+    def test_unbalanced_paren_error_reports_absolute_line(self) -> None:
+        data = _HEADER + ">t:X1 \\ModRes=(1|X|a\nAC\n"
+        with pytest.raises(PeffParseError) as exc:
+            list(PeffReader(StringIO(data)))
+        assert exc.value.line == 10
+
 
 class TestAnnotationValidationWarnings:
     """Spec MUST-rules (sections 3.3.8-3.3.13) surface as warnings, not errors."""

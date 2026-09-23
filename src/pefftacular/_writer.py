@@ -192,6 +192,10 @@ def _serialize_custom_values(items: tuple[CustomKeyValue, ...], ckd: CustomKeyDe
             ordered = [_fmt_custom_field(v.fields[name]) for name in ckd.field_names if name in v.fields]
         else:
             ordered = [_fmt_custom_field(val) for val in v.fields.values()]
+        # Without a RegExp the reader splits on unescaped '|' and unescapes each
+        # field, so escape to match. A RegExp-controlled key sees the raw item.
+        if ckd is None or ckd.regexp is None:
+            ordered = [_escape_component(f) for f in ordered]
         parts.append(f"({'|'.join(ordered)})")
     return "".join(parts)
 
