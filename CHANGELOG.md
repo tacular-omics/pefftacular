@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- The last database block in the file header is no longer dropped when the header runs straight into the first `>` entry without a closing `# //` (now a `PeffWarning`), or when a `# //` separator has trailing whitespace. Previously its `Prefix` and `CustomKeyDef`s were lost and its custom keys ended up in `extra`.
+- A blank line inside the file header no longer ends the header and discards the database blocks after it. It is skipped with a `PeffWarning` (spec section 3.3.1: every header line starts with `# `). Blank lines between the header and the first entry are still ignored silently.
+
 ## [0.4.4] (2026-09-23)
 
 ### Fixed
