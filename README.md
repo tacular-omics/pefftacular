@@ -1,7 +1,7 @@
 # pefftacular
 
 [![PyPI](https://img.shields.io/pypi/v/pefftacular)](https://pypi.org/project/pefftacular/)
-[![Python Package](https://github.com/tacular-omics/pefftacular/actions/workflows/python-package.yml/badge.svg)](https://github.com/tacular-omics/pefftacular/actions/workflows/python-package.yml)
+[![Python Package](https://github.com/tacular-omics/pefftacular/actions/workflows/ci.yml/badge.svg)](https://github.com/tacular-omics/pefftacular/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/tacular-omics/pefftacular)](LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/pefftacular)](https://pypi.org/project/pefftacular/)
 
