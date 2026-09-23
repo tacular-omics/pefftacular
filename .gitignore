@@ -112,3 +112,6 @@ dmypy.json
 # editors
 .vscode/
 .idea/
+
+# mkdocs build output
+/site/

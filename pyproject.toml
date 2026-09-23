@@ -28,6 +28,7 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/tacular-omics/pefftacular"
 Repository = "https://github.com/tacular-omics/pefftacular"
+Documentation = "https://tacular-omics.github.io/pefftacular/"
 Issues = "https://github.com/tacular-omics/pefftacular/issues"
 Changelog = "https://github.com/tacular-omics/pefftacular/blob/main/CHANGELOG.md"
 
@@ -50,6 +51,11 @@ dev = [
     "pytest-cov>=6.0",
     "ruff>=0.16.8",
     "ty>=0.0.83",
+]
+docs = [
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.27.0",
 ]
 
 [tool.ruff]
