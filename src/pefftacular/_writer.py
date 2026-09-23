@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Iterable
 from datetime import date, time
 from pathlib import Path
@@ -22,7 +23,8 @@ from pefftacular._models import (
     VariantComplex,
     VariantSimple,
 )
-from pefftacular.errors import PeffWriteError
+from pefftacular._parser import _parse_custom_value
+from pefftacular.errors import PeffError, PeffWriteError
 
 logger = logging.getLogger("pefftacular.writer")
 
@@ -181,11 +183,29 @@ def _fmt_custom_field(value: object) -> str:
     return str(value)
 
 
+def _raw_matches_fields(v: CustomKeyValue, ckd: CustomKeyDef | None) -> bool:
+    """True if ``v.raw`` still encodes ``v.fields``, so it can be written verbatim.
+
+    A parsed value keeps its original text in ``raw``; after
+    ``dataclasses.replace(v, fields=...)`` that text is stale and the fields must be
+    rebuilt. Without a def the raw text cannot be re-parsed, so it is trusted.
+    """
+    if ckd is None:
+        return True
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        try:
+            reparsed = _parse_custom_value(f"({v.raw})", ckd)
+        except PeffError:
+            return False
+    return len(reparsed) == 1 and reparsed[0].fields == v.fields
+
+
 def _serialize_custom_values(items: tuple[CustomKeyValue, ...], ckd: CustomKeyDef | None) -> str:
     """Serialize the per-key tuple of CustomKeyValue back into its description form."""
     parts: list[str] = []
     for v in items:
-        if v.raw:
+        if v.raw and _raw_matches_fields(v, ckd):
             parts.append(f"({v.raw})")
             continue
         if ckd is not None and ckd.field_names:

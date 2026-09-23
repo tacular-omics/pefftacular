@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import warnings
 from io import StringIO
 from pathlib import Path
@@ -214,6 +215,20 @@ class TestCustomKeysRoundTrip:
         header2, entries2 = read_peff(StringIO(out))
         assert entries2[0].custom_values["SecondaryStructure"][0].fields["StartPosition"] == 10
         assert entries2[0].custom_values["Score"][0].fields["passed"] is True
+
+    def test_edited_fields_are_written_not_stale_raw(self):
+        header, entries = read_peff(FIXTURES / "custom_keys.peff")
+        old = entries[0].custom_values["Score"][0]
+        edited = dataclasses.replace(old, fields={**old.fields, "passed": False})
+        entry = dataclasses.replace(entries[0], custom_values={**entries[0].custom_values, "Score": (edited,)})
+        buf = StringIO()
+        write_peff(header, [entry, *entries[1:]], buf)
+        out = buf.getvalue()
+        assert r"\Score=(blast|0.99|false)" in out
+        _, entries2 = read_peff(StringIO(out))
+        assert entries2[0].custom_values["Score"][0].fields["passed"] is False
+        # Unedited values keep their original text.
+        assert r"\SecondaryStructure=(10|20|ncithesaurus:C47937|Helix)(25|40||Sheet)" in out
 
     def test_write_from_constructed_fields_when_raw_empty(self):
         header = FileHeader(
