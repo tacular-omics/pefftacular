@@ -2,11 +2,22 @@
 
 [![PyPI](https://img.shields.io/pypi/v/pefftacular)](https://pypi.org/project/pefftacular/)
 [![Python Package](https://github.com/tacular-omics/pefftacular/actions/workflows/ci.yml/badge.svg)](https://github.com/tacular-omics/pefftacular/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/tacular-omics/pefftacular)](LICENSE)
+[![License](https://img.shields.io/github/license/tacular-omics/pefftacular)](https://github.com/tacular-omics/pefftacular/blob/main/LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/pefftacular)](https://pypi.org/project/pefftacular/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22925639.svg)](https://doi.org/10.5281/zenodo.22925639)
 
-Python library for reading and writing [PEFF](http://www.psidev.info/peff) (PSI Extended FASTA Format) files. PEFF is a superset of FASTA used in proteomics that carries rich per-entry annotations — PTMs, variants, processed forms, and more — encoded directly in the sequence header.
+A pure-Python library for reading and writing [PEFF](https://www.psidev.info/peff) (PSI Extended FASTA Format) files — the proteomics community's FASTA extension for carrying rich per-entry annotations (PTMs, sequence variants, processed forms, and more) directly in the sequence header. It's for anyone building or consuming protein sequence databases that need more than a bare FASTA header can hold.
+
+pefftacular parses PEFF into typed, structured objects instead of leaving you to regex the header yourself, and it's permissive by default: malformed-but-recoverable files still parse, with spec violations reported as warnings rather than hard failures.
+
+## Highlights
+
+- **Zero dependencies** — pure Python, nothing else to install.
+- **Two ways to read** — `read_peff` for the whole file at once, `PeffReader` to stream entries lazily without loading everything into memory.
+- **Rich annotations as typed data** — variants, UniMod/PSI-MOD modification sites, processed forms, and header-declared custom keys all come back as structured fields, not strings you parse yourself.
+- **Permissive reading, strict when you want it** — spec violations are reported through `PeffWarning` (opt in to `warnings.simplefilter("error", PeffWarning)` for strict parsing) while `PeffParseError` still carries a line, context, and a repair hint for structural failures.
+- **Round-trip safe writing**, including the escaping rules PEFF requires in description lines.
+- **Shares its API shape with [fastatacular](https://github.com/tacular-omics/fastatacular)**, the plain-FASTA sibling library, so switching formats doesn't mean relearning the interface.
 
 ## Install
 
@@ -244,7 +255,7 @@ loggers.
 
 ## Development
 
-Contributor and AI-agent guidance lives in [AGENTS.md](AGENTS.md). The one
+Contributor and AI-agent guidance lives in [AGENTS.md](https://github.com/tacular-omics/pefftacular/blob/main/AGENTS.md). The one
 command to run before committing is `just check` (formatting, lint, types, and
 tests — the same gate CI enforces); `just fix` auto-applies formatting.
 
@@ -261,9 +272,13 @@ just clean        # remove cache files
 
 Run `just` with no arguments to list every recipe.
 
+## Citation
+
+If you use pefftacular in research, please cite the archived software release. Machine-readable citation metadata is available in [`CITATION.cff`](https://github.com/tacular-omics/pefftacular/blob/main/CITATION.cff); GitHub's **Cite this repository** menu can render it as APA or BibTeX. DOI: [10.5281/zenodo.22925639](https://doi.org/10.5281/zenodo.22925639).
+
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/tacular-omics/pefftacular/blob/main/LICENSE)
 
 ## Funding
 
