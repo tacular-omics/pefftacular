@@ -1,6 +1,6 @@
 [project]
 name = "pefftacular"
-version = "0.4.0"
+dynamic = ["version"]
 description = "A pure-Python library for reading and writing PEFF (PSI Extended FASTA Format) files."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -29,7 +29,7 @@ classifiers = [
 Homepage = "https://github.com/tacular-omics/pefftacular"
 Repository = "https://github.com/tacular-omics/pefftacular"
 Issues = "https://github.com/tacular-omics/pefftacular/issues"
-Changelog = "https://github.com/tacular-omics/pefftacular/blob/main/HISTORY.md"
+Changelog = "https://github.com/tacular-omics/pefftacular/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]
@@ -38,13 +38,18 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/pefftacular"]
 
+[tool.hatch.version]
+path = "src/pefftacular/__init__.py"
+
 [tool.uv]
 package = true
-dev-dependencies = [
-    "pytest>=9.0.2",
+
+[dependency-groups]
+dev = [
+    "pytest>=9",
     "pytest-cov>=6.0",
-    "ruff>=0.14.11",
-    "ty>=0.0.11",
+    "ruff>=0.16.8",
+    "ty>=0.0.83",
 ]
 
 [tool.ruff]

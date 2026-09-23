@@ -122,6 +122,7 @@ Loggers: `pefftacular.parser` and `pefftacular.writer`. `INFO` marks milestones
 
 ## Releasing
 
-Version lives in `pyproject.toml`; changelog in `HISTORY.md`. Pre-1.0, breaking
-changes go in a minor bump (e.g. 0.3 → 0.4). Work on a `release/x.y.z` branch,
-finalize the `HISTORY.md` heading with the date, and keep `just check` green.
+Version lives in `src/pefftacular/__init__.py` (`__version__`); changelog in
+`CHANGELOG.md`. Pre-1.0, breaking changes go in a minor bump (e.g. 0.3 → 0.4).
+Work on a `release/x.y.z` branch, finalize the `CHANGELOG.md` heading with the
+date (`just set-version x.y.z` does this), and keep `just check` green.
