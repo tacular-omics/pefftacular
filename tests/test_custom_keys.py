@@ -230,6 +230,22 @@ class TestCustomKeysRoundTrip:
         # Unedited values keep their original text.
         assert r"\SecondaryStructure=(10|20|ncithesaurus:C47937|Helix)(25|40||Sheet)" in out
 
+    def test_unparseable_raw_is_rebuilt_from_fields(self):
+        header, entries = read_peff(FIXTURES / "custom_keys.peff")
+        bad = CustomKeyValue(key_name="Score", fields={"method": "m", "value": 1.5, "passed": True}, raw="a(b")
+        entry = dataclasses.replace(entries[0], custom_values={"Score": (bad,)})
+        buf = StringIO()
+        write_peff(header, [entry], buf)
+        assert r"\Score=(m|1.5|true)" in buf.getvalue()
+
+    def test_raw_for_undeclared_key_is_written_verbatim(self):
+        header, entries = read_peff(FIXTURES / "custom_keys.peff")
+        v = CustomKeyValue(key_name="Undeclared", fields={"x": "other"}, raw="kept|as|is")
+        entry = dataclasses.replace(entries[0], custom_values={"Undeclared": (v,)})
+        buf = StringIO()
+        write_peff(header, [entry], buf)
+        assert r"\Undeclared=(kept|as|is)" in buf.getvalue()
+
     def test_write_from_constructed_fields_when_raw_empty(self):
         header = FileHeader(
             peff_version="1.0",
