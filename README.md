@@ -4,6 +4,7 @@
 [![Python Package](https://github.com/tacular-omics/pefftacular/actions/workflows/ci.yml/badge.svg)](https://github.com/tacular-omics/pefftacular/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/tacular-omics/pefftacular)](LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/pefftacular)](https://pypi.org/project/pefftacular/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22925639.svg)](https://doi.org/10.5281/zenodo.22925639)
 
 Python library for reading and writing [PEFF](http://www.psidev.info/peff) (PSI Extended FASTA Format) files. PEFF is a superset of FASTA used in proteomics that carries rich per-entry annotations — PTMs, variants, processed forms, and more — encoded directly in the sequence header.
 
