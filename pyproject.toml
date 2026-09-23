@@ -29,7 +29,7 @@ classifiers = [
 Homepage = "https://github.com/tacular-omics/pefftacular"
 Repository = "https://github.com/tacular-omics/pefftacular"
 Issues = "https://github.com/tacular-omics/pefftacular/issues"
-Changelog = "https://github.com/tacular-omics/pefftacular/blob/main/HISTORY.md"
+Changelog = "https://github.com/tacular-omics/pefftacular/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]

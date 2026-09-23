@@ -1,6 +1,10 @@
-# History
+# Changelog
 
-## 0.4.0 (2026-07-10)
+All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+
+## [0.4.0] (2026-07-10)
 
 ### Breaking
 
@@ -26,7 +30,7 @@
 * Reworked the `justfile`: `just check` is a single read-only pre-commit gate (format-check + lint + types + tests over `src` and `tests`), and `just fix` auto-applies fixes.
 * Documented error handling, spec-violation warnings, and logging in the README.
 
-## 0.3.0 (2026-05-14)
+## [0.3.0] (2026-05-14)
 
 * Header-declared custom keys (`# CustomKeyDef=`) now drive typed parsing of entry values: registered keys are parsed via their `RegExp` (with pipe-split as fallback) and coerced per `FieldTypes` (`integer`, `decimal`, `boolean`, `date`, `time`, `string`, `enumeration`).
 * Parsed custom-key values are exposed on `SequenceEntry.custom_values`, with the raw string preserved alongside for lossless round-trip writing.
@@ -35,7 +39,7 @@
 * Multiple `# CustomKeyDef=` lines per database are preserved instead of silently overwriting each other.
 * Field tokenization is now quote-aware so a `RegExp` value containing escaped pipes survives splitting.
 
-## 0.2.0 (2026-03-18)
+## [0.2.0] (2026-03-18)
 
 * Added `DisulfideBond`, `Proteoform`, `SequenceRange`, and `OptionalTagDef` models.
 * `\DisulfideBond=` and `\Proteoform=` entry keys now parse into typed fields instead of `extra`.
@@ -52,6 +56,6 @@
 * Added GitHub Actions CI workflow (Python 3.12 and 3.13).
 * Added official PEFF example files as test fixtures.
 
-## 0.1.0 (2026-03-18)
+## [0.1.0] (2026-03-18)
 
 * First release on PyPI.
