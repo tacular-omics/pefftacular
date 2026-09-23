@@ -100,7 +100,6 @@ ipython_config.py
 
 # uv
 .venv
-uv.lock
 
 # ruff
 .ruff_cache/
