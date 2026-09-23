@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.4] (2026-09-23)
+
 ### Fixed
 
 - The description-line key scan now honours spec escapes (section 3.3.3): an escaped unbalanced paren (e.g. a `ModRes` named `odd ( name`, written as `odd \( name`) no longer swallows the following `\Key=`, so such entries round-trip.
