@@ -1,0 +1,86 @@
+site_name: pefftacular
+site_description: A pure-Python library for reading and writing PEFF (PSI Extended FASTA Format) files.
+site_url: https://tacular-omics.github.io/pefftacular/
+repo_url: https://github.com/tacular-omics/pefftacular
+repo_name: tacular-omics/pefftacular
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; the pefftacular authors. MIT licence.
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - search.highlight
+    - search.suggest
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Guides:
+    - Annotations: annotations.md
+    - From FASTA and UniProt: fasta.md
+  - API reference:
+    - Reading and writing: api/io.md
+    - File and database headers: api/headers.md
+    - Sequence entries: api/entries.md
+    - Annotations: api/annotations.md
+    - Errors and warnings: api/errors.md
+  - Changelog: changelog.md
+  - Citation: citation.md
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            members_order: source
+            inherited_members: true
+            merge_init_into_class: true
+            filters: ["!^_"]
+            show_signature_annotations: true
+            separate_signature: true
+            annotations_path: source
+            signature_crossrefs: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      check_paths: true
+  - pymdownx.superfences
+  - md_in_html
+  - toc:
+      permalink: true

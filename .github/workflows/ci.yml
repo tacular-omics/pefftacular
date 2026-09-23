@@ -93,3 +93,12 @@ jobs:
           slug: tacular-omics/pefftacular
           files: junit.xml
           fail_ci_if_error: false
+
+  # Package-specific: the documentation site builds without warnings.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv sync --locked --group docs
+      - run: uv run --locked mkdocs build --strict

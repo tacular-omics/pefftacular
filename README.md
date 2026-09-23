@@ -5,10 +5,13 @@
 [![License](https://img.shields.io/github/license/tacular-omics/pefftacular)](https://github.com/tacular-omics/pefftacular/blob/main/LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/pefftacular)](https://pypi.org/project/pefftacular/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22925639.svg)](https://doi.org/10.5281/zenodo.22925639)
+[![Docs](https://img.shields.io/badge/docs-tacular--omics.github.io-blue)](https://tacular-omics.github.io/pefftacular/)
 
 A pure-Python library for reading and writing [PEFF](https://www.psidev.info/peff) (PSI Extended FASTA Format) files — the proteomics community's FASTA extension for carrying rich per-entry annotations (PTMs, sequence variants, processed forms, and more) directly in the sequence header. It's for anyone building or consuming protein sequence databases that need more than a bare FASTA header can hold.
 
 pefftacular parses PEFF into typed, structured objects instead of leaving you to regex the header yourself, and it's permissive by default: malformed-but-recoverable files still parse, with spec violations reported as warnings rather than hard failures.
+
+**Documentation:** <https://tacular-omics.github.io/pefftacular/>
 
 ## Highlights
 
