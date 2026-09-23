@@ -292,6 +292,9 @@ Set `annot_id` on each annotation if you want annotation IDs in the output, and 
 The writer escapes `\` and `|` inside annotation fields, and parentheses when they are
 unbalanced, so names such as `N-linked (GlcNAc...)` or `a|b` survive a round trip.
 
-!!! warning "Plain-text fields are written as-is"
-    `pname`, `gname`, `tax_name`, `comment` and the values in `extra` are written without
-    escaping. Keep them free of the sequence ` \` (space, backslash), which starts a new key.
+The same escaping applies to the plain-text fields `pname`, `gname`, `tax_name` and
+`comment`, and to custom-key fields built without a `RegExp`; the reader reverses it.
+
+!!! warning "`extra` values are written as-is"
+    Values in `extra` are raw strings and are written without escaping. Keep them free of
+    the sequence ` \` (space, backslash), which starts a new key.

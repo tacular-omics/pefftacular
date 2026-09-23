@@ -14,6 +14,7 @@ from pefftacular import (
     DatabaseHeader,
     FileHeader,
     PeffReader,
+    PeffWarning,
     SequenceEntry,
     read_peff,
     write_peff,
@@ -253,3 +254,36 @@ class TestCustomKeysRoundTrip:
         buf = StringIO()
         write_peff(header, [entry], buf)
         assert r"\Score=(blast|0.5)" in buf.getvalue()
+
+    def test_constructed_fields_with_separators_roundtrip(self):
+        header = FileHeader(
+            peff_version="1.0",
+            databases=(
+                DatabaseHeader(
+                    prefix="sp",
+                    db_name="x",
+                    db_version="1",
+                    db_sources=("x",),
+                    number_of_entries=1,
+                    sequence_type="AA",
+                    custom_key_defs=(
+                        CustomKeyDef(key_name="Note", description="d", field_names=("A", "B"), field_types=()),
+                    ),
+                ),
+            ),
+        )
+        hostile = r"y|z \(w) v) \ID=evil"
+        entry = SequenceEntry(
+            prefix="sp",
+            db_unique_id="P1",
+            sequence="MK",
+            custom_values={"Note": (CustomKeyValue(key_name="Note", fields={"A": "x", "B": hostile}, raw=""),)},
+        )
+        buf = StringIO()
+        write_peff(header, [entry], buf)
+        buf.seek(0)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PeffWarning)
+            _, entries = read_peff(buf)
+        assert entries[0].custom_values["Note"][0].fields == {"A": "x", "B": hostile}
+        assert entries[0].id is None

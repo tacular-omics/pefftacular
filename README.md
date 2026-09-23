@@ -102,16 +102,16 @@ for v in entry.variant_simple:
 
 ```python
 for mod in entry.mod_res_unimod:
-    print(mod.position, mod.accession, mod.name)
-    # e.g. 17, "21", "Phospho"
+    print(mod.positions, mod.accession, mod.name)
+    # e.g. (17,), "21", "Phospho"
 ```
 
 **Modifications (PSI-MOD):**
 
 ```python
 for mod in entry.mod_res_psi:
-    print(mod.position, mod.accession, mod.name)
-    # e.g. 17, "MOD:00696", "phosphorylated residue"
+    print(mod.positions, mod.accession, mod.name)
+    # e.g. (17,), "MOD:00696", "phosphorylated residue"
 ```
 
 **Processed forms:**

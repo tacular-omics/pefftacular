@@ -43,7 +43,7 @@ just clean           # remove caches
 just check-version   # fail if __version__ / CITATION.cff disagree
 ```
 
-`just check` must pass before any commit (194 tests, well under a second).
+`just check` must pass before any commit (197 tests, well under a second).
 `just docs` / `just docs-deploy` exist but are dead: there is no `mkdocs.yml` and mkdocs
 is not a dependency. Do not rely on them.
 

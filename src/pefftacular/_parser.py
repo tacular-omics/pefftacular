@@ -226,7 +226,7 @@ def _parse_proteoform(raw: str) -> tuple[Proteoform, ...]:
             raise PeffParseError(
                 "Proteoform needs >= 2 fields",
                 context=item,
-                hint="Expected (proteoformId|ranges|annotIdRefs[|name]), e.g. (NX_P01308-1-pf1|1-110||preproinsulin)",
+                hint="Expected (proteoformId|ranges[|annotIdRefs[|name]]), e.g. (NX_P01308-1-pf1|1-110||preproinsulin)",
             )
         annot_id, pf_id = _extract_annot_id(fields[0])
         # field[1]: comma-separated ranges like "1-110" or "90-110,25-54"
@@ -630,7 +630,7 @@ _DESC_PREFIX_RE = re.compile(r"^>(\S+?):(\S+)\s*(.*)")
 
 
 def _warn_on_invalid_annotations(entry: SequenceEntry) -> None:
-    """Emit UserWarnings for annotations that violate the spec's ``MUST`` rules.
+    """Emit PeffWarnings for annotations that violate the spec's ``MUST`` rules.
 
     Parsing stays permissive — the data is always returned as-is — but the
     reader flags the common validity violations from spec sections 3.3.8–3.3.13:
@@ -735,60 +735,66 @@ def _parse_entry(
     custom_values: dict[str, tuple[CustomKeyValue, ...]] = {}
     extra: dict[str, str] = {}
 
-    for key, value in raw_keys.items():
-        match key:
-            case "ID":
-                entry_id = value
-            case "DbUniqueId":
-                db_unique_id_key = value
-            case "PName":
-                pname = _unescape_component(value)
-            case "GName":
-                gname = _unescape_component(value)
-            case "NcbiTaxId" | "OX":
-                ncbi_tax_id = _parse_int_field(key, value, line_no)
-            case "TaxName":
-                tax_name = _unescape_component(value)
-            case "Length":
-                length = _parse_int_field("Length", value, line_no)
-            case "SV":
-                sv = _parse_int_field("SV", value, line_no)
-            case "EV":
-                ev = _parse_int_field("EV", value, line_no)
-            case "PE":
-                pe = _parse_int_field("PE", value, line_no)
-            case "Decoy":
-                decoy = value.lower() in ("true", "1", "yes")
-            case "Comment":
-                comment = _unescape_component(value)
-            case "VariantSimple":
-                variant_simple = _parse_variant_simple(value)
-            case "VariantComplex":
-                variant_complex = _parse_variant_complex(value)
-            case "Variant":
-                warnings.warn(
-                    r"\Variant= is deprecated since PEFF 2015; use \VariantSimple= or \VariantComplex=",
-                    PeffWarning,
-                    stacklevel=2,
-                )
-                extra[key] = value
-            case "ModResUnimod":
-                mod_res_unimod = _parse_mod_res_unimod(value)
-            case "ModResPsi":
-                mod_res_psi = _parse_mod_res_psi(value)
-            case "ModRes":
-                mod_res = _parse_mod_res(value)
-            case "Processed":
-                processed = _parse_processed(value)
-            case "DisulfideBond":
-                disulfide_bond = _parse_disulfide_bond(value)
-            case "Proteoform":
-                proteoform = _parse_proteoform(value)
-            case _:
-                if custom_key_defs is not None and key in custom_key_defs:
-                    custom_values[key] = _parse_custom_value(value, custom_key_defs[key])
-                else:
+    try:
+        for key, value in raw_keys.items():
+            match key:
+                case "ID":
+                    entry_id = value
+                case "DbUniqueId":
+                    db_unique_id_key = value
+                case "PName":
+                    pname = _unescape_component(value)
+                case "GName":
+                    gname = _unescape_component(value)
+                case "NcbiTaxId" | "OX":
+                    ncbi_tax_id = _parse_int_field(key, value, line_no)
+                case "TaxName":
+                    tax_name = _unescape_component(value)
+                case "Length":
+                    length = _parse_int_field("Length", value, line_no)
+                case "SV":
+                    sv = _parse_int_field("SV", value, line_no)
+                case "EV":
+                    ev = _parse_int_field("EV", value, line_no)
+                case "PE":
+                    pe = _parse_int_field("PE", value, line_no)
+                case "Decoy":
+                    decoy = value.lower() in ("true", "1", "yes")
+                case "Comment":
+                    comment = _unescape_component(value)
+                case "VariantSimple":
+                    variant_simple = _parse_variant_simple(value)
+                case "VariantComplex":
+                    variant_complex = _parse_variant_complex(value)
+                case "Variant":
+                    warnings.warn(
+                        r"\Variant= is deprecated since PEFF 2015; use \VariantSimple= or \VariantComplex=",
+                        PeffWarning,
+                        stacklevel=2,
+                    )
                     extra[key] = value
+                case "ModResUnimod":
+                    mod_res_unimod = _parse_mod_res_unimod(value)
+                case "ModResPsi":
+                    mod_res_psi = _parse_mod_res_psi(value)
+                case "ModRes":
+                    mod_res = _parse_mod_res(value)
+                case "Processed":
+                    processed = _parse_processed(value)
+                case "DisulfideBond":
+                    disulfide_bond = _parse_disulfide_bond(value)
+                case "Proteoform":
+                    proteoform = _parse_proteoform(value)
+                case _:
+                    if custom_key_defs is not None and key in custom_key_defs:
+                        custom_values[key] = _parse_custom_value(value, custom_key_defs[key])
+                    else:
+                        extra[key] = value
+    except PeffParseError as err:
+        # Annotation helpers do not know the line; attach it here.
+        if err.line is not None or line_no is None:
+            raise
+        raise PeffParseError(str(err), line=line_no, context=err.context, hint=err.hint) from err
 
     if length is not None and len(sequence) != length:
         warnings.warn(
