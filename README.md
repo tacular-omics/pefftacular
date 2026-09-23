@@ -148,7 +148,7 @@ ss[0].fields["Description"]      # "Helix"
 
 Supported `FieldTypes` are XSD basic types (`string`, `integer`, `decimal`,
 `boolean`, `date`, `time`) plus `enumeration(a|b|c)`. Coercion failures and
-enumeration mismatches emit `UserWarning` and fall back to the raw string.
+enumeration mismatches emit `PeffWarning` (a `UserWarning` subclass) and fall back to the raw string.
 If no `RegExp` is declared, the value is split on `|` and zipped with
 `FieldNames`.
 
@@ -211,15 +211,21 @@ except PeffError:
     ...               # any other pefftacular failure
 ```
 
-Write errors raise `PeffWriteError` (also a `PeffError`), with a `.hint`:
+`write_peff` validates its input before writing anything and raises
+`PeffWriteError` (also a `PeffError`), with a `.hint`, for a missing header or
+an entry with an empty prefix, `db_unique_id` or sequence. File-system failures
+(missing directory, no permission) are not wrapped: they raise the usual
+`OSError` (`FileNotFoundError`, `PermissionError`).
 
 ```python
 from pefftacular import PeffWriteError
 
 try:
-    write_peff(file_header, entries, "/read-only/output.peff")
-except PeffWriteError as e:
+    write_peff(file_header, entries, "output.peff")
+except PeffWriteError as e:  # invalid header/entries
     print(e, e.hint)
+except OSError as e:          # could not open/write the file
+    print(e)
 ```
 
 ## Spec-violation warnings
@@ -255,7 +261,7 @@ loggers.
 
 ## Development
 
-Contributor and AI-agent guidance lives in [AGENTS.md](https://github.com/tacular-omics/pefftacular/blob/main/AGENTS.md). The one
+Contributor and AI-agent guidance lives in [CLAUDE.md](https://github.com/tacular-omics/pefftacular/blob/main/CLAUDE.md). The one
 command to run before committing is `just check` (formatting, lint, types, and
 tests — the same gate CI enforces); `just fix` auto-applies formatting.
 
