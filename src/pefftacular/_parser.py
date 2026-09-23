@@ -488,19 +488,36 @@ def _parse_file_header(lines: Iterable[str]) -> tuple[FileHeader, Iterator[str],
     databases: list[DatabaseHeader] = []
     current_db_lines: list[tuple[int, str]] = []
     in_general = True  # before the first "//"
+    blank_line_no: int | None = None  # first blank line seen since the last header line
 
     for raw_line in line_iter:
         line_no += 1
         line = raw_line.rstrip("\n\r")
 
+        if not line.strip():
+            # Spec §3.3.1: every header line starts with "# ". A blank line is only an
+            # error if more header lines follow it (checked below); blank lines between
+            # the header and the first entry are ignored like those between entries.
+            if blank_line_no is None:
+                blank_line_no = line_no
+            continue
+
         if not line.startswith("# ") and line != "#":
-            # End of header — push this line back
+            # End of header — push this line back (dropped blank lines are ignored by the entry loop too)
             remaining = itertools.chain([raw_line], line_iter)
             break
 
+        if blank_line_no is not None:
+            warnings.warn(
+                f"Blank line inside the file header (line {blank_line_no}) ignored; header lines must start with '# '",
+                PeffWarning,
+                stacklevel=2,
+            )
+            blank_line_no = None
+
         content = line[2:]  # strip "# "
 
-        if content == "//":
+        if content.strip() == "//":
             if in_general:
                 in_general = False
             else:
@@ -517,9 +534,16 @@ def _parse_file_header(lines: Iterable[str]) -> tuple[FileHeader, Iterator[str],
             current_db_lines.append((line_no, content))
     else:
         # File ended during header
-        if current_db_lines:
-            databases.append(_build_database_header(current_db_lines))
         remaining = iter([])
+
+    if current_db_lines:
+        # Last database block has no closing "# //" (spec §3.3.1 requires one)
+        warnings.warn(
+            "Last database block in the file header is not closed by '# //'",
+            PeffWarning,
+            stacklevel=2,
+        )
+        databases.append(_build_database_header(current_db_lines))
 
     header = FileHeader(
         peff_version=peff_version,
