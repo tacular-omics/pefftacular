@@ -265,13 +265,13 @@ def _write_entry(
     if entry.length is not None:
         kv_parts.append(f"\\Length={entry.length}")
     if entry.pname is not None:
-        kv_parts.append(f"\\PName={entry.pname}")
+        kv_parts.append(f"\\PName={_escape_component(entry.pname)}")
     if entry.gname is not None:
-        kv_parts.append(f"\\GName={entry.gname}")
+        kv_parts.append(f"\\GName={_escape_component(entry.gname)}")
     if entry.ncbi_tax_id is not None:
         kv_parts.append(f"\\NcbiTaxId={entry.ncbi_tax_id}")
     if entry.tax_name is not None:
-        kv_parts.append(f"\\TaxName={entry.tax_name}")
+        kv_parts.append(f"\\TaxName={_escape_component(entry.tax_name)}")
     if entry.sv is not None:
         kv_parts.append(f"\\SV={entry.sv}")
     if entry.ev is not None:
@@ -281,7 +281,7 @@ def _write_entry(
     if entry.decoy is not None:
         kv_parts.append(f"\\Decoy={'true' if entry.decoy else 'false'}")
     if entry.comment is not None:
-        kv_parts.append(f"\\Comment={entry.comment}")
+        kv_parts.append(f"\\Comment={_escape_component(entry.comment)}")
     if entry.variant_simple:
         kv_parts.append(f"\\VariantSimple={_serialize_variant_simple(entry.variant_simple)}")
     if entry.variant_complex:

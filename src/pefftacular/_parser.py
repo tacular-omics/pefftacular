@@ -11,7 +11,7 @@ from datetime import date, time
 from pathlib import Path
 from typing import IO, Self
 
-from pefftacular._lexer import split_description_keys, split_fields, split_items
+from pefftacular._lexer import _unescape_component, split_description_keys, split_fields, split_items
 from pefftacular._models import (
     CustomFieldValue,
     CustomKeyDef,
@@ -742,13 +742,13 @@ def _parse_entry(
             case "DbUniqueId":
                 db_unique_id_key = value
             case "PName":
-                pname = value
+                pname = _unescape_component(value)
             case "GName":
-                gname = value
+                gname = _unescape_component(value)
             case "NcbiTaxId" | "OX":
                 ncbi_tax_id = _parse_int_field(key, value, line_no)
             case "TaxName":
-                tax_name = value
+                tax_name = _unescape_component(value)
             case "Length":
                 length = _parse_int_field("Length", value, line_no)
             case "SV":
@@ -760,7 +760,7 @@ def _parse_entry(
             case "Decoy":
                 decoy = value.lower() in ("true", "1", "yes")
             case "Comment":
-                comment = value
+                comment = _unescape_component(value)
             case "VariantSimple":
                 variant_simple = _parse_variant_simple(value)
             case "VariantComplex":
@@ -768,7 +768,7 @@ def _parse_entry(
             case "Variant":
                 warnings.warn(
                     r"\Variant= is deprecated since PEFF 2015; use \VariantSimple= or \VariantComplex=",
-                    DeprecationWarning,
+                    PeffWarning,
                     stacklevel=2,
                 )
                 extra[key] = value

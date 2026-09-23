@@ -1,5 +1,6 @@
 """Roundtrip tests: parse -> write -> re-parse -> assert equal."""
 
+import warnings
 from io import StringIO
 from pathlib import Path
 
@@ -197,3 +198,71 @@ class TestCaseInsensitiveFlags:
         assert db.proteoform_db is True
         # Not leaked into extra under the variant spelling.
         assert "ProteoformDB" not in db.extra
+
+
+class TestEscapingKeySplitRoundtrip:
+    def test_unbalanced_paren_mod_name_does_not_swallow_next_key(self):
+        data = _ESCAPE_HEADER + ">t:X1 \\ModRes=(1|X|odd \\( name) \\Length=10\nACDEFACDEF\n"
+        h1, e1 = read_peff(StringIO(data))
+        assert e1[0].mod_res[0].name == "odd ( name"
+        assert e1[0].length == 10
+        buf = StringIO()
+        write_peff(h1, e1, buf)
+        buf.seek(0)
+        _, e2 = read_peff(buf)
+        assert e2[0].mod_res == e1[0].mod_res
+        assert e2[0].length == 10
+
+
+_HOSTILE = r"a|b \(c) d) e( \\ f \ID=evil \Length=1 (g"
+
+
+class TestFreeTextEscapingRoundtrip:
+    def test_hostile_free_text_roundtrips(self):
+        from pefftacular import DatabaseHeader, FileHeader, ModRes, PeffWarning, SequenceEntry
+
+        header = FileHeader(
+            peff_version="1.0",
+            databases=(
+                DatabaseHeader(
+                    db_name="t", prefix="t", db_version="1", db_sources=("x",), number_of_entries=1, sequence_type="AA"
+                ),
+            ),
+        )
+        entry = SequenceEntry(
+            prefix="t",
+            db_unique_id="X1",
+            sequence="ACDEFACDEF",
+            id="X1_ID",
+            pname=_HOSTILE,
+            gname=_HOSTILE,
+            tax_name=_HOSTILE,
+            comment=_HOSTILE,
+            length=10,
+            mod_res=(ModRes(positions=(1,), accession="", name=_HOSTILE),),
+        )
+        buf = StringIO()
+        write_peff(header, [entry], buf)
+        buf.seek(0)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PeffWarning)
+            _, entries = read_peff(buf)
+        got = entries[0]
+        assert got.id == "X1_ID"
+        assert got.pname == _HOSTILE
+        assert got.gname == _HOSTILE
+        assert got.tax_name == _HOSTILE
+        assert got.comment == _HOSTILE
+        assert got.length == 10
+        assert got.mod_res == entry.mod_res
+        assert got.extra == {}
+
+    def test_free_text_is_escaped_per_spec(self):
+        from pefftacular import DatabaseHeader, FileHeader, SequenceEntry
+
+        header = FileHeader(peff_version="1.0", databases=(DatabaseHeader(prefix="t"),))
+        entry = SequenceEntry(prefix="t", db_unique_id="X1", sequence="AC", pname=r"Abcg2|meta\x10")
+        buf = StringIO()
+        write_peff(header, [entry], buf)
+        # Spec section 3.3.3 example.
+        assert r"\PName=Abcg2\|meta\\x10" in buf.getvalue()

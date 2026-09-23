@@ -137,3 +137,19 @@ class TestMultilineSequence:
         with PeffReader(StringIO(data)) as reader:
             entries = list(reader)
         assert entries[0].sequence == "ACDEFGHIKLMN"
+
+
+class TestDeprecatedVariantKey:
+    def test_variant_warns_with_peff_warning(self):
+        import pytest
+
+        from pefftacular import PeffWarning, read_peff
+
+        data = (
+            "# PEFF 1.0\n# //\n# DbName=t\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n"
+            "# NumberOfEntries=1\n# SequenceType=AA\n# //\n"
+            ">t:X1 \\Variant=(1|1|K) \\Length=5\nMKTLL\n"
+        )
+        with pytest.warns(PeffWarning, match="deprecated"):
+            _, entries = read_peff(StringIO(data))
+        assert entries[0].extra["Variant"] == "(1|1|K)"
