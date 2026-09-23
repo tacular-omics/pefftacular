@@ -1,0 +1,669 @@
+# pefftacular
+
+> Pure-Python, zero-dependency library for reading and writing PEFF (PSI Extended FASTA
+> Format) files: FASTA plus structured per-entry proteomics annotations.
+
+This file is a self-contained usage guide for pefftacular (version 0.4.x). It lists every
+public name with its signature, explains the data model, and gives worked examples that
+run as written. Source: https://github.com/tacular-omics/pefftacular
+
+## Install
+
+```bash
+pip install pefftacular        # or: uv add pefftacular
+```
+
+Requires Python 3.12 or newer. No runtime dependencies.
+
+## What PEFF looks like
+
+A PEFF file is FASTA with a structured header and `\Key=value` annotations on each
+description line:
+
+```
+# PEFF 1.0
+# GeneralComment=Example
+# //
+# DbName=Example DB
+# Prefix=sp
+# DbVersion=2024_01
+# DbSource=https://www.uniprot.org
+# NumberOfEntries=1
+# SequenceType=AA
+# //
+>sp:P12345 \PName=Example protein \GName=EXMP \NcbiTaxId=9606 \Length=16 \ModResUnimod=(2|UNIMOD:21|Phospho)
+MKTIIALSYIFCLVFA
+```
+
+- Line 1 must be `# PEFF <version>` (only 1.0 is fully supported).
+- `# //` separates blocks: everything before the first `# //` is file-level
+  (`GeneralComment=` lines are kept), then one block per database.
+- Entry lines are `>Prefix:UniqueId` followed by space-separated `\Key=value` pairs.
+- Multi-item values are parenthesized and concatenated: `(A|B)(C|D)`. Components are
+  separated by `|`.
+- Escaping (spec §3.3.3): inside items, `\|`, `\(`, `\)`, `\\` are literal characters.
+  Balanced parentheses in text (e.g. `N-linked (GlcNAc...)`) are not escaped.
+
+## Public API at a glance
+
+Everything is importable from the package root:
+
+```python
+from pefftacular import (
+    # I/O
+    read_peff, PeffReader, write_peff,
+    # header models
+    FileHeader, DatabaseHeader, CustomKeyDef, OptionalTagDef,
+    # entry model
+    SequenceEntry,
+    # annotation models
+    VariantSimple, VariantComplex, ModResUnimod, ModResPsi, ModRes,
+    Processed, DisulfideBond, Proteoform, SequenceRange, CustomKeyValue,
+    # errors and warnings
+    PeffError, PeffParseError, PeffWriteError, PeffWarning,
+)
+import pefftacular
+pefftacular.__version__   # e.g. "0.4.3"
+```
+
+All models are `@dataclass(frozen=True, slots=True)`: immutable, compared by value. Use
+`dataclasses.replace(obj, field=new)` to derive a modified copy.
+
+## Reading
+
+### read_peff
+
+```
+read_peff(source: str | Path | IO[str]) -> tuple[FileHeader, list[SequenceEntry]]
+```
+
+Parse an entire PEFF file (path or text-mode stream) into its header and a list of
+entries. Opens paths as UTF-8. Logs an INFO summary on `pefftacular.parser`.
+
+```python
+from pefftacular import read_peff
+
+header, entries = read_peff("tests/fixtures/PEFF_Tiny_Valid.peff")
+print(header.peff_version, [db.prefix for db in header.databases])
+for entry in entries:
+    print(entry.prefix, entry.db_unique_id, entry.pname, len(entry.sequence))
+```
+
+### PeffReader
+
+```
+PeffReader(source: str | Path | IO[str])
+    .header -> FileHeader          # property; parses the header on first access, cached
+    __iter__() -> Iterator[SequenceEntry]
+    __enter__() -> Self
+    __exit__(exc_type, exc_val, exc_tb) -> None   # closes the file if the reader opened it
+```
+
+Lazy reader: entries are parsed one at a time, so memory stays flat for large databases.
+
+```python
+from pefftacular import PeffReader
+
+with PeffReader("tests/fixtures/PEFF_Tiny_Valid.peff") as reader:
+    file_header = reader.header
+    for entry in reader:
+        print(entry.db_unique_id)
+```
+
+Notes:
+
+- A reader iterates **once**. It wraps a single line iterator; a second loop over the
+  same reader yields nothing. Create a new reader to read again.
+- Use it as a context manager when passing a path, so the file it opened is closed.
+  When you pass a stream, the caller owns and closes it.
+- The `NumberOfEntries` check (see Warnings) runs when iteration finishes.
+
+### Reading from a string
+
+Any iterable of lines works through a text stream:
+
+```python
+import io
+from pefftacular import read_peff
+
+text = """# PEFF 1.0
+# //
+# DbName=Demo
+# Prefix=sp
+# DbVersion=1
+# DbSource=local
+# NumberOfEntries=1
+# SequenceType=AA
+# //
+>sp:P1 \\PName=Demo protein \\Length=8 \\VariantSimple=(3|W|dbSNP)
+MKTAYIAK
+"""
+header, entries = read_peff(io.StringIO(text))
+entry = entries[0]
+print(entry.pname)             # Demo protein
+print(entry.length)            # 8
+print(entry.variant_simple)    # (VariantSimple(position=3, new_amino_acid='W', tag='dbSNP', annot_id=None),)
+```
+
+## Writing
+
+### write_peff
+
+```
+write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str | Path | IO[str]) -> None
+```
+
+Write a complete PEFF file. `dest` is a path (opened as UTF-8, overwritten) or a
+text-mode stream. Entries are validated first: a `None` header, an empty `prefix`, an
+empty `db_unique_id` or an empty `sequence` raises `PeffWriteError` before anything is
+written. Sequences are wrapped at 60 characters. Annotation keys are written in a fixed
+canonical order: `ID`, `DbUniqueId`, `Length`, `PName`, `GName`, `NcbiTaxId`, `TaxName`,
+`SV`, `EV`, `PE`, `Decoy`, `Comment`, `VariantSimple`, `VariantComplex`, `ModResUnimod`,
+`ModResPsi`, `ModRes`, `Processed`, `DisulfideBond`, `Proteoform`, custom keys, then
+`extra` keys. File-system errors (missing directory, permissions) propagate as the usual
+`OSError` subclasses, not `PeffWriteError`.
+
+```python
+import io
+from pefftacular import DatabaseHeader, FileHeader, ModResUnimod, SequenceEntry, write_peff
+
+db = DatabaseHeader(
+    prefix="sp",
+    db_name="SwissProt",
+    db_version="2024_01",
+    db_sources=("https://www.uniprot.org",),
+    number_of_entries=1,
+    sequence_type="AA",
+)
+header = FileHeader(peff_version="1.0", databases=(db,))
+entry = SequenceEntry(
+    prefix="sp",
+    db_unique_id="P12345",
+    sequence="MKTIIALSYIFCLVFA",
+    pname="Example protein",
+    gname="EXMP",
+    mod_res_unimod=(ModResUnimod(positions=(2,), accession="UNIMOD:21", name="Phospho"),),
+)
+
+buf = io.StringIO()
+write_peff(header, [entry], buf)
+print(buf.getvalue())
+# write_peff(header, [entry], "output.peff")   # or to a path
+```
+
+Output:
+
+```
+# PEFF 1.0
+# //
+# DbName=SwissProt
+# Prefix=sp
+# DbVersion=2024_01
+# DbSource=https://www.uniprot.org
+# NumberOfEntries=1
+# SequenceType=AA
+# //
+>sp:P12345 \PName=Example protein \GName=EXMP \ModResUnimod=(2|UNIMOD:21|Phospho)
+MKTIIALSYIFCLVFA
+```
+
+### Round trip
+
+```python
+import io
+from pefftacular import read_peff, write_peff
+
+header, entries = read_peff("tests/fixtures/PEFF_AnnotID_Insulin_Valid.peff")
+buf = io.StringIO()
+write_peff(header, entries, buf)
+header2, entries2 = read_peff(io.StringIO(buf.getvalue()))
+assert entries2 == entries
+```
+
+Round trips preserve the parsed *models*, not the exact text: key order is normalized,
+`\OX=` is written back as `\NcbiTaxId=`, and header keys are written in a fixed order.
+
+## Header models
+
+### FileHeader
+
+```
+FileHeader(peff_version: str, general_comments: tuple[str, ...] = (), databases: tuple[DatabaseHeader, ...] = ())
+```
+
+Top-level header. `peff_version` is the string from the first line (e.g. `"1.0"`).
+`general_comments` holds file-level `GeneralComment=` lines (before the first `# //`).
+`databases` holds one `DatabaseHeader` per database block.
+
+### DatabaseHeader
+
+```
+DatabaseHeader(
+    prefix: str | None = None,
+    db_name: str | None = None,
+    db_description: str | None = None,
+    db_version: str | None = None,
+    db_date: str | None = None,
+    db_sources: tuple[str, ...] = (),
+    general_comments: tuple[str, ...] = (),
+    number_of_entries: int | None = None,
+    sequence_type: str | None = None,
+    decoy: bool | None = None,
+    conversion: str | None = None,
+    has_annotation_identifiers: bool = False,
+    proteoform_db: bool = False,
+    custom_key_defs: tuple[CustomKeyDef, ...] = (),
+    optional_tag_defs: tuple[OptionalTagDef, ...] = (),
+    extra: dict[str, str] = {},
+)
+```
+
+Metadata for one database block. Mapping to header keys:
+
+| field | header key |
+|---|---|
+| `prefix` | `Prefix` (matches the `>prefix:` of its entries) |
+| `db_name` | `DbName` |
+| `db_description` | `DbDescription` |
+| `db_version` | `DbVersion` |
+| `db_date` | `DbDate` |
+| `db_sources` | `DbSource` (repeatable) |
+| `general_comments` | `GeneralComment` inside the block (repeatable) |
+| `number_of_entries` | `NumberOfEntries` (int; a non-integer raises `PeffParseError`) |
+| `sequence_type` | `SequenceType` (e.g. `AA`, `NA`) |
+| `decoy` | `Decoy` (`true`/`1`/`yes` → True) |
+| `conversion` | `Conversion` |
+| `has_annotation_identifiers` | `HasAnnotationIdentifiers` (case-insensitive; also `HasAnnotationIdentifier`) |
+| `proteoform_db` | `ProteoformDb` (case-insensitive; also `IsProteoformDB`) |
+| `custom_key_defs` | `CustomKeyDef` (repeatable) |
+| `optional_tag_defs` | `OptionalTagDef` (repeatable, `tag:description`) |
+| `extra` | any other `Key=value` line in the block |
+
+`SpecificKey` and `SpecificValue` lines are accepted but discarded. The mandatory keys
+`DbName`, `Prefix`, `DbVersion`, `DbSource`, `NumberOfEntries`, `SequenceType` each emit a
+`PeffWarning` when missing.
+
+### CustomKeyDef
+
+```
+CustomKeyDef(
+    key_name: str,
+    description: str,
+    concept_curie: str | None = None,
+    regexp: str | None = None,
+    field_names: tuple[str, ...] = (),
+    field_types: tuple[str, ...] = (),
+)
+```
+
+Declares a custom per-entry key, from a header line such as:
+
+```
+# CustomKeyDef=(KeyName=Score|Description="A score"|FieldNames=method,value,passed|FieldTypes=string,decimal,boolean)
+```
+
+Quoted values (`"..."`) may contain `|`; inside quotes only `\"` and `\\` are escapes, so
+regular expressions keep their backslashes. When a database declares a custom key, entry
+values for that key are parsed into `CustomKeyValue`s (see below) instead of `extra`.
+
+### OptionalTagDef
+
+```
+OptionalTagDef(tag: str, description: str)
+```
+
+From `# OptionalTagDef=tag:description`. The tag can then appear as the optional last
+component of annotation items (the `tag` fields below).
+
+## Entry model
+
+### SequenceEntry
+
+```
+SequenceEntry(
+    prefix: str,
+    db_unique_id: str,
+    sequence: str,
+    id: str | None = None,
+    db_unique_id_key: str | None = None,
+    pname: str | None = None,
+    gname: str | None = None,
+    ncbi_tax_id: int | None = None,
+    tax_name: str | None = None,
+    length: int | None = None,
+    sv: int | None = None,
+    ev: int | None = None,
+    pe: int | None = None,
+    decoy: bool | None = None,
+    comment: str | None = None,
+    variant_simple: tuple[VariantSimple, ...] = (),
+    variant_complex: tuple[VariantComplex, ...] = (),
+    mod_res_unimod: tuple[ModResUnimod, ...] = (),
+    mod_res_psi: tuple[ModResPsi, ...] = (),
+    mod_res: tuple[ModRes, ...] = (),
+    processed: tuple[Processed, ...] = (),
+    disulfide_bond: tuple[DisulfideBond, ...] = (),
+    proteoform: tuple[Proteoform, ...] = (),
+    custom_values: dict[str, tuple[CustomKeyValue, ...]] = {},
+    extra: dict[str, str] = {},
+)
+```
+
+| field | source key | notes |
+|---|---|---|
+| `prefix`, `db_unique_id` | `>prefix:id` | required |
+| `sequence` | sequence lines | joined, whitespace stripped |
+| `id` | `\ID=` | |
+| `db_unique_id_key` | `\DbUniqueId=` | |
+| `pname` | `\PName=` | protein name |
+| `gname` | `\GName=` | gene name |
+| `ncbi_tax_id` | `\NcbiTaxId=` or `\OX=` | int |
+| `tax_name` | `\TaxName=` | |
+| `length` | `\Length=` | int; mismatch with `len(sequence)` warns |
+| `sv`, `ev`, `pe` | `\SV=`, `\EV=`, `\PE=` | int |
+| `decoy` | `\Decoy=` | `true`/`1`/`yes` → True |
+| `comment` | `\Comment=` | |
+| `variant_simple` | `\VariantSimple=` | |
+| `variant_complex` | `\VariantComplex=` | |
+| `mod_res_unimod` | `\ModResUnimod=` | |
+| `mod_res_psi` | `\ModResPsi=` | |
+| `mod_res` | `\ModRes=` | |
+| `processed` | `\Processed=` | |
+| `disulfide_bond` | `\DisulfideBond=` | |
+| `proteoform` | `\Proteoform=` | |
+| `custom_values` | keys declared by a `CustomKeyDef` for this prefix | |
+| `extra` | any other key | raw string values |
+
+A non-integer value for an int key raises `PeffParseError` with the line number.
+
+## Annotation models
+
+Positions are 1-based and inclusive. A position that is not an integer (e.g. `?` for
+unknown) is kept as a `str`, which is why position fields are typed `int | str`.
+
+`annot_id` is the optional annotation identifier used when the database sets
+`HasAnnotationIdentifiers=true`: an item written `(12:53|...)` has `annot_id=12` and
+position 53. Other annotations reference these IDs (see `DisulfideBond`, `Proteoform`).
+
+`tag` is the optional trailing component (often an `OptionalTagDef` tag or a source such
+as `dbSNP`).
+
+### VariantSimple
+
+```
+VariantSimple(position: int | str, new_amino_acid: str, tag: str | None = None, annot_id: int | None = None)
+```
+
+Single residue substitution. Item form: `(position|newAminoAcid[|tag])`, e.g. `(225|C|dbSNP)`.
+
+### VariantComplex
+
+```
+VariantComplex(start_pos: int | str, end_pos: int | str, new_sequence: str, tag: str | None = None, annot_id: int | None = None)
+```
+
+Insertion, deletion or multi-residue substitution. Item form:
+`(start|end|newSequence[|tag])`; an empty `newSequence` is a deletion.
+
+### ModResUnimod
+
+```
+ModResUnimod(positions: tuple[int | str, ...], accession: str, name: str, tag: str | None = None, annot_id: int | None = None)
+```
+
+Modification with a UNIMOD accession. Item form: `(pos[,pos...]|accession|name[|tag])`,
+e.g. `(100|UNIMOD:21|Phospho)`. Several positions share one item as `12,15,20`.
+
+### ModResPsi
+
+```
+ModResPsi(positions: tuple[int | str, ...], accession: str, name: str, tag: str | None = None, annot_id: int | None = None)
+```
+
+Same shape, PSI-MOD accession, e.g. `(31|MOD:00798|half cystine)`.
+
+### ModRes
+
+```
+ModRes(positions: tuple[int | str, ...], accession: str, name: str, tag: str | None = None, annot_id: int | None = None)
+```
+
+Same shape, any accession (may be empty; `ModResUnimod`/`ModResPsi` warn on an empty
+accession, all three warn on an empty name).
+
+### Processed
+
+```
+Processed(start_pos: int | str, end_pos: int | str, accession: str, name: str, tag: str | None = None, annot_id: int | None = None)
+```
+
+Processed molecule (signal peptide, propeptide, mature chain). Item form:
+`(start|end|accession|name[|tag])`, e.g. `(1|24|PEFF:0001021|signal peptide)`.
+
+### DisulfideBond
+
+```
+DisulfideBond(annot_id_refs: tuple[int | str, ...], description: str | None = None, annot_id: int | None = None)
+```
+
+Disulfide bond linking two previously declared `ModResPsi` half-cystine annotations **by
+annotation ID**, not by residue position (spec §3.4.2). Item form:
+`([annotId:]ref1,ref2[|description])`, e.g. `(81:1,2|between chains)` gives
+`annot_id=81, annot_id_refs=(1, 2)`. Because they are IDs, these values are never
+range-checked against the sequence.
+
+### SequenceRange
+
+```
+SequenceRange(start: int | str, end: int | str)
+```
+
+A contiguous 1-based inclusive range, used by `Proteoform`. `"1-110"` → `SequenceRange(1, 110)`;
+a value with no `-` gives `start == end`.
+
+### Proteoform
+
+```
+Proteoform(proteoform_id: str, ranges: tuple[SequenceRange, ...], annot_id_refs: tuple[int, ...], name: str | None = None, annot_id: int | None = None)
+```
+
+A specific proteoform: the sequence ranges it keeps and the annotation IDs (processing
+events, modifications) it carries. Item form: `(proteoformId|ranges|annotIdRefs[|name])`,
+e.g. `(NX_P01308-1-pf1|1-110||preproinsulin)` or `(pf2|25-54,90-110|81,82,83|insulin)`.
+`annotIdRefs` must be integers; anything else raises `PeffParseError`.
+
+### CustomKeyValue
+
+```
+CustomKeyValue(key_name: str, fields: dict[str, str | int | float | bool | date | time] = {}, raw: str = '')
+```
+
+One parsed value of a header-declared custom key. `fields` maps field names to typed
+values, `raw` is the original item text.
+
+How values are parsed, for each parenthesized item (or a single bare value):
+
+1. If the `CustomKeyDef` has a `regexp`, it is `fullmatch`ed against the item. Groups map
+   in order onto `field_names` (unnamed extras become `field1`, `field2`, ...). Groups that
+   did not participate are omitted. A non-matching item warns and gets empty `fields`.
+2. Otherwise the item is split on unescaped `|` and zipped with `field_names`.
+3. Each field is coerced by the matching `field_types` entry: `integer` → int, `decimal` →
+   float, `boolean` → `true`/`1`/`yes`, `date`/`time` → ISO `datetime.date`/`datetime.time`,
+   `string` → str, `enumeration(a|b|c)` → str (warns if not a member). A failed coercion
+   warns and keeps the raw string. Missing or unknown types stay str.
+4. An invalid `regexp` warns (on every value) and the value is then split on `|` instead.
+
+```python
+from pefftacular import read_peff
+
+header, entries = read_peff("tests/fixtures/custom_keys.peff")
+entry = entries[0]
+ss = entry.custom_values["SecondaryStructure"]
+print(ss[0].fields["StartPosition"])   # 10  (int)
+print(ss[0].fields["Description"])     # Helix
+print(ss[0].raw)                       # 10|20|ncithesaurus:C47937|Helix
+```
+
+When writing, a non-empty `raw` is emitted verbatim and `fields` is ignored. To write
+values you built or edited, set `raw=""` so the writer serializes `fields` (in
+`field_names` order when the database declares the key).
+
+## Worked example: annotation IDs, disulfides and proteoforms
+
+```python
+from pefftacular import read_peff
+
+header, entries = read_peff("tests/fixtures/PEFF_AnnotID_Insulin_Valid.peff")
+db = header.databases[0]
+print(db.has_annotation_identifiers)        # True
+insulin = entries[0]
+
+by_id = {m.annot_id: m for m in insulin.mod_res_psi}
+for bond in insulin.disulfide_bond:
+    a, b = (by_id[i] for i in bond.annot_id_refs)
+    print(bond.annot_id, a.positions, b.positions, bond.description)
+
+for pf in insulin.proteoform:
+    spans = [(r.start, r.end) for r in pf.ranges]
+    print(pf.proteoform_id, spans, pf.annot_id_refs, pf.name)
+```
+
+## Worked example: filter and rewrite a database
+
+```python
+import dataclasses
+import io
+from pefftacular import read_peff, write_peff
+
+header, entries = read_peff("tests/fixtures/PEFF_AnnotID_Insulin_Valid.peff")
+
+# keep only UNIMOD/PSI-MOD annotations, drop variants
+cleaned = [dataclasses.replace(e, variant_simple=(), variant_complex=()) for e in entries]
+
+# keep NumberOfEntries consistent with what we write
+db = dataclasses.replace(header.databases[0], number_of_entries=len(cleaned))
+header = dataclasses.replace(header, databases=(db,))
+
+out = io.StringIO()
+write_peff(header, cleaned, out)
+```
+
+## Worked example: streaming a large file
+
+```python
+from collections import Counter
+from pefftacular import PeffReader
+
+counts: Counter[str] = Counter()
+with PeffReader("tests/fixtures/SmallTestDB-PEFF1.0.peff") as reader:
+    for entry in reader:
+        for mod in entry.mod_res_psi:
+            counts[mod.name] += len(mod.positions)
+print(counts.most_common(5))
+```
+
+## Errors
+
+```
+class PeffError(ValueError)
+class PeffParseError(PeffError):
+    PeffParseError(message: str, *, line: int | None = None, context: str | None = None, hint: str | None = None)
+class PeffWriteError(PeffError):
+    PeffWriteError(message: str, *, hint: str | None = None)
+```
+
+- `PeffError`: base of every pefftacular exception. Subclasses `ValueError`, so existing
+  `except ValueError` code keeps working.
+- `PeffParseError`: the input cannot be parsed. Attributes: `.line` (1-based absolute line
+  number, when known; also prefixed to the message as `Line N: ...`), `.context` (the
+  offending text), `.hint` (how to fix it). `context` and `hint` are also attached as PEP
+  678 notes, so they appear in tracebacks without changing `str(err)`.
+- `PeffWriteError`: a model cannot be serialized. Attribute `.hint`.
+
+Raised for: empty file, bad first line (must be exactly `# PEFF <major>.<minor>`), a
+malformed `>prefix:id` line, non-integer int fields, too few components in an annotation
+item (`VariantSimple` < 2, `VariantComplex` < 3, `ModRes*` < 3, `Processed` < 4,
+`Proteoform` < 2), non-integer proteoform refs, mismatched parentheses.
+
+```python
+import io
+from pefftacular import PeffError, PeffParseError, read_peff
+
+bad = "# PEFF 1.0\n# //\n# Prefix=sp\n# //\n>sp:P1 \\Length=abc\nMK\n"
+try:
+    read_peff(io.StringIO(bad))
+except PeffParseError as err:
+    print(err.line, err.context, err.hint)   # 5 abc Length must be an integer, e.g. Length=1
+except PeffError:
+    raise
+```
+
+## Warnings
+
+```
+class PeffWarning(UserWarning)
+```
+
+Parsing is permissive: the data is always returned, and spec `MUST` violations are
+reported with `warnings.warn(..., PeffWarning)`:
+
+- PEFF version other than 1.0
+- a mandatory database header key is missing
+- `NumberOfEntries` differs from the number of entries with that prefix (checked when
+  iteration finishes)
+- `\Length=` differs from the sequence length
+- an annotation position (VariantSimple, VariantComplex, ModRes*, Processed) outside
+  `1..len(sequence)`; non-integer positions are not checked
+- empty `new_amino_acid`, empty ModRes name, empty ModResUnimod/ModResPsi accession
+- custom-key value not matching its `RegExp`, failed type coercion, enumeration mismatch,
+  invalid `RegExp`
+
+Strict mode:
+
+```python
+import warnings
+from pefftacular import PeffWarning, read_peff
+
+with warnings.catch_warnings():
+    warnings.simplefilter("error", PeffWarning)
+    header, entries = read_peff("tests/fixtures/PEFF_Tiny_Valid.peff")   # raises on any violation
+```
+
+The deprecated `\Variant=` key emits a `DeprecationWarning` (not `PeffWarning`) and its
+value is stored in `extra["Variant"]`.
+
+## Logging
+
+The package attaches a `NullHandler` and never configures logging. Loggers are
+`pefftacular.parser` and `pefftacular.writer`: `INFO` for totals (entries read/written),
+`DEBUG` for file open, header parse and per-prefix counts.
+
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("pefftacular").setLevel(logging.DEBUG)
+```
+
+## Gotchas
+
+- **Escaped unbalanced parentheses break key splitting.** The description-line key scan
+  counts every `(` and `)`, including escaped ones, so an item such as
+  `\ModRes=(1|X|odd \( name)` followed by another `\Key=` absorbs the following keys.
+  The writer emits exactly this form for names with unbalanced parentheses. Avoid
+  unbalanced parentheses in names, or put such annotations last. (Known bug.)
+- **Free-text values are written verbatim.** `pname`, `gname`, `tax_name`, `comment` and
+  `extra` values are not escaped; a value containing ` \Key=` reads back as a new key.
+- **Last duplicate key wins.** If a description line repeats a key, only the last value
+  is kept.
+- **`SpecificKey` / `SpecificValue` header lines are dropped** and do not round-trip.
+- **Readers iterate once.** Create a new `PeffReader` to read the file again.
+- **`CustomKeyValue.raw` takes priority on write**: clear it after editing `fields`.
+- **`DisulfideBond.annot_id_refs` are annotation IDs, not positions.**
+- Header lines must start with `# ` (hash, space) or be exactly `#`; the first other line
+  ends the header.
+
+## Related
+
+- Sibling `fastatacular`: plain FASTA with the same reader/writer API shape.
+- Downstream tools: `peff_digest`, `peff_uniprot_fetcher` (tacular-omics).
+- Spec: `PEFF_SpecDoc_1.0_FINAL.pdf` in the repository, and https://www.psidev.info/peff

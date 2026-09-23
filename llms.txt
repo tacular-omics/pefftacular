@@ -1,0 +1,34 @@
+# pefftacular
+
+> Pure-Python, zero-dependency library for reading and writing PEFF (PSI Extended FASTA
+> Format) files: FASTA plus structured per-entry proteomics annotations (variants,
+> UniMod/PSI-MOD modifications, processed forms, disulfide bonds, proteoforms, custom keys).
+
+Read a whole file with `read_peff(path)` → `(FileHeader, list[SequenceEntry])`, or stream
+with `with PeffReader(path) as r: r.header; for entry in r: ...`. Write with
+`write_peff(header, entries, dest)`. All models are frozen dataclasses importable from the
+package root. Parsing is permissive: spec violations are reported as `PeffWarning`
+(`warnings.simplefilter("error", PeffWarning)` for strict mode); structural failures raise
+`PeffParseError` with `.line`, `.context` and `.hint`. Requires Python 3.12+.
+
+Part of tacular-omics; sibling `fastatacular` handles plain FASTA with the same API shape.
+
+## Docs
+
+- [llms-full.txt](https://raw.githubusercontent.com/tacular-omics/pefftacular/main/llms-full.txt): self-contained usage guide with every public name, signatures, examples and gotchas
+- [README](https://github.com/tacular-omics/pefftacular/blob/main/README.md): install, quick start, data model, error handling
+- [CHANGELOG](https://github.com/tacular-omics/pefftacular/blob/main/CHANGELOG.md): release history
+
+## API
+
+- [Public API (`__init__.py`)](https://github.com/tacular-omics/pefftacular/blob/main/src/pefftacular/__init__.py): the exported names
+- [Models](https://github.com/tacular-omics/pefftacular/blob/main/src/pefftacular/_models.py): FileHeader, DatabaseHeader, SequenceEntry and annotation dataclasses
+- [Errors and warnings](https://github.com/tacular-omics/pefftacular/blob/main/src/pefftacular/errors.py): PeffError, PeffParseError, PeffWriteError, PeffWarning
+
+## Optional
+
+- [PEFF 1.0 specification (PDF)](https://github.com/tacular-omics/pefftacular/blob/main/PEFF_SpecDoc_1.0_FINAL.pdf): the authoritative format spec
+- [PSI PEFF page](https://www.psidev.info/peff): HUPO-PSI format home
+- [CLAUDE.md](https://github.com/tacular-omics/pefftacular/blob/main/CLAUDE.md): contributor guide for coding agents
+- [PyPI](https://pypi.org/project/pefftacular/): package page
+- [fastatacular](https://github.com/tacular-omics/fastatacular): plain-FASTA sibling library
