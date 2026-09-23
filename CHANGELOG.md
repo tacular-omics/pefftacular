@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- The description-line key scan now honours spec escapes (section 3.3.3): an escaped unbalanced paren (e.g. a `ModRes` named `odd ( name`, written as `odd \( name`) no longer swallows the following `\Key=`, so such entries round-trip.
+- `write_peff()` now escapes the free-text fields `PName`, `GName`, `TaxName` and `Comment` (`\`, `|`, unbalanced parens) and the reader unescapes them, so values containing those characters or ` \Key=` round-trip.
+- The deprecated `\Variant=` key now warns with `PeffWarning` instead of `DeprecationWarning`, like every other spec issue.
+
 ## [0.4.3] (2026-09-23)
 
 ### Changed

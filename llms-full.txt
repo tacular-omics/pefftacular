@@ -629,8 +629,8 @@ with warnings.catch_warnings():
     header, entries = read_peff("tests/fixtures/PEFF_Tiny_Valid.peff")   # raises on any violation
 ```
 
-The deprecated `\Variant=` key emits a `DeprecationWarning` (not `PeffWarning`) and its
-value is stored in `extra["Variant"]`.
+The deprecated `\Variant=` key emits a `PeffWarning` and its value is stored in
+`extra["Variant"]`.
 
 ## Logging
 
@@ -646,13 +646,9 @@ logging.getLogger("pefftacular").setLevel(logging.DEBUG)
 
 ## Gotchas
 
-- **Escaped unbalanced parentheses break key splitting.** The description-line key scan
-  counts every `(` and `)`, including escaped ones, so an item such as
-  `\ModRes=(1|X|odd \( name)` followed by another `\Key=` absorbs the following keys.
-  The writer emits exactly this form for names with unbalanced parentheses. Avoid
-  unbalanced parentheses in names, or put such annotations last. (Known bug.)
-- **Free-text values are written verbatim.** `pname`, `gname`, `tax_name`, `comment` and
-  `extra` values are not escaped; a value containing ` \Key=` reads back as a new key.
+- **Free-text values are escaped.** `pname`, `gname`, `tax_name` and `comment` are
+  written with spec §3.3.3 escaping and unescaped on read. `extra` values are raw and
+  written verbatim; a value containing ` \Key=` reads back as a new key.
 - **Last duplicate key wins.** If a description line repeats a key, only the last value
   is kept.
 - **`SpecificKey` / `SpecificValue` header lines are dropped** and do not round-trip.

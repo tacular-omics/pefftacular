@@ -2,6 +2,9 @@
 
 from pefftacular.errors import PeffParseError
 
+# Characters a backslash escapes in entry values (spec section 3.3.3).
+_ESCAPABLE = ("|", "(", ")", "\\")
+
 
 def _unescape_component(s: str) -> str:
     r"""Reverse PEFF backslash-escaping in a single component.
@@ -17,7 +20,7 @@ def _unescape_component(s: str) -> str:
     length = len(s)
     while i < length:
         ch = s[i]
-        if ch == "\\" and i + 1 < length and s[i + 1] in ("|", "(", ")", "\\"):
+        if ch == "\\" and i + 1 < length and s[i + 1] in _ESCAPABLE:
             out.append(s[i + 1])
             i += 2
             continue
@@ -187,6 +190,10 @@ def split_description_keys(rest: str) -> dict[str, str]:
     Scans for ``\Key=value`` boundaries at paren depth 0.
     A new key begins when ``\`` is encountered at depth 0 and is either at
     the start of the string or preceded by a space.
+
+    Spec escapes (section 3.3.3) are honoured: ``\(`` / ``\)`` do not change
+    depth, and ``\\`` / ``\|`` never start a key, so an escaped unbalanced
+    paren or an escaped backslash in a value cannot swallow or split keys.
     """
     if not rest:
         return {}
@@ -194,8 +201,14 @@ def split_description_keys(rest: str) -> dict[str, str]:
     keys: dict[str, str] = {}
     depth = 0
     current_start: int | None = None  # index of the '\' that starts the current token
+    i = 0
+    length = len(rest)
 
-    for i, ch in enumerate(rest):
+    while i < length:
+        ch = rest[i]
+        if ch == "\\" and i + 1 < length and rest[i + 1] in _ESCAPABLE:
+            i += 2
+            continue
         match ch:
             case "(":
                 depth += 1
@@ -206,6 +219,7 @@ def split_description_keys(rest: str) -> dict[str, str]:
                 if current_start is not None:
                     _store_key_value(keys, rest[current_start:i].rstrip())
                 current_start = i
+        i += 1
 
     # Store last token
     if current_start is not None:

@@ -97,3 +97,16 @@ class TestSplitDescriptionKeys:
         result = split_description_keys(r"\ModRes=(380||N-linked (GlcNAc...)) \Length=5")
         assert result["ModRes"] == "(380||N-linked (GlcNAc...))"
         assert result["Length"] == "5"
+
+    def test_escaped_parens_do_not_change_depth(self):
+        # An escaped unbalanced paren must not swallow the following key.
+        result = split_description_keys(r"\ModRes=(1|X|odd \( name) \Length=5")
+        assert result == {"ModRes": r"(1|X|odd \( name)", "Length": "5"}
+
+    def test_escaped_close_paren_does_not_change_depth(self):
+        result = split_description_keys(r"\ModRes=(1|X|odd \) name) \Length=5")
+        assert result == {"ModRes": r"(1|X|odd \) name)", "Length": "5"}
+
+    def test_escaped_backslash_after_space_is_not_a_key(self):
+        result = split_description_keys(r"\PName=a \\ID=b \Length=5")
+        assert result == {"PName": r"a \\ID=b", "Length": "5"}

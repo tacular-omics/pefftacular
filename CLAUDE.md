@@ -43,7 +43,7 @@ just clean           # remove caches
 just check-version   # fail if __version__ / CITATION.cff disagree
 ```
 
-`just check` must pass before any commit (187 tests, well under a second).
+`just check` must pass before any commit (194 tests, well under a second).
 `just docs` / `just docs-deploy` exist but are dead: there is no `mkdocs.yml` and mkdocs
 is not a dependency. Do not rely on them.
 
@@ -126,10 +126,9 @@ Full signatures and examples: `llms-full.txt`.
   re-escapes on output (`_escape_component`, parens only when unbalanced). Entry items
   are tokenized with `split_fields(item, unescape=True)`; `CustomKeyDef` header values
   use the default quoted mode (`unescape=False`) so regex backslashes survive.
-- **`split_description_keys` does not honour escapes.** It counts every `(` and `)`
-  for depth, so an item containing an escaped unbalanced paren (`name \( foo`) leaves
-  depth > 0 and swallows every following `\Key=` into that value. The writer produces
-  exactly this for names with unbalanced parens. Known bug, not yet fixed.
+- **`split_description_keys` honours escapes.** `\(` / `\)` do not change depth and
+  `\\` / `\|` never start a key, so an escaped unbalanced paren cannot swallow the
+  following `\Key=`. Do not regress this.
 - **`DisulfideBond.annot_id_refs`** holds annotation-ID references to prior
   `ModResPsi` entries, **not** residue positions (spec §3.4.2). That is why it is
   excluded from position-range validation.
@@ -139,8 +138,8 @@ Full signatures and examples: `llms-full.txt`.
   `HasAnnotationIdentifiers=true` / `ProteoformDb=true`.
 - **Round-trip tests** compare parsed *models*, not raw text: escape/unescape must be
   exact inverses, but key order, `\OX` → `\NcbiTaxId`, and header key order normalize.
-- **`\Variant=` (deprecated)** emits `DeprecationWarning`, not `PeffWarning`, and the
-  value lands in `extra["Variant"]`.
+- **`\Variant=` (deprecated)** emits `PeffWarning` and the value lands in
+  `extra["Variant"]`.
 - **`CustomKeyValue.raw` wins on write.** If `raw` is non-empty the writer emits it
   verbatim and ignores `fields`; clear `raw` when building a value from edited fields.
 - **Header keys `SpecificKey` / `SpecificValue`** are parsed and then dropped; they do
@@ -149,9 +148,9 @@ Full signatures and examples: `llms-full.txt`.
 - **Duplicate description keys:** the last `\Key=` on a line wins silently.
 - **`PeffReader` iterates once.** It wraps a single line iterator; a second `for` over
   the same reader yields nothing. Use `with PeffReader(path)` so an owned file closes.
-- **Free-text scalar values are not escaped by the writer** (`pname`, `gname`,
-  `tax_name`, `comment`, `extra` values). A value containing ` \Key=` is read back as a
-  new key.
+- **Free-text scalar values** (`pname`, `gname`, `tax_name`, `comment`) are escaped by
+  the writer with `_escape_component` and unescaped by the parser. `extra` values and
+  `CustomKeyValue.raw` are written verbatim: they are raw, possibly structured values.
 
 ## Releasing
 
