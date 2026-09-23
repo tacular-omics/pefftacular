@@ -37,7 +37,7 @@ from pefftacular.errors import (
 #     logging.getLogger("pefftacular").setLevel(logging.DEBUG)
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 
 __all__ = [
     "CustomKeyDef",
