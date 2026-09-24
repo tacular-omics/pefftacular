@@ -452,7 +452,8 @@ def _check_entry_reads_back(entry: SequenceEntry, text: str, defs: dict[str, Cus
             custom_values={k: v for k, v in entry.custom_values.items() if k in defs},
             extra={**{k: _serialize_custom_values(v, None) for k, v in undeclared.items()}, **entry.extra},
         )
-    if _as_written(parsed) != _as_written(expected):
+    # Plain equality is the common case and much cheaper than normalizing both sides.
+    if parsed != expected and _as_written(parsed) != _as_written(expected):
         name = _first_difference(expected, parsed)
         raise PeffWriteError(
             f"{entry.prefix}:{entry.db_unique_id}: {name} does not read back as written",
