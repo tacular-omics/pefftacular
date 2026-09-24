@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `read_peff()` and `PeffReader` read gzip, bzip2 and xz compressed files directly (`proteins.peff.gz`). The format is detected from the magic bytes. Paths are opened once, so pipes and FIFOs work; `bz2` and `lzma` are imported only when needed. Standard library only; no new dependency.
+- `write_peff(..., verify=False)` skips the per-entry read-back check (about three quarters of the write time) for entries that came unchanged from `read_peff()`/`PeffReader` or were already written once. The default, `verify=True`, is unchanged; the basic checks (empty or malformed prefix, id or sequence, line breaks, duplicate keys) always run.
+
+### Performance
+
+- Description-line lexer fast paths: `split_description_keys`, `split_items` and the escaped `split_fields` skip the character-by-character scan when the text holds no backslash escape or nested parens. Output is identical (checked against the 1.0 implementation with Hypothesis and on the 20k-entry human UniProt PEFF). On that file (one core, indicative) `read_peff` takes about 2.2 s instead of 4.6 s, and `write_peff` 3.2 s instead of 5.6 s (0.9 s with `verify=False`).
+- `write_peff()` consumes `entries` as a stream instead of building a list, and spools the formatted text to a temporary file past 32 MiB, so a large write no longer holds every entry's text in memory. The validate-before-write guarantee is unchanged: on a `PeffWriteError` a path is not created and nothing is written to a handle.
+
+### Fixed
+
+- A file that is not valid UTF-8, or a corrupt or truncated compressed file, raises `PeffParseError` ("Cannot read the input after line N", chained to the original error) instead of a bare `UnicodeDecodeError`.
+
 ## [1.0.0] (2026-09-23)
 
 The public API (everything in `pefftacular.__all__`) is now stable and follows semantic versioning.

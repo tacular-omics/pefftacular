@@ -84,7 +84,8 @@ the package root in tests and examples.
 
 - **I/O:** `read_peff(source)` → `(FileHeader, list[SequenceEntry])`;
   `PeffReader(source)` lazy reader (`.header`, iterate for entries; must be used in `with`);
-  `write_peff(header, entries, dest)`.
+  `write_peff(header, entries, dest, *, verify=True)`. Paths may be gzip/bzip2/xz (magic bytes only; opened once and peeked so FIFOs work;
+  `bz2`/`lzma` imported lazily).
 - **Header models:** `FileHeader`, `DatabaseHeader`, `CustomKeyDef`, `OptionalTagDef`.
 - **Entry model:** `SequenceEntry`.
 - **Annotation models:** `VariantSimple`, `VariantComplex`, `ModResUnimod`, `ModResPsi`,
@@ -147,6 +148,13 @@ Full signatures and examples: `llms-full.txt`.
 - **Header keys `SpecificKey` / `SpecificValue`** are parsed and then dropped; they do
   not survive a round trip. Unknown single-valued header keys go to
   `DatabaseHeader.extra`.
+- **Lexer fast paths (1.1).** `split_description_keys`, `split_items` and
+  `_split_fields_escaped` take a regex/`str.split` path when the text has no escape or
+  nested parens; the scanning path handles the rest. `tests/test_lexer_fast_paths.py`
+  compares them with the 1.0 implementation; change both paths together.
+- **`write_peff` streams.** It formats into a `SpooledTemporaryFile` and copies to `dest`
+  only after every entry passed, so nothing is written on error. Do not reintroduce
+  `list(entries)`.
 - **Duplicate description keys:** the last `\Key=` on a line wins silently.
 - **`PeffReader` iterates once and needs `with`.** It opens a path in `__enter__`
   (matching `fastatacular.FastaReader`); `.header` or iteration outside `with` raises

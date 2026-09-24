@@ -1,9 +1,17 @@
 """Depth-tracking tokenizers for PEFF description lines."""
 
+import re
+
 from pefftacular.errors import PeffParseError
 
 # Characters a backslash escapes in entry values (spec section 3.3.3).
 _ESCAPABLE = ("|", "(", ")", "\\")
+# The two-character escapes; a value without any of them has no escaping to undo.
+_ESCAPES = ("\\(", "\\)", "\\|", "\\\\")
+
+# ``(a)(b)...``: flat parenthesized items with no nesting, escapes or quotes.
+_FLAT_ITEMS = re.compile(r"(?:\([^()\\]*\))+")
+_FLAT_ITEM = re.compile(r"\(([^()\\]*)\)")
 
 
 def _unescape_component(s: str) -> str:
@@ -63,6 +71,8 @@ def split_items(raw: str, *, quotes: bool = False) -> list[str]:
     if not raw:
         return [raw]
     if not raw.startswith("("):
+        if ")" not in raw:
+            return [raw]
         if _has_unescaped(raw, ")"):
             raise PeffParseError(
                 "Unexpected ')' in value",
@@ -70,6 +80,10 @@ def split_items(raw: str, *, quotes: bool = False) -> list[str]:
                 hint=r"Escape a literal ')' as '\)', or wrap multi-item values in matching parentheses",
             )
         return [raw]
+
+    # Fast path: flat ``(a|b)(c|d)`` items (no nesting, backslash or quote).
+    if (not quotes or '"' not in raw) and _FLAT_ITEMS.fullmatch(raw):
+        return _FLAT_ITEM.findall(raw)
 
     items: list[str] = []
     depth = 0
@@ -169,6 +183,9 @@ def _split_fields_escaped(item: str) -> list[str]:
     Backslash escapes suppress separator/paren meaning: ``\|`` stays within a
     component and ``\(`` / ``\)`` do not change nesting depth.
     """
+    if "\\" not in item and "(" not in item and ")" not in item:
+        # Nothing to unescape and every '|' is at depth 0.
+        return item.split("|")
     fields: list[str] = []
     depth = 0
     start = 0
@@ -206,6 +223,8 @@ def split_description_keys(rest: str) -> dict[str, str]:
     """
     if not rest:
         return {}
+    if not any(esc in rest for esc in _ESCAPES):
+        return _split_description_keys_plain(rest)
 
     keys: dict[str, str] = {}
     depth = 0
@@ -234,6 +253,30 @@ def split_description_keys(rest: str) -> dict[str, str]:
     if current_start is not None:
         _store_key_value(keys, rest[current_start:])
 
+    return keys
+
+
+def _split_description_keys_plain(rest: str) -> dict[str, str]:
+    """``split_description_keys`` for text without escapes.
+
+    Every paren counts, so a `` \\`` is a key start when the parens before it
+    balance. Splitting on `` \\`` visits only those candidates.
+    """
+    parts = rest.split(" \\")
+    keys: dict[str, str] = {}
+    first = parts[0]
+    token: list[str] | None = [first] if first.startswith("\\") else None
+    depth = first.count("(") - first.count(")")
+    for part in parts[1:]:
+        if depth == 0:
+            if token is not None:
+                _store_key_value(keys, " \\".join(token).rstrip())
+            token = ["\\" + part]
+        elif token is not None:
+            token.append(part)
+        depth += part.count("(") - part.count(")")
+    if token is not None:
+        _store_key_value(keys, " \\".join(token))
     return keys
 
 

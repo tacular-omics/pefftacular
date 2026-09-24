@@ -6,6 +6,8 @@ import dataclasses
 import io
 import logging
 import re
+import shutil
+import tempfile
 import warnings
 from collections.abc import Iterable
 from datetime import date, time
@@ -470,8 +472,33 @@ def _check_entry_reads_back(entry: SequenceEntry, text: str, defs: dict[str, Cus
 # ---------------------------------------------------------------------------
 
 
-def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str | Path | IO[str]) -> None:
-    """Write a complete PEFF file."""
+# Formatted entries are held in memory up to this many bytes, then spill to a
+# temporary file, so a large write does not keep every entry's text in RAM.
+_SPOOL_BYTES = 32 * 1024 * 1024
+
+
+def write_peff(
+    header: FileHeader,
+    entries: Iterable[SequenceEntry],
+    dest: str | Path | IO[str],
+    *,
+    verify: bool = True,
+) -> None:
+    """Write a complete PEFF file.
+
+    Every entry is validated and formatted before anything is written to ``dest``:
+    on a ``PeffWriteError`` a path is not created or truncated and nothing is
+    written to a handle. ``entries`` is consumed once, as a stream; formatted text
+    is spooled to a temporary file past 32 MiB instead of being held in memory.
+
+    With ``verify=True`` (the default) each formatted entry is parsed back and
+    compared with the entry, so a value holding PEFF syntax (``\\Key=`` text, an
+    unbalanced paren) raises instead of writing a file that reads back
+    differently. ``verify=False`` skips that read-back (about 3/4 of the write
+    time); use it for entries that came from ``read_peff`` / ``PeffReader``
+    unchanged, or that you have already written once. The basic checks (empty or
+    malformed prefix, id or sequence, line breaks, duplicate keys) always run.
+    """
     if header is None:
         raise PeffWriteError("header must not be None", hint="Pass a FileHeader instance, e.g. from read_peff()")
 
@@ -486,17 +513,43 @@ def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str |
         warnings.simplefilter("ignore")
         _check_header_reads_back(header, header_text)
 
-    entry_list = list(entries)
     defs_by_prefix: dict[str, dict[str, CustomKeyDef]] = {}
     for db in header.databases:
         if db.prefix and db.custom_key_defs:
             defs_by_prefix[db.prefix] = {ckd.key_name: ckd for ckd in db.custom_key_defs}
 
-    texts: list[str] = []
+    spool = tempfile.SpooledTemporaryFile(
+        max_size=_SPOOL_BYTES, mode="w+", encoding="utf-8", errors="surrogatepass", newline=""
+    )
+    with spool:
+        count = _format_entries(entries, defs_by_prefix, spool, verify=verify)
+        spool.seek(0)
+        if isinstance(dest, (str, Path)):
+            logger.debug("writing PEFF file: %s (%d entries)", dest, count)
+            with Path(dest).open("w", encoding="utf-8") as f:
+                f.write(header_text)
+                shutil.copyfileobj(spool, f)
+        else:
+            logger.debug("writing PEFF to in-memory stream: %s (%d entries)", type(dest).__name__, count)
+            dest.write(header_text)
+            shutil.copyfileobj(spool, dest)
+
+    logger.info("write_peff: wrote %d entries across %d database(s)", count, len(header.databases))
+
+
+def _format_entries(
+    entries: Iterable[SequenceEntry],
+    defs_by_prefix: dict[str, dict[str, CustomKeyDef]],
+    out: IO[str],
+    *,
+    verify: bool,
+) -> int:
+    """Validate and format each entry into *out*; return the number of entries."""
+    count = 0
     # Re-parsing warns on spec violations the reader tolerates; the writer only raises.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        for index, entry in enumerate(entry_list):
+        for index, entry in enumerate(entries):
             if not entry.prefix:
                 raise PeffWriteError(
                     f"SequenceEntry has an empty prefix: db_unique_id={entry.db_unique_id!r}",
@@ -573,20 +626,11 @@ def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str |
             assert text is not None
             # Then re-parse it: a value holding PEFF syntax (e.g. "\\Key=" or an unbalanced
             # paren) would otherwise write a file that reads back different or not at all.
-            try:
-                _check_entry_reads_back(entry, text, defs_by_prefix.get(entry.prefix, {}))
-            except PeffWriteError as err:
-                raise PeffWriteError(str(err), index=index, hint=err.hint) from err
-            texts.append(text)
-
-    if isinstance(dest, (str, Path)):
-        logger.debug("writing PEFF file: %s (%d entries)", dest, len(entry_list))
-        with Path(dest).open("w", encoding="utf-8") as f:
-            f.write(header_text)
-            f.writelines(texts)
-    else:
-        logger.debug("writing PEFF to in-memory stream: %s (%d entries)", type(dest).__name__, len(entry_list))
-        dest.write(header_text)
-        dest.writelines(texts)
-
-    logger.info("write_peff: wrote %d entries across %d database(s)", len(entry_list), len(header.databases))
+            if verify:
+                try:
+                    _check_entry_reads_back(entry, text, defs_by_prefix.get(entry.prefix, {}))
+                except PeffWriteError as err:
+                    raise PeffWriteError(str(err), index=index, hint=err.hint) from err
+            out.write(text)
+            count += 1
+    return count

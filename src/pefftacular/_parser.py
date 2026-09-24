@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import itertools
 import logging
 import re
@@ -30,7 +31,7 @@ from pefftacular._models import (
     VariantComplex,
     VariantSimple,
 )
-from pefftacular.errors import PeffParseError, PeffWarning
+from pefftacular.errors import PeffError, PeffParseError, PeffWarning
 
 logger = logging.getLogger("pefftacular.parser")
 
@@ -913,11 +914,103 @@ def _parse_entry(
 # ---------------------------------------------------------------------------
 
 
+# Leading bytes of the compressed formats read transparently. The magic bytes alone
+# decide: a plain-text file named ``x.peff.gz`` is read as plain text.
+_MAGIC = ((b"\x1f\x8b", "gz"), (b"BZh", "bz2"), (b"\xfd7zXZ\x00", "xz"))
+_MODULES = {"gz": "gzip", "bz2": "bz2", "xz": "lzma"}
+
+
+def _compressed_errors() -> tuple[type[Exception], ...]:
+    """What a corrupt or truncated compressed stream raises while it is read.
+
+    Built on use: ``lzma`` is optional in CPython builds (``_lzma`` may be missing).
+    """
+    errors: list[type[Exception]] = [UnicodeDecodeError, EOFError, OSError]
+    try:
+        import lzma
+    except ImportError:
+        pass
+    else:
+        errors.append(lzma.LZMAError)
+    return tuple(errors)
+
+
+class _TextOverRaw(io.TextIOWrapper):
+    """Text over a decompressor; closing it also closes the underlying file.
+
+    ``gzip``/``bz2``/``lzma`` never close a file object they were given.
+    """
+
+    def __init__(self, buffer: io.BufferedIOBase, raw: io.BufferedReader) -> None:
+        super().__init__(buffer, encoding="utf-8-sig")  # ty: ignore[invalid-argument-type]
+        self._raw_file = raw
+
+    def close(self) -> None:
+        try:
+            super().close()
+        finally:
+            self._raw_file.close()
+
+
+def _decompressor(kind: str, raw: io.BufferedReader) -> io.BufferedIOBase:
+    try:
+        if kind == "gz":
+            import gzip
+
+            return gzip.GzipFile(fileobj=raw, mode="rb")
+        if kind == "bz2":
+            import bz2
+
+            return bz2.BZ2File(raw, mode="rb")
+        import lzma
+
+        return lzma.LZMAFile(raw, mode="rb")
+    except ImportError as e:
+        err = PeffError(f"Cannot read {kind}-compressed input: this Python has no {_MODULES[kind]} module")
+        err.add_note(f"hint: decompress the file first, or use a Python built with {_MODULES[kind]} support")
+        raise err from e
+
+
+def _open_path(path: Path) -> tuple[IO[str], bool]:
+    """Open a PEFF path as UTF-8 text, decompressing gzip/bzip2/xz input.
+
+    The file is opened once and its first bytes are peeked, not read, so pipes,
+    FIFOs, ``/dev/stdin`` and process substitution work. The magic bytes decide the
+    format. Returns the handle and whether it is compressed.
+    """
+    raw = path.open("rb")  # noqa: SIM115 - closed by the returned handle
+    try:
+        head = raw.peek(6)[:6]
+        kind = next((k for magic, k in _MAGIC if head.startswith(magic)), None)
+        if kind is None:
+            return io.TextIOWrapper(raw, encoding="utf-8-sig"), False
+        return _TextOverRaw(_decompressor(kind, raw), raw), True
+    except BaseException:
+        raw.close()
+        raise
+
+
+def _checked_lines(fh: IO[str], compressed: bool) -> Iterator[str]:
+    """Yield the lines of *fh*; undecodable or corrupt input raises ``PeffParseError``."""
+    errors = _compressed_errors() if compressed else (UnicodeDecodeError,)
+    line_no = 0
+    try:
+        for line in fh:
+            line_no += 1
+            yield line
+    except errors as err:
+        raise PeffParseError(
+            f"Cannot read the input after line {line_no}: {err}",
+            hint="PEFF input must be UTF-8 text, optionally gzip, bzip2 or xz compressed",
+        ) from err
+
+
 class PeffReader:
     """Lazy reader for PEFF files.
 
     Use it as a context manager, like ``fastatacular.FastaReader``: a path is opened
-    in ``__enter__`` (UTF-8, a leading BOM is skipped) and closed in ``__exit__``; a
+    in ``__enter__`` (UTF-8, a leading BOM is skipped; gzip, bzip2 and xz files are
+    decompressed, detected from the magic bytes or the suffix) and closed in ``__exit__``; a
     stream you pass in is read but never closed. Accessing ``header`` or iterating
     outside the ``with`` block raises :class:`RuntimeError`. Entries can be
     iterated once; a second iteration over the same reader yields nothing.
@@ -1056,13 +1149,14 @@ class PeffReader:
             self._defs_by_prefix = {}
             path = Path(self._source)
             logger.debug("opening PEFF file: %s", path)
-            self._fh = path.open(encoding="utf-8-sig")
+            self._fh, compressed = _open_path(path)
             self._owns_fh = True
         else:
             logger.debug("reading PEFF from in-memory stream: %r", type(self._source).__name__)
             self._fh = self._source
             self._owns_fh = False
-        self._lines = iter(self._fh)
+            compressed = False
+        self._lines = _checked_lines(self._fh, compressed)
         return self
 
     def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object) -> None:
@@ -1073,7 +1167,11 @@ class PeffReader:
 
 
 def read_peff(source: str | Path | IO[str]) -> tuple[FileHeader, list[SequenceEntry]]:
-    """Convenience: parse an entire PEFF file into header + list of entries."""
+    """Convenience: parse an entire PEFF file into header + list of entries.
+
+    A path may be plain or gzip/bzip2/xz compressed. Undecodable (non-UTF-8) or
+    corrupt compressed input raises ``PeffParseError`` chained to the cause.
+    """
     with PeffReader(source) as reader:
         header = reader.header
         entries = list(reader)

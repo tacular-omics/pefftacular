@@ -71,7 +71,8 @@ with PeffReader("proteins.peff") as reader:
 ### Paths, file objects and strings
 
 Both readers accept a path (`str` or `pathlib.Path`) or any text-mode file object. A `str` is
-always treated as a **path**. To parse PEFF text you already hold in memory, wrap it in
+always treated as a **path**. A path may be gzip, bzip2 or xz compressed (`proteins.peff.gz`);
+the format is detected from the file's first bytes, not its name. Pipes and FIFOs work too. To parse PEFF text you already hold in memory, wrap it in
 `io.StringIO`:
 
 ```python
@@ -212,7 +213,8 @@ print(alpha.gname, renamed.gname)
 ## Writing
 
 `write_peff(header, entries, dest)` writes a complete file. `dest` is a path or a text-mode file
-object; `entries` can be any iterable, including a generator.
+object; `entries` can be any iterable, including a generator. It is consumed once, as a stream,
+and nothing is written until every entry has been checked.
 
 ```python
 from pefftacular import DatabaseHeader, FileHeader, SequenceEntry, write_peff
@@ -263,6 +265,11 @@ The writer:
 - emits keys in a fixed canonical order, so output is stable across runs,
 - wraps sequences at 60 residues per line,
 - backslash-escapes `\`, `|` and unbalanced parentheses inside annotation fields.
+
+Every line the writer produces is parsed back and compared with the entry, so a value that would
+read back differently raises `PeffWriteError`. That check is about three quarters of the write
+time. For entries read from a file and not changed, skip it with
+`write_peff(header, entries, dest, verify=False)`.
 
 It does **not** fill in `Length` or `NumberOfEntries` for you. Set them yourself if you want
 them in the file; the reader warns if they disagree with the data.
