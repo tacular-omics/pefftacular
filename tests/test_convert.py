@@ -216,15 +216,65 @@ def test_to_proforma_variants() -> None:
         ({"variants": [VariantSimple(9, "A")]}, {}, "VariantSimple position 9"),
         ({"variants": [VariantSimple("x", "A")]}, {}, "VariantSimple position 'x'"),
         ({"variants": [VariantSimple(1, "AA")]}, {}, "single letter"),
-        ({"variants": [VariantSimple(1, "A"), VariantSimple(1, "C")]}, {}, "Two different"),
+        ({"variants": [VariantSimple(1, "A"), VariantSimple(1, "C")]}, {}, "two different"),
         ({}, {"mod_res_psi": (ModResPsi((0,), "MOD:1", "x"),)}, "ModResPsi position 0"),
         ({}, {"mod_res_psi": (ModResPsi((1,), "MOD:[1]", "x"),)}, "square bracket"),
     ],
 )
 def test_to_proforma_errors(kwargs: dict, entry_kwargs: dict, match: str) -> None:
     e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MKV", **entry_kwargs)
-    with pytest.raises(PeffError, match=match):
+    with pytest.raises(PeffError, match=match) as info:
         e.to_proforma(**kwargs)
+    if "mods" not in kwargs:
+        assert str(info.value).startswith("x:1: ")  # names the entry
+        assert e.to_proforma(**kwargs, errors="skip") is None
+    else:
+        with pytest.raises(PeffError, match=match):  # a bad argument raises even with skip
+            e.to_proforma(**kwargs, errors="skip")
+
+
+def test_to_proforma_site_past_the_end_names_accession_and_position() -> None:
+    # As in the neXtProt human PEFF, where 12 entries list sites past the sequence end.
+    e = SequenceEntry(
+        prefix="nxp", db_unique_id="NX_P1-2", sequence="MKV", mod_res_psi=(ModResPsi((2, 7), "MOD:00046", "p"),)
+    )
+    with pytest.raises(PeffError, match=r"^nxp:NX_P1-2: ModResPsi position 7 is not a residue position \(1\.\.3\)"):
+        e.to_proforma()
+    ok = SequenceEntry(prefix="nxp", db_unique_id="NX_P2", sequence="MKV")
+    forms = [p for x in (e, ok) if (p := x.to_proforma(errors="skip")) is not None]
+    assert forms == ["MKV"]
+    assert ok.to_proforma(errors="skip") == ok.to_proforma() == "MKV"
+    with pytest.raises(PeffError, match="errors must be"):
+        ok.to_proforma(errors="ignore")  # type: ignore[call-overload]
+
+
+def test_to_proforma_same_site_in_psi_and_generic_written_once() -> None:
+    e = SequenceEntry(
+        prefix="x",
+        db_unique_id="1",
+        sequence="MSTK",
+        mod_res_psi=(ModResPsi((2, "?"), "MOD:00046", "p"),),
+        mod_res=(ModRes((2, 3, "?"), "MOD:00046", "p"),),
+    )
+    assert e.to_proforma() == "[MOD:00046]?MS[MOD:00046]T[MOD:00046]K"
+
+
+def test_to_proforma_unknown_sites_dropped_after_truncation() -> None:
+    e = SequenceEntry(
+        prefix="x", db_unique_id="1", sequence="MSTK", mod_res_psi=(ModResPsi((2, "?"), "MOD:00046", "p"),)
+    )
+    assert e.to_proforma() == "[MOD:00046]?MS[MOD:00046]TK"
+    assert e.to_proforma(variants=[VariantSimple(3, "*")]) == "MS[MOD:00046]"
+
+
+def test_dataclass_field_types_are_types_not_strings() -> None:
+    # Introspection (cattrs, pydantic dataclasses) needs real annotation objects.
+    import pefftacular._models as models
+
+    for cls in vars(models).values():
+        if dataclasses.is_dataclass(cls) and isinstance(cls, type):
+            for f in dataclasses.fields(cls):
+                assert not isinstance(f.type, str), (cls.__name__, f.name, f.type)
 
 
 def test_to_proforma_same_variant_twice_is_fine() -> None:
@@ -257,8 +307,8 @@ def test_proforma_round_trip_property(seq: str, data: st.DataObject, mods: str) 
         for p in positions:
             if p == "?":
                 expected_unknown[f"{cv}:{a}"] = expected_unknown.get(f"{cv}:{a}", 0) + 1
-            else:
-                expected_at.setdefault(p, []).append(f"{cv}:{a}")
+            elif f"{cv}:{a}" not in expected_at.setdefault(p, []):
+                expected_at[p].append(f"{cv}:{a}")
     got_seq, got_at, got_unknown = _parse_proforma(e.to_proforma(mods=mods))  # type: ignore[arg-type]
     assert got_seq == seq
     assert got_at == expected_at

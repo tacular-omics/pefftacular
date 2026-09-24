@@ -123,7 +123,7 @@ ModVocabulary = Literal["psimod", "unimod"]
 _VOCAB = {"psimod": ("MOD", "M"), "unimod": ("UNIMOD", "U")}
 
 
-def _mod_tag(mod: ModResPsi | ModResUnimod | ModRes, cv: str, name_prefix: str) -> str:
+def _mod_tag(mod: ModResPsi | ModResUnimod | ModRes, cv: str, name_prefix: str, name: str) -> str:
     acc = mod.accession.strip()
     if acc:
         if acc.isdigit():
@@ -133,32 +133,51 @@ def _mod_tag(mod: ModResPsi | ModResUnimod | ModRes, cv: str, name_prefix: str) 
         tag = f"{name_prefix}:{mod.name}"
     if "[" in tag or "]" in tag:
         raise PeffError(
-            f"Modification {tag!r} contains a square bracket and cannot be written as ProForma",
+            f"{name}: modification {tag!r} contains a square bracket and cannot be written as ProForma",
         )
     return tag
 
 
+ProformaErrors = Literal["raise", "skip"]
+
+
 def entry_to_proforma(
-    entry: SequenceEntry, *, mods: ModVocabulary = "psimod", variants: Iterable[VariantSimple] = ()
-) -> str:
+    entry: SequenceEntry,
+    *,
+    mods: ModVocabulary = "psimod",
+    variants: Iterable[VariantSimple] = (),
+    errors: ProformaErrors = "raise",
+) -> str | None:
     if mods not in _VOCAB:
         raise PeffError(f"mods must be 'psimod' or 'unimod', not {mods!r}")
+    if errors not in ("raise", "skip"):
+        raise PeffError(f"errors must be 'raise' or 'skip', not {errors!r}")
+    try:
+        return _to_proforma(entry, mods, variants)
+    except PeffError:
+        if errors == "skip":
+            return None
+        raise
+
+
+def _to_proforma(entry: SequenceEntry, mods: ModVocabulary, variants: Iterable[VariantSimple]) -> str:
     cv, name_prefix = _VOCAB[mods]
+    name = f"{entry.prefix}:{entry.db_unique_id}"
     seq = list(entry.sequence)
     n = len(seq)
 
     substituted: dict[int, str] = {}
     end = n
     for v in variants:
-        pos = _check_position(v.position, n, "VariantSimple")
+        pos = _check_position(v.position, n, "VariantSimple", name)
         new = v.new_amino_acid
         if new == "*":  # stop codon: the protein ends before this position
             end = min(end, pos - 1)
             continue
         if len(new) != 1 or not new.isalpha():
-            raise PeffError(f"VariantSimple at {pos}: new amino acid {new!r} is not a single letter or '*'")
+            raise PeffError(f"{name}: VariantSimple at {pos}: new amino acid {new!r} is not a single letter or '*'")
         if substituted.get(pos, new) != new:
-            raise PeffError(f"Two different VariantSimple substitutions at position {pos}")
+            raise PeffError(f"{name}: two different VariantSimple substitutions at position {pos}")
         substituted[pos] = new
     for pos, new in substituted.items():
         seq[pos - 1] = new
@@ -167,16 +186,26 @@ def entry_to_proforma(
     generic = tuple(m for m in entry.mod_res if m.accession.strip().upper().startswith(cv + ":"))
     at: dict[int, list[str]] = {}
     unknown: dict[str, int] = {}
-    for mod in (*own, *generic):
-        tag = _mod_tag(mod, cv, name_prefix)
-        for p in mod.positions:
-            if p == "?":
-                unknown[tag] = unknown.get(tag, 0) + 1
-                continue
-            pos = _check_position(p, n, type(mod).__name__)
-            if pos in substituted or pos > end:
-                continue  # the modified residue is replaced or truncated by a variant
-            at.setdefault(pos, []).append(tag)
+    for source in (own, generic):
+        # The same site may be listed in both \ModResPsi/\ModResUnimod and \ModRes:
+        # write it once. Unknown sites count per list; the larger count wins.
+        source_unknown: dict[str, int] = {}
+        for mod in source:
+            tag = _mod_tag(mod, cv, name_prefix, name)
+            for p in mod.positions:
+                if p == "?":
+                    source_unknown[tag] = source_unknown.get(tag, 0) + 1
+                    continue
+                pos = _check_position(p, n, type(mod).__name__, name)
+                if pos in substituted or pos > end:
+                    continue  # the modified residue is replaced or truncated by a variant
+                tags = at.setdefault(pos, [])
+                if tag not in tags:
+                    tags.append(tag)
+        for tag, count in source_unknown.items():
+            unknown[tag] = max(unknown.get(tag, 0), count)
+    if end < n:
+        unknown = {}  # an unknown site may lie in the truncated part: drop it
 
     head = "".join(f"[{tag}]" + (f"^{count}" if count > 1 else "") for tag, count in unknown.items())
     if head:
@@ -185,7 +214,7 @@ def entry_to_proforma(
     return head + body
 
 
-def _check_position(pos: int | str, n: int, what: str) -> int:
+def _check_position(pos: int | str, n: int, what: str, name: str) -> int:
     if not isinstance(pos, int) or not 1 <= pos <= n:
-        raise PeffError(f"{what} position {pos!r} is not a residue position (1..{n})")
+        raise PeffError(f"{name}: {what} position {pos!r} is not a residue position (1..{n})")
     return pos

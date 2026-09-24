@@ -179,6 +179,7 @@ header, sequence = entry.to_fasta()          # back to a plain FASTA record
 entry.to_proforma()                  # \ModResPsi sites, e.g. "MS[MOD:00046]TK..."
 entry.to_proforma(mods="unimod")     # from \ModResUnimod sites
 entry.to_proforma(variants=entry.variant_simple[:1])   # with a substitution applied
+entry.to_proforma(errors="skip")     # None instead of PeffError (e.g. sites past the end)
 ```
 
 These use plain strings (pefftacular has no dependencies). With fastatacular, pass

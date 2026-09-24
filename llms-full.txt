@@ -398,7 +398,8 @@ A non-integer value for an int key raises `PeffParseError` with the line number.
 SequenceEntry.from_fasta(header: str, sequence: str, *, prefix: str | None = None) -> SequenceEntry
 entry.to_fasta() -> tuple[str, str]          # (header without ">", sequence)
 entry.to_proforma(*, mods: "psimod" | "unimod" = "psimod",
-                  variants: Iterable[VariantSimple] = ()) -> str
+                  variants: Iterable[VariantSimple] = (),
+                  errors: "raise" | "skip" = "raise") -> str   # None with errors="skip"
 ```
 
 - from_fasta takes plain strings (no fastatacular dependency; pass
@@ -413,7 +414,11 @@ entry.to_proforma(*, mods: "psimod" | "unimod" = "psimod",
   accession is `MOD:` (or `UNIMOD:`), as `X[MOD:00046]`. It writes `[M:name]`/`[U:name]` when the
   accession is empty and `[acc]^n?SEQ` for `?` positions. All sites are applied at once.
   variants: substitutions are applied, mods on substituted residues are dropped, and `*`
-  truncates. Bad positions or conflicting substitutions raise PeffError.
+  truncates; `?` sites are then dropped (they may lie in the removed part). A site listed
+  in both ModResPsi and ModRes is written once. Bad positions or conflicting
+  substitutions raise PeffError whose message starts with `prefix:db_unique_id`; with
+  `errors="skip"` the entry gives None instead (12 of 20,431 neXtProt human entries list
+  sites past the sequence end).
 
     >>> from pefftacular import SequenceEntry, ModResPsi
     >>> e = SequenceEntry(prefix="sp", db_unique_id="P1", sequence="MSTK",

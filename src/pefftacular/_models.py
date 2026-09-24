@@ -1,11 +1,9 @@
 """Frozen dataclass models for PEFF file structures."""
 
-from __future__ import annotations
-
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, time
-from typing import Literal
+from typing import Literal, overload
 
 CustomFieldValue = str | int | float | bool | date | time
 
@@ -236,7 +234,7 @@ class SequenceEntry:
     # -- conversions (logic in _convert.py; models stay plain data) ---------------------
 
     @classmethod
-    def from_fasta(cls, header: str, sequence: str, *, prefix: str | None = None) -> SequenceEntry:
+    def from_fasta(cls, header: str, sequence: str, *, prefix: str | None = None) -> "SequenceEntry":
         """Build an entry from a plain FASTA header and sequence.
 
         pefftacular has no dependencies, so this takes strings rather than a
@@ -274,12 +272,31 @@ class SequenceEntry:
 
         return entry_to_fasta(self)
 
+    @overload
+    def to_proforma(
+        self,
+        *,
+        mods: Literal["psimod", "unimod"] = ...,
+        variants: Iterable[VariantSimple] = ...,
+        errors: Literal["raise"] = ...,
+    ) -> str: ...
+
+    @overload
+    def to_proforma(
+        self,
+        *,
+        mods: Literal["psimod", "unimod"] = ...,
+        variants: Iterable[VariantSimple] = ...,
+        errors: Literal["skip"],
+    ) -> str | None: ...
+
     def to_proforma(
         self,
         *,
         mods: Literal["psimod", "unimod"] = "psimod",
         variants: Iterable[VariantSimple] = (),
-    ) -> str:
+        errors: Literal["raise", "skip"] = "raise",
+    ) -> str | None:
         """Render the sequence with its modifications as a ProForma 2.0 string.
 
         ``mods="psimod"`` writes ``\\ModResPsi`` sites (``S[MOD:00046]``) and
@@ -287,8 +304,17 @@ class SequenceEntry:
         sites are included when their accession is from the same vocabulary; others are
         left out. An empty accession is written by name (``[M:name]`` / ``[U:name]``). Every
         listed site is modified at once. Unknown positions (``?``) become a ProForma
-        unknown-position prefix (``[MOD:00046]^2?SEQ``). PEFF cannot tell a terminal
-        modification from one on the terminal residue, so all are written on the residue.
+        unknown-position prefix (``[MOD:00046]^2?SEQ``); they are dropped when a ``*``
+        variant truncates the sequence, since they may lie in the removed part. A site
+        listed in both ``\\ModResPsi``/``\\ModResUnimod`` and ``\\ModRes`` is written once.
+        PEFF cannot tell a terminal modification from one on the terminal residue, so all
+        are written on the residue.
+
+        Real files contain entries whose sites lie past the end of the sequence (12 of
+        the 20,431 entries of the neXtProt human PEFF). Converting a whole file, pass
+        ``errors="skip"`` to get ``None`` for those entries instead of an exception::
+
+            forms = [p for e in entries if (p := e.to_proforma(errors="skip")) is not None]
 
         Args:
             mods: Which vocabulary to render.
@@ -296,12 +322,19 @@ class SequenceEntry:
                 ``self.variant_simple``. A modification on a substituted residue is
                 dropped (spec section 3.3.10: a modified variant needs its own entry).
                 ``*`` (stop) truncates the sequence before that position.
+            errors: ``"raise"`` (default) raises :class:`PeffError` for an entry that
+                cannot be written; ``"skip"`` returns ``None`` for it instead.
+
+        Returns:
+            The ProForma string, or ``None`` with ``errors="skip"`` when the entry
+            cannot be written.
 
         Raises:
-            PeffError: Unknown ``mods``, a position outside the sequence, a non-numeric
-                position other than ``?``, two different substitutions at one position,
-                or a square bracket in a modification.
+            PeffError: Unknown ``mods`` or ``errors`` (always). With ``errors="raise"``
+                also a position outside the sequence, a non-numeric position other than
+                ``?``, two different substitutions at one position, or a square bracket
+                in a modification; the message starts with ``prefix:db_unique_id``.
         """
         from pefftacular._convert import entry_to_proforma
 
-        return entry_to_proforma(self, mods=mods, variants=variants)
+        return entry_to_proforma(self, mods=mods, variants=variants, errors=errors)

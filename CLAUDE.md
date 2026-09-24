@@ -90,7 +90,7 @@ the package root in tests and examples.
 - **Header models:** `FileHeader`, `DatabaseHeader`, `CustomKeyDef`, `OptionalTagDef`.
 - **Entry model:** `SequenceEntry`, with conversion methods `from_fasta(header, sequence,
   *, prefix=None)` (classmethod), `to_fasta()` -> `(header, sequence)` and
-  `to_proforma(*, mods="psimod"|"unimod", variants=())`.
+  `to_proforma(*, mods="psimod"|"unimod", variants=(), errors="raise"|"skip")`.
 - **Annotation models:** `VariantSimple`, `VariantComplex`, `ModResUnimod`, `ModResPsi`,
   `ModRes`, `Processed`, `DisulfideBond`, `Proteoform`, `SequenceRange`, `CustomKeyValue`.
 - **Errors/warnings:** `PeffError` (base, subclasses `ValueError`), `PeffParseError`
