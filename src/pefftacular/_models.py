@@ -34,6 +34,9 @@ class OptionalTagDef:
 class DatabaseHeader:
     """Metadata block for a single database within a PEFF file."""
 
+    # Explicitly unhashable (a generated hash would fail on the dict fields anyway).
+    __hash__ = None  # type: ignore[assignment]
+
     prefix: str | None = None
     db_name: str | None = None
     db_description: str | None = None
@@ -55,6 +58,9 @@ class DatabaseHeader:
 @dataclass(frozen=True, slots=True)
 class FileHeader:
     """Top-level header for a PEFF file."""
+
+    # Explicitly unhashable: its DatabaseHeaders hold an ``extra`` dict.
+    __hash__ = None  # type: ignore[assignment]
 
     peff_version: str
     general_comments: tuple[str, ...] = ()
@@ -168,6 +174,9 @@ class Proteoform:
 @dataclass(frozen=True, slots=True)
 class CustomKeyValue:
     """A parsed value for a header-declared custom key on an entry."""
+
+    # Explicitly unhashable (a generated hash would fail on the dict fields anyway).
+    __hash__ = None  # type: ignore[assignment]
 
     key_name: str
     fields: dict[str, CustomFieldValue] = field(default_factory=dict)

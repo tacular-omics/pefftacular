@@ -10,6 +10,7 @@ from pefftacular._models import (
     DatabaseHeader,
     DisulfideBond,
     FileHeader,
+    ModResPsi,
     ModResUnimod,
     OptionalTagDef,
     Processed,
@@ -335,3 +336,67 @@ class TestWritePeffValidation:
         with pytest.raises(PeffWriteError) as exc:
             write_peff(None, [], io.StringIO())  # type: ignore[arg-type]
         assert exc.value.index is None
+
+
+class TestWriteVerification:
+    """write_peff re-parses what it wrote and refuses values that would not read back."""
+
+    @staticmethod
+    def _entry(**kw) -> SequenceEntry:
+        return SequenceEntry(prefix="sp", db_unique_id="P00001", sequence="ACDEF", **kw)
+
+    @pytest.mark.parametrize(
+        "kw",
+        [
+            pytest.param({"variant_simple": (VariantSimple(position="1|2", new_amino_acid="A"),)}, id="pos-pipe"),
+            pytest.param({"variant_simple": (VariantSimple(position="1)", new_amino_acid="A"),)}, id="pos-paren"),
+            pytest.param({"mod_res_psi": (ModResPsi(positions=(), accession="MOD:1", name="x"),)}, id="no-positions"),
+            pytest.param({"extra": {"K": "a \\PName=evil"}}, id="extra-injects-key"),
+            pytest.param({"extra": {"PName": "shadow"}}, id="extra-known-key"),
+            pytest.param({"extra": {"a=b": "c"}}, id="extra-key-with-eq"),
+            pytest.param({"id": "a \\GName=x"}, id="id-injects-key"),
+            pytest.param({"db_unique_id_key": "a \\GName=x"}, id="dbuniqueid-injects-key"),
+            pytest.param(
+                {"proteoform": (Proteoform("pf1", (SequenceRange(1, 5),), ("a",)),)},  # type: ignore[arg-type]
+                id="proteoform-str-ref",
+            ),
+        ],
+    )
+    def test_entry_that_does_not_read_back_raises(self, kw) -> None:
+        good = self._entry()
+        buf = io.StringIO()
+        with pytest.raises(PeffWriteError, match=r"^Entry 1: ") as exc:
+            write_peff(_make_minimal_header(), [good, self._entry(**kw)], buf)
+        assert exc.value.index == 1
+        assert buf.getvalue() == ""
+
+    @pytest.mark.parametrize(
+        "header",
+        [
+            pytest.param(FileHeader(peff_version="abc"), id="bad-version"),
+            pytest.param(FileHeader("1.0", databases=(DatabaseHeader(prefix="sp", extra={"Prefix": "zz"}),)), id="dup"),
+            pytest.param(FileHeader("1.0", databases=(DatabaseHeader(prefix="sp", extra={"a=b": "c"}),)), id="eq-key"),
+        ],
+    )
+    def test_header_that_does_not_read_back_raises(self, header) -> None:
+        buf = io.StringIO()
+        with pytest.raises(PeffWriteError) as exc:
+            write_peff(header, [], buf)
+        assert exc.value.index is None
+        assert buf.getvalue() == ""
+
+    def test_sequence_line_starting_with_comment_char_raises(self) -> None:
+        entry = SequenceEntry(prefix="sp", db_unique_id="P1", sequence="A" * 60 + ";BC")
+        with pytest.raises(PeffWriteError, match="';' or '#'"):
+            write_peff(_make_minimal_header(), [entry], io.StringIO())
+
+    def test_harmless_normalizations_still_write(self) -> None:
+        # "" vs None for optional text and "5" vs 5 for positions read back as the same text.
+        entry = self._entry(
+            variant_simple=(VariantSimple(position="2", new_amino_acid="A", tag=""),),
+            proteoform=(Proteoform("pf1", (SequenceRange(1, 5),), (), name=""),),
+            extra={"Variant": "(1|A)"},
+        )
+        buf = io.StringIO()
+        write_peff(_make_minimal_header(), [entry], buf)
+        assert "\\VariantSimple=(2|A)" in buf.getvalue()

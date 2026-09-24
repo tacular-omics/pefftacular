@@ -85,7 +85,8 @@ class TestRoundtripInsulin:
     """Round-trip the insulin fixture — exercises DisulfideBond and Proteoform writers."""
 
     @pytest.fixture(scope="class")
-    def roundtrip(self):
+    @classmethod
+    def roundtrip(cls):
         return _roundtrip(FIXTURES / "PEFF_AnnotID_Insulin_Valid.peff")
 
     def test_disulfide_bonds_preserved(self, roundtrip):

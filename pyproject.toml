@@ -36,6 +36,18 @@ Changelog = "https://github.com/tacular-omics/pefftacular/blob/main/CHANGELOG.md
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.sdist]
+# Source, tests and paperwork only: not the spec PDF, docs site or repo tooling.
+only-include = [
+    "src/pefftacular",
+    "tests",
+    "README.md",
+    "CHANGELOG.md",
+    "CITATION.cff",
+    "LICENSE",
+    "pyproject.toml",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/pefftacular"]
 

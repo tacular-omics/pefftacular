@@ -976,6 +976,20 @@ class PeffReader:
             line_no += 1
             line = raw_line.rstrip("\n\r")
 
+            if line.startswith(";"):
+                # FASTA comment line (NCBI / legacy convention): skipped like fastatacular does.
+                continue
+            if line.startswith("#") and current_desc is not None:
+                # Header lines belong before the first entry (spec §3.3.1). Gluing this one
+                # into the sequence would corrupt it; skip it but say so, since it usually
+                # means concatenated files or a misplaced header line.
+                warnings.warn(
+                    f"'#' line inside entry {current_desc.split(maxsplit=1)[0]} (line {line_no}) ignored; "
+                    "header lines must come before the first '>' entry",
+                    PeffWarning,
+                    stacklevel=2,
+                )
+                continue
             if line.startswith(">"):
                 if current_desc is not None:
                     entry = _parse_entry(
@@ -1034,6 +1048,12 @@ class PeffReader:
 
     def __enter__(self) -> Self:
         if isinstance(self._source, (str, Path)):
+            # A path is reopened from the start, so drop state tied to the previous handle
+            # (FastaReader restarts the same way). A stream just continues where it was.
+            self._header = None
+            self._remaining = None
+            self._first_entry_line_no = 1
+            self._defs_by_prefix = {}
             path = Path(self._source)
             logger.debug("opening PEFF file: %s", path)
             self._fh = path.open(encoding="utf-8-sig")

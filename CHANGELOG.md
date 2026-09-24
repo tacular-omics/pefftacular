@@ -15,6 +15,12 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Entering `with` a second time on a path `PeffReader` (e.g. `with r: r.header` then `with r: list(r)`) no longer fails with "I/O operation on closed file": the reopened file is read from the top, like `fastatacular.FastaReader`. A stream reader still continues where it stopped.
+- `write_peff()` now re-parses each description line and the header it writes and raises `PeffWriteError` (with `.index` for entries) if they would read back differently or not at all, instead of writing a corrupt file. Caught cases include a string position holding `|` or an unbalanced paren (`VariantSimple("1|2", "A")`, `VariantSimple("1)", "A")`), a `ModRes*` with no positions, an `id` / `db_unique_id_key` / `extra` value containing ` \Key=`, an `extra` key that is a known PEFF key or contains `=`, a non-integer `Proteoform.annot_id_refs`, a `peff_version` that is not `N.N`, and a `DatabaseHeader.extra` key that repeats a known header key or contains `=`. It also rejects a key present in both `custom_values` and `extra`, and a sequence that would start a wrapped line with `;` or `#`. `""` vs `None` for optional text and `"5"` vs `5` for positions are still accepted.
+- Lines starting with `;` (FASTA comments) are skipped, as in `fastatacular`, instead of being glued into the sequence. A `#` line after an entry's `>` line is skipped with a `PeffWarning` instead of becoming part of the sequence.
+- `DatabaseHeader`, `FileHeader` and `CustomKeyValue` are now explicitly unhashable (`__hash__ = None`), like `SequenceEntry`: they hold dicts, so `hash()` already failed, now with a clear `TypeError` at the class level.
+- The sdist no longer ships the spec PDF, docs, or repo tooling (hatch `only-include`); the unused `MANIFEST.in` is removed.
+- `scripts/release_version.py sync --set X.Y.Z` also sets `date-released` in `CITATION.cff`.
 - Whitespace inside sequence lines (spaces, tabs) is now removed, not only at line ends. It used to be kept, so `write_peff()` rejected the parsed entry and a read -> write round trip failed.
 - A `>` entry with no sequence now raises `PeffParseError` (the writer already rejected empty sequences, so such a file could be read but not written back).
 - Non-blank text between the header and the first `>` entry line now raises `PeffParseError` instead of being dropped silently (spec section 3.3.1: header lines start with `# `).
