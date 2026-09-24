@@ -153,3 +153,17 @@ class TestDeprecatedVariantKey:
         with pytest.warns(PeffWarning, match="deprecated"):
             _, entries = read_peff(StringIO(data))
         assert entries[0].extra["Variant"] == "(1|1|K)"
+
+
+class TestPositionHelpers:
+    def test_single_position_range(self):
+        from pefftacular._parser import _parse_sequence_range
+
+        r = _parse_sequence_range("7")
+        assert (r.start, r.end) == (7, 7)
+
+    def test_parse_position_alias_kept(self):
+        from pefftacular._parser import _parse_position, parse_position
+
+        assert parse_position is _parse_position
+        assert parse_position("?") == "?"
