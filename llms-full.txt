@@ -159,8 +159,10 @@ write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str | Pat
 
 Write a complete PEFF file. `dest` is a path (opened as UTF-8, overwritten) or a
 text-mode stream. Entries are validated first: a `None` header, an empty `prefix`, an
-empty `db_unique_id` or an empty `sequence` raises `PeffWriteError` before anything is
-written. Sequences are wrapped at 60 characters. Annotation keys are written in a fixed
+empty `db_unique_id` or an empty `sequence` (and every other unwritable value, including
+a custom-key value that no longer matches its RegExp) raises `PeffWriteError` before
+anything is written. For an entry problem `.index` is the entry's 0-based position and
+the message starts with `Entry N: `. Sequences are wrapped at 60 characters. Annotation keys are written in a fixed
 canonical order: `ID`, `DbUniqueId`, `Length`, `PName`, `GName`, `NcbiTaxId`, `TaxName`,
 `SV`, `EV`, `PE`, `Decoy`, `Comment`, `VariantSimple`, `VariantComplex`, `ModResUnimod`,
 `ModResPsi`, `ModRes`, `Processed`, `DisulfideBond`, `Proteoform`, custom keys, then
@@ -574,7 +576,7 @@ class PeffError(ValueError)
 class PeffParseError(PeffError):
     PeffParseError(message: str, *, line: int | None = None, context: str | None = None, hint: str | None = None)
 class PeffWriteError(PeffError):
-    PeffWriteError(message: str, *, hint: str | None = None)
+    PeffWriteError(message: str, *, index: int | None = None, hint: str | None = None)
 ```
 
 - `PeffError`: base of every pefftacular exception. Subclasses `ValueError`, so existing
@@ -583,7 +585,8 @@ class PeffWriteError(PeffError):
   number, when known; also prefixed to the message as `Line N: ...`), `.context` (the
   offending text), `.hint` (how to fix it). `context` and `hint` are also attached as PEP
   678 notes, so they appear in tracebacks without changing `str(err)`.
-- `PeffWriteError`: a model cannot be serialized. Attribute `.hint`.
+- `PeffWriteError`: a model cannot be serialized. Attributes `.index` (0-based entry
+  position, `None` for header problems; the message then starts with `Entry N: `) and `.hint`.
 
 Raised for: empty file, bad first line (must be exactly `# PEFF <major>.<minor>`), a
 malformed `>prefix:id` line, non-integer int fields, too few components in an annotation

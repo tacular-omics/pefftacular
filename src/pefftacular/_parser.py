@@ -919,8 +919,8 @@ class PeffReader:
     Use it as a context manager, like ``fastatacular.FastaReader``: a path is opened
     in ``__enter__`` (UTF-8, a leading BOM is skipped) and closed in ``__exit__``; a
     stream you pass in is read but never closed. Accessing ``header`` or iterating
-    outside the ``with`` block raises :class:`RuntimeError`. The entries can be
-    iterated once.
+    outside the ``with`` block raises :class:`RuntimeError`. Entries can be
+    iterated once; a second iteration over the same reader yields nothing.
 
     Example::
 

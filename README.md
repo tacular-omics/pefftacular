@@ -215,7 +215,8 @@ except PeffError:
 ```
 
 `write_peff` validates its input before writing anything and raises
-`PeffWriteError` (also a `PeffError`), with a `.hint`, for a missing header or
+`PeffWriteError` (also a `PeffError`), with a `.hint` and the bad entry's 0-based
+`.index` (message prefix `Entry N: `), for a missing header or
 an entry with an empty prefix, `db_unique_id` or sequence. File-system failures
 (missing directory, no permission) are not wrapped: they raise the usual
 `OSError` (`FileNotFoundError`, `PermissionError`).

@@ -90,7 +90,7 @@ the package root in tests and examples.
 - **Annotation models:** `VariantSimple`, `VariantComplex`, `ModResUnimod`, `ModResPsi`,
   `ModRes`, `Processed`, `DisulfideBond`, `Proteoform`, `SequenceRange`, `CustomKeyValue`.
 - **Errors/warnings:** `PeffError` (base, subclasses `ValueError`), `PeffParseError`
-  (`.line`, `.context`, `.hint`), `PeffWriteError` (`.hint`), `PeffWarning`
+  (`.line`, `.context`, `.hint`), `PeffWriteError` (`.index`, `.hint`), `PeffWarning`
   (`UserWarning` subclass).
 - `__version__`.
 

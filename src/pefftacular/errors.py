@@ -60,13 +60,19 @@ class PeffParseError(PeffError):
 class PeffWriteError(PeffError):
     """Raised when a model object cannot be serialized to PEFF.
 
+    Every entry is checked before anything is written, so on this error the
+    destination is left untouched.
+
     Attributes:
+        index: 0-based position of the offending entry in the input, if known;
+            ``None`` for header problems. The message then starts with ``Entry N: ``.
         hint: A short, actionable suggestion for how to fix the model.
     """
 
-    def __init__(self, message: str, *, hint: str | None = None) -> None:
+    def __init__(self, message: str, *, index: int | None = None, hint: str | None = None) -> None:
+        self.index = index
         self.hint = hint
-        super().__init__(message)
+        super().__init__(message if index is None else f"Entry {index}: {message}")
         if hint is not None:
             self.add_note(f"hint: {hint}")
 
