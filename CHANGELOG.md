@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- `to_records(source)`, `PeffReader.to_records()` and `SequenceEntry.to_record()`: one
+  plain `dict` per entry with stable snake_case keys (`RECORD_KEYS`), annotations as their
+  PEFF value text, ready for `pandas.DataFrame(records)` or `polars.DataFrame(records)`.
+  No new dependency.
 - `SequenceEntry.from_fasta(header, sequence, *, prefix=None)` and `entry.to_fasta()`
   convert to and from plain FASTA with UniProt-style headers (`sp|P12345|NAME_HUMAN ... OS=
   OX= GN= PE= SV=`). They take plain strings, so there is still no dependency on

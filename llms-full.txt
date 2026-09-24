@@ -61,6 +61,8 @@ from pefftacular import (
     Processed, DisulfideBond, Proteoform, SequenceRange, CustomKeyValue,
     # errors and warnings
     PeffError, PeffParseError, PeffWriteError, PeffWarning,
+    # flat dicts for pandas / polars (see "Tables")
+    to_records, RECORD_KEYS,
 )
 import pefftacular
 pefftacular.__version__   # e.g. "1.0.0"
@@ -427,6 +429,34 @@ entry.to_proforma(*, mods: "psimod" | "unimod" = "psimod",
     'MS[MOD:00046]TK'
     >>> e.to_fasta()
     ('sp|P1', 'MSTK')
+
+## Tables (pandas, polars)
+
+    to_records(source: str | Path | IO[str] | Iterable[SequenceEntry]) -> list[dict]
+    PeffReader.to_records() -> list[dict]    # remaining entries; uses the header's CustomKeyDefs
+    SequenceEntry.to_record() -> dict
+
+One plain dict per entry (the file header is not included) with the keys of
+RECORD_KEYS, in this order: prefix, db_unique_id, id, db_unique_id_key, pname, gname,
+ncbi_tax_id (int), tax_name, length (int), sv (int), ev (int), pe (int), decoy (bool),
+comment, variant_simple, variant_complex, mod_res_unimod, mod_res_psi, mod_res,
+processed, disulfide_bond, proteoform (each the PEFF value text, e.g. "(2|L)", or None),
+custom_values, extra ("\Key=value" text or None), sequence.
+Record keys differ from fastatacular's because each follows its own model. To stack the
+two in one frame, rename: db_unique_id<->accession, id<->entry_name, tax_name<->os_name
+(prefix, pname, gname, ncbi_tax_id, pe, sv, length, sequence are shared; `extra` is
+"\Key=value" text here and "KEY=value" text there).
+pefftacular does not depend on pandas or polars; pass the list to them yourself:
+
+    import pandas as pd
+    df = pd.DataFrame(to_records("proteins.peff"))
+    with_variants = df[df["variant_simple"].notna()]
+
+    >>> from pefftacular import SequenceEntry, VariantSimple
+    >>> rec = SequenceEntry(prefix="sp", db_unique_id="P1", sequence="MSTK",
+    ...                     variant_simple=(VariantSimple(2, "L"),)).to_record()
+    >>> rec["db_unique_id"], rec["variant_simple"], rec["mod_res_psi"]
+    ('P1', '(2|L)', None)
 
 ## Annotation models
 

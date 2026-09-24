@@ -20,6 +20,7 @@ from pefftacular._models import (
     VariantSimple,
 )
 from pefftacular._parser import PeffReader, read_peff
+from pefftacular._records import RECORD_KEYS, to_records
 from pefftacular._writer import write_peff
 from pefftacular.errors import (
     PeffError,
@@ -56,10 +57,12 @@ __all__ = [
     "PeffWriteError",
     "Processed",
     "Proteoform",
+    "RECORD_KEYS",
     "SequenceEntry",
     "SequenceRange",
     "VariantComplex",
     "VariantSimple",
     "read_peff",
+    "to_records",
     "write_peff",
 ]
