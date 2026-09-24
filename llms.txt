@@ -7,7 +7,8 @@
 Read a whole file with `read_peff(path)` → `(FileHeader, list[SequenceEntry])`, or stream
 with `with PeffReader(path) as r: r.header; for entry in r: ...`. Write with
 `write_peff(header, entries, dest)`. All models are frozen dataclasses importable from the
-package root. Parsing is permissive: spec violations are reported as `PeffWarning`
+package root (`SequenceEntry` is not hashable: it holds dicts). `PeffReader` must be used
+in a `with` block. Parsing is permissive: spec violations are reported as `PeffWarning`
 (`warnings.simplefilter("error", PeffWarning)` for strict mode); structural failures raise
 `PeffParseError` with `.line`, `.context` and `.hint`. Requires Python 3.12+.
 

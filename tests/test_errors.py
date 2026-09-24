@@ -5,7 +5,7 @@ from io import StringIO
 
 import pytest
 
-from pefftacular._parser import PeffReader
+from pefftacular._parser import PeffReader, read_peff
 from pefftacular.errors import PeffError, PeffParseError, PeffWarning, PeffWriteError
 
 # ---------------------------------------------------------------------------
@@ -18,22 +18,28 @@ _HEADER = (
 )
 
 
+def _header(source):
+    """Parse only the header of *source* inside the reader's context manager."""
+    with PeffReader(source) as reader:
+        return reader.header
+
+
 class TestMalformedHeader:
     def test_no_peff_line(self):
         with pytest.raises(PeffParseError, match="First line"):
-            PeffReader(StringIO(">sp:X1\nACDEF\n")).header  # noqa: B018
+            _header(StringIO(">sp:X1\nACDEF\n"))  # noqa: B018
 
     def test_garbage_first_line(self):
         with pytest.raises(PeffParseError, match="First line"):
-            PeffReader(StringIO("garbage\n")).header  # noqa: B018
+            _header(StringIO("garbage\n"))  # noqa: B018
 
     def test_empty_file(self):
         with pytest.raises(PeffParseError, match="Empty file"):
-            PeffReader(StringIO("")).header  # noqa: B018
+            _header(StringIO(""))  # noqa: B018
 
     def test_whitespace_only(self):
         with pytest.raises(PeffParseError):
-            PeffReader(StringIO("   \n  \n")).header  # noqa: B018
+            _header(StringIO("   \n  \n"))  # noqa: B018
 
 
 class TestMalformedEntry:
@@ -43,7 +49,7 @@ class TestMalformedEntry:
             "# NumberOfEntries=1\n# SequenceType=AA\n# //\n>NOCOLON \\Length=3\nABC\n"
         )
         with pytest.raises(PeffParseError, match="Invalid description"):
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
     def test_variant_simple_too_few_fields(self):
         data = (
@@ -51,7 +57,7 @@ class TestMalformedEntry:
             "# NumberOfEntries=1\n# SequenceType=AA\n# //\n>t:X1 \\VariantSimple=(5)\nACDEF\n"
         )
         with pytest.raises(PeffParseError, match="VariantSimple"):
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
 
 class TestIntegerParsingErrors:
@@ -68,32 +74,32 @@ class TestIntegerParsingErrors:
             "# //\n"
         )
         with pytest.raises(PeffParseError, match="NumberOfEntries"):
-            PeffReader(StringIO(data)).header  # noqa: B018
+            _header(StringIO(data))  # noqa: B018
 
     def test_ncbi_tax_id_non_integer_raises(self) -> None:
         data = _HEADER + ">t:X1 \\NcbiTaxId=bad\nACDEF\n"
         with pytest.raises(PeffParseError, match="NcbiTaxId"):
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
     def test_length_non_integer_raises(self) -> None:
         data = _HEADER + ">t:X1 \\Length=abc\nACDEF\n"
         with pytest.raises(PeffParseError, match="Length"):
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
     def test_sv_non_integer_raises(self) -> None:
         data = _HEADER + ">t:X1 \\SV=x\nACDEF\n"
         with pytest.raises(PeffParseError, match="SV"):
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
     def test_ev_non_integer_raises(self) -> None:
         data = _HEADER + ">t:X1 \\EV=x\nACDEF\n"
         with pytest.raises(PeffParseError, match="EV"):
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
     def test_pe_non_integer_raises(self) -> None:
         data = _HEADER + ">t:X1 \\PE=x\nACDEF\n"
         with pytest.raises(PeffParseError, match="PE"):
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
 
 class TestLengthMismatchWarning:
@@ -101,14 +107,14 @@ class TestLengthMismatchWarning:
         # Length=5 but sequence "MKTLL" has 5 chars — use a longer sequence to force mismatch
         data = _HEADER + ">t:X1 \\Length=5\nMKTLLMKTLL\n"
         with pytest.warns(UserWarning, match="Length=5"):
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
     def test_length_match_no_warning(self) -> None:
         data = _HEADER + ">t:X1 \\Length=5\nMKTLL\n"
         with warnings.catch_warnings():
             warnings.simplefilter("error", UserWarning)
             # Should not raise — sequence length matches Length annotation
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
 
 class TestNumberOfEntriesMismatch:
@@ -116,13 +122,13 @@ class TestNumberOfEntriesMismatch:
         _header_n5 = _HEADER.replace("# NumberOfEntries=1\n", "# NumberOfEntries=5\n")
         data = _header_n5 + ">t:X1 \\Length=2\nAC\n>t:X2 \\Length=2\nAC\n"
         with pytest.warns(UserWarning, match="NumberOfEntries=5"):
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
     def test_match_emits_no_warning(self) -> None:
         data = _HEADER + ">t:X1 \\Length=2\nAC\n"
         with warnings.catch_warnings():
             warnings.simplefilter("error", UserWarning)
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
 
 class TestEntryLineNumberIsAbsolute:
@@ -130,13 +136,13 @@ class TestEntryLineNumberIsAbsolute:
         # Header is 9 lines; bad SV is on the 10th absolute line.
         data = _HEADER + ">t:X1 \\SV=bad\nAC\n"
         with pytest.raises(PeffParseError) as exc:
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
         assert exc.value.line == 10
 
     def test_annotation_error_reports_absolute_line(self) -> None:
         data = _HEADER + ">t:X1 \\VariantSimple=(1)\nAC\n"
         with pytest.raises(PeffParseError, match="VariantSimple") as exc:
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
         assert exc.value.line == 10
         assert exc.value.context == "1"
         assert exc.value.hint is not None
@@ -144,7 +150,7 @@ class TestEntryLineNumberIsAbsolute:
     def test_unbalanced_paren_error_reports_absolute_line(self) -> None:
         data = _HEADER + ">t:X1 \\ModRes=(1|X|a\nAC\n"
         with pytest.raises(PeffParseError) as exc:
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
         assert exc.value.line == 10
 
 
@@ -155,23 +161,23 @@ class TestAnnotationValidationWarnings:
         # Sequence "MKTLL" is 5 residues; position 99 is out of range.
         data = _HEADER + ">t:X1 \\VariantSimple=(99|A)\nMKTLL\n"
         with pytest.warns(UserWarning, match="out of range 1..5"):
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
     def test_empty_new_amino_acid_warns(self) -> None:
         data = _HEADER + ">t:X1 \\VariantSimple=(3|)\nMKTLL\n"
         with pytest.warns(UserWarning, match="newAminoAcid must not be empty"):
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
     def test_unimod_missing_accession_warns(self) -> None:
         data = _HEADER + ">t:X1 \\ModResUnimod=(2||Phospho)\nMKTLL\n"
         with pytest.warns(UserWarning, match="ModResUnimod accession must be provided"):
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
     def test_valid_annotations_emit_no_warning(self) -> None:
         data = _HEADER + ">t:X1 \\VariantSimple=(3|A) \\ModResUnimod=(2|UNIMOD:21|Phospho)\nMKTLL\n"
         with warnings.catch_warnings():
             warnings.simplefilter("error", UserWarning)
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
     def test_disulfide_refs_not_range_checked(self) -> None:
         # DisulfideBond values are annotation-ID references, not residue
@@ -179,7 +185,7 @@ class TestAnnotationValidationWarnings:
         data = _HEADER + ">t:X1 \\DisulfideBond=(100,200|refs)\nMKTLL\n"
         with warnings.catch_warnings():
             warnings.simplefilter("error", UserWarning)
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
 
 class TestPeffParseErrorAttributes:
@@ -222,7 +228,7 @@ class TestErrorHierarchyAndHints:
     def test_parse_failure_carries_actionable_hint(self):
         data = _HEADER + ">t:X1 \\VariantSimple=(5)\nMKTLL\n"
         with pytest.raises(PeffParseError) as exc:
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
         assert exc.value.hint is not None
         assert "position|newAminoAcid" in exc.value.hint
 
@@ -240,7 +246,7 @@ class TestPeffWarningCategory:
     def test_out_of_range_uses_peff_warning(self):
         data = _HEADER + ">t:X1 \\VariantSimple=(99|A)\nMKTLL\n"
         with pytest.warns(PeffWarning, match="out of range"):
-            list(PeffReader(StringIO(data)))
+            read_peff(StringIO(data))
 
     def test_peff_warning_is_user_warning(self):
         assert issubclass(PeffWarning, UserWarning)
@@ -250,4 +256,37 @@ class TestPeffWarningCategory:
         with warnings.catch_warnings():  # noqa: SIM117
             warnings.simplefilter("error", PeffWarning)
             with pytest.raises(PeffWarning):
-                list(PeffReader(StringIO(data)))
+                read_peff(StringIO(data))
+
+
+class TestSequenceLines:
+    """Sequence text must survive read -> write -> read (the writer rejects whitespace and empty sequences)."""
+
+    def test_internal_whitespace_is_stripped(self) -> None:
+        from pefftacular import write_peff
+
+        data = _HEADER + ">t:X1\nAC DE\tF\nGH  IK \n"
+        header, entries = read_peff(StringIO(data))
+        assert entries[0].sequence == "ACDEFGHIK"
+        out = StringIO()
+        write_peff(header, entries, out)
+        _, again = read_peff(StringIO(out.getvalue()))
+        assert again == entries
+
+    def test_empty_sequence_raises(self) -> None:
+        data = _HEADER + ">t:X1 \\PName=a\n>t:X2\nACDEF\n"
+        with pytest.raises(PeffParseError, match="empty sequence") as exc:
+            read_peff(StringIO(data))
+        assert exc.value.line == 10
+
+    def test_empty_last_sequence_raises(self) -> None:
+        data = _HEADER + ">t:X1\nACDEF\n>t:X2\n\n"
+        with pytest.raises(PeffParseError, match="empty sequence"):
+            read_peff(StringIO(data))
+
+    def test_text_before_first_entry_raises(self) -> None:
+        data = _HEADER + "ACDEF\n>t:X1\nACDEF\n"
+        with pytest.raises(PeffParseError, match="before the first") as exc:
+            read_peff(StringIO(data))
+        assert exc.value.line == 10
+        assert isinstance(exc.value, PeffError)

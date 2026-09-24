@@ -49,7 +49,8 @@ def _read_header_strict(text: str) -> FileHeader:
     """Parse only the header of *text* (no entry-count check), PeffWarning -> error."""
     with warnings.catch_warnings():
         warnings.simplefilter("error", PeffWarning)
-        return PeffReader(StringIO(text)).header
+        with PeffReader(StringIO(text)) as reader:
+            return reader.header
 
 
 def _entry(desc: str, seq: str = _SEQ) -> SequenceEntry:

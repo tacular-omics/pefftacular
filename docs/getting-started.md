@@ -53,7 +53,8 @@ for entry in entries:
 ### One entry at a time: `PeffReader`
 
 `PeffReader` parses the header up front and then yields entries lazily, so memory use stays flat
-on large databases. Use it as a context manager so the file is closed:
+on large databases. It must be used as a context manager: the file is opened on entering the
+`with` block and closed on leaving it, and using the reader outside one raises `RuntimeError`:
 
 ```python
 from pefftacular import PeffReader
@@ -99,6 +100,8 @@ print(entries[0].pname, entries[0].sequence)
 ## The data model
 
 Everything pefftacular returns is a frozen dataclass: immutable and comparable with `==`.
+`SequenceEntry` is **not hashable**, because `custom_values` and `extra` are dicts; use
+`(entry.prefix, entry.db_unique_id)` as a key instead.
 
 ```text
 FileHeader

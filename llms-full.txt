@@ -67,7 +67,10 @@ pefftacular.__version__   # e.g. "0.4.3"
 ```
 
 All models are `@dataclass(frozen=True, slots=True)`: immutable, compared by value. Use
-`dataclasses.replace(obj, field=new)` to derive a modified copy.
+`dataclasses.replace(obj, field=new)` to derive a modified copy. `SequenceEntry` is
+**not hashable** (its `custom_values` and `extra` are dicts; `hash()` raises `TypeError`),
+so key sets and dicts by `(entry.prefix, entry.db_unique_id)`. Its `id` field (`\ID=`)
+shadows the builtin name; it is kept for API stability.
 
 ## Reading
 
@@ -78,7 +81,7 @@ read_peff(source: str | Path | IO[str]) -> tuple[FileHeader, list[SequenceEntry]
 ```
 
 Parse an entire PEFF file (path or text-mode stream) into its header and a list of
-entries. Opens paths as UTF-8. Logs an INFO summary on `pefftacular.parser`.
+entries. Opens paths as UTF-8 (a leading BOM is skipped). Logs an INFO summary on `pefftacular.parser`.
 
 ```python
 from pefftacular import read_peff
@@ -95,7 +98,7 @@ for entry in entries:
 PeffReader(source: str | Path | IO[str])
     .header -> FileHeader          # property; parses the header on first access, cached
     __iter__() -> Iterator[SequenceEntry]
-    __enter__() -> Self
+    __enter__() -> Self                            # opens a path here, not in __init__
     __exit__(exc_type, exc_val, exc_tb) -> None   # closes the file if the reader opened it
 ```
 
@@ -114,8 +117,9 @@ Notes:
 
 - A reader iterates **once**. It wraps a single line iterator; a second loop over the
   same reader yields nothing. Create a new reader to read again.
-- Use it as a context manager when passing a path, so the file it opened is closed.
-  When you pass a stream, the caller owns and closes it.
+- It **must** be used as a context manager, like `fastatacular.FastaReader`: a path is
+  opened in `__enter__` and closed in `__exit__`. `.header` or iteration outside the
+  `with` block raises `RuntimeError`. When you pass a stream, the caller owns and closes it.
 - The `NumberOfEntries` check (see Warnings) runs when iteration finishes.
 
 ### Reading from a string
@@ -352,7 +356,7 @@ SequenceEntry(
 | field | source key | notes |
 |---|---|---|
 | `prefix`, `db_unique_id` | `>prefix:id` | required |
-| `sequence` | sequence lines | joined, whitespace stripped |
+| `sequence` | sequence lines | joined, all whitespace removed; an empty sequence raises `PeffParseError` |
 | `id` | `\ID=` | |
 | `db_unique_id_key` | `\DbUniqueId=` | |
 | `pname` | `\PName=` | protein name |
@@ -657,7 +661,8 @@ logging.getLogger("pefftacular").setLevel(logging.DEBUG)
 - **`CustomKeyValue.raw` is kept on write only while it matches `fields`**; edited `fields` are written. Without a `CustomKeyDef`, `raw` is trusted, so clear it after editing.
 - **`DisulfideBond.annot_id_refs` are annotation IDs, not positions.**
 - Header lines must start with `# ` (hash, space) or be exactly `#`; the first other line
-  ends the header.
+  ends the header. Any non-blank line after the header and before the first `>` raises
+  `PeffParseError`, as does a `>` line with no sequence.
 
 ## Related
 

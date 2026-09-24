@@ -181,7 +181,18 @@ class CustomKeyValue:
 
 @dataclass(frozen=True, slots=True)
 class SequenceEntry:
-    """A single sequence entry in a PEFF file."""
+    """A single sequence entry in a PEFF file.
+
+    Frozen and compared by value (``==``), but **not hashable**: ``custom_values`` and
+    ``extra`` are dicts, so ``hash(entry)`` raises :class:`TypeError`. Key sets or dicts
+    by ``(entry.prefix, entry.db_unique_id)`` instead.
+
+    ``id`` holds the ``\\ID=`` key (spec §3.3.4); the name shadows the builtin but is kept
+    for API stability.
+    """
+
+    # Explicitly unhashable (a generated hash would fail on the dict fields anyway).
+    __hash__ = None  # type: ignore[assignment]
 
     prefix: str
     db_unique_id: str
