@@ -84,7 +84,8 @@ the package root in tests and examples.
 
 - **I/O:** `read_peff(source)` → `(FileHeader, list[SequenceEntry])`;
   `PeffReader(source)` lazy reader (`.header`, iterate for entries; must be used in `with`);
-  `write_peff(header, entries, dest, *, verify=True)`. Paths may be gzip/bzip2/xz.
+  `write_peff(header, entries, dest, *, verify=True)`. Paths may be gzip/bzip2/xz (magic bytes only; opened once and peeked so FIFOs work;
+  `bz2`/`lzma` imported lazily).
 - **Header models:** `FileHeader`, `DatabaseHeader`, `CustomKeyDef`, `OptionalTagDef`.
 - **Entry model:** `SequenceEntry`.
 - **Annotation models:** `VariantSimple`, `VariantComplex`, `ModResUnimod`, `ModResPsi`,

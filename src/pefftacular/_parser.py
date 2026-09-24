@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import bz2
-import gzip
+import io
 import itertools
 import logging
-import lzma
 import re
 import warnings
 from collections.abc import Iterable, Iterator, Mapping
@@ -33,7 +31,7 @@ from pefftacular._models import (
     VariantComplex,
     VariantSimple,
 )
-from pefftacular.errors import PeffParseError, PeffWarning
+from pefftacular.errors import PeffError, PeffParseError, PeffWarning
 
 logger = logging.getLogger("pefftacular.parser")
 
@@ -916,31 +914,85 @@ def _parse_entry(
 # ---------------------------------------------------------------------------
 
 
-# Leading bytes of the compressed formats read transparently.
+# Leading bytes of the compressed formats read transparently. The magic bytes alone
+# decide: a plain-text file named ``x.peff.gz`` is read as plain text.
 _MAGIC = ((b"\x1f\x8b", "gz"), (b"BZh", "bz2"), (b"\xfd7zXZ\x00", "xz"))
-_SUFFIXES = {".gz": "gz", ".bz2": "bz2", ".xz": "xz"}
-_OPENERS = {"gz": gzip.open, "bz2": bz2.open, "xz": lzma.open}
-# What a corrupt or truncated compressed stream raises while it is read.
-_COMPRESSED_ERRORS: tuple[type[Exception], ...] = (UnicodeDecodeError, EOFError, OSError, lzma.LZMAError)
+_MODULES = {"gz": "gzip", "bz2": "bz2", "xz": "lzma"}
+
+
+def _compressed_errors() -> tuple[type[Exception], ...]:
+    """What a corrupt or truncated compressed stream raises while it is read.
+
+    Built on use: ``lzma`` is optional in CPython builds (``_lzma`` may be missing).
+    """
+    errors: list[type[Exception]] = [UnicodeDecodeError, EOFError, OSError]
+    try:
+        import lzma
+    except ImportError:
+        pass
+    else:
+        errors.append(lzma.LZMAError)
+    return tuple(errors)
+
+
+class _TextOverRaw(io.TextIOWrapper):
+    """Text over a decompressor; closing it also closes the underlying file.
+
+    ``gzip``/``bz2``/``lzma`` never close a file object they were given.
+    """
+
+    def __init__(self, buffer: io.BufferedIOBase, raw: io.BufferedReader) -> None:
+        super().__init__(buffer, encoding="utf-8-sig")  # ty: ignore[invalid-argument-type]
+        self._raw_file = raw
+
+    def close(self) -> None:
+        try:
+            super().close()
+        finally:
+            self._raw_file.close()
+
+
+def _decompressor(kind: str, raw: io.BufferedReader) -> io.BufferedIOBase:
+    try:
+        if kind == "gz":
+            import gzip
+
+            return gzip.GzipFile(fileobj=raw, mode="rb")
+        if kind == "bz2":
+            import bz2
+
+            return bz2.BZ2File(raw, mode="rb")
+        import lzma
+
+        return lzma.LZMAFile(raw, mode="rb")
+    except ImportError as e:
+        err = PeffError(f"Cannot read {kind}-compressed input: this Python has no {_MODULES[kind]} module")
+        err.add_note(f"hint: decompress the file first, or use a Python built with {_MODULES[kind]} support")
+        raise err from e
 
 
 def _open_path(path: Path) -> tuple[IO[str], bool]:
     """Open a PEFF path as UTF-8 text, decompressing gzip/bzip2/xz input.
 
-    The format comes from the magic bytes, else the ``.gz``/``.bz2``/``.xz`` suffix.
-    Returns the handle and whether it is compressed.
+    The file is opened once and its first bytes are peeked, not read, so pipes,
+    FIFOs, ``/dev/stdin`` and process substitution work. The magic bytes decide the
+    format. Returns the handle and whether it is compressed.
     """
-    with path.open("rb") as raw:
-        head = raw.read(6)
-    kind = next((k for magic, k in _MAGIC if head.startswith(magic)), None) or _SUFFIXES.get(path.suffix.lower())
-    if kind is None:
-        return path.open(encoding="utf-8-sig"), False
-    return _OPENERS[kind](path, "rt", encoding="utf-8-sig"), True
+    raw = path.open("rb")  # noqa: SIM115 - closed by the returned handle
+    try:
+        head = raw.peek(6)[:6]
+        kind = next((k for magic, k in _MAGIC if head.startswith(magic)), None)
+        if kind is None:
+            return io.TextIOWrapper(raw, encoding="utf-8-sig"), False
+        return _TextOverRaw(_decompressor(kind, raw), raw), True
+    except BaseException:
+        raw.close()
+        raise
 
 
 def _checked_lines(fh: IO[str], compressed: bool) -> Iterator[str]:
     """Yield the lines of *fh*; undecodable or corrupt input raises ``PeffParseError``."""
-    errors = _COMPRESSED_ERRORS if compressed else (UnicodeDecodeError,)
+    errors = _compressed_errors() if compressed else (UnicodeDecodeError,)
     line_no = 0
     try:
         for line in fh:

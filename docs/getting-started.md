@@ -72,7 +72,7 @@ with PeffReader("proteins.peff") as reader:
 
 Both readers accept a path (`str` or `pathlib.Path`) or any text-mode file object. A `str` is
 always treated as a **path**. A path may be gzip, bzip2 or xz compressed (`proteins.peff.gz`);
-the format is detected from the file's first bytes, else its suffix. To parse PEFF text you already hold in memory, wrap it in
+the format is detected from the file's first bytes, not its name. Pipes and FIFOs work too. To parse PEFF text you already hold in memory, wrap it in
 `io.StringIO`:
 
 ```python

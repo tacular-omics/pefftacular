@@ -7,6 +7,10 @@ import dataclasses
 import gzip
 import io
 import lzma
+import os
+import subprocess
+import sys
+import threading
 import warnings
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -190,12 +194,96 @@ def test_truncated_compressed_input_raises_peff_parse_error(tmp_path: Path, suff
     assert info.value.__cause__ is not None
 
 
-def test_gz_suffix_on_plain_text_raises_peff_parse_error(tmp_path: Path) -> None:
+def test_gz_suffix_on_plain_text_reads_as_plain(tmp_path: Path, plain) -> None:  # type: ignore[no-untyped-def]
+    # The magic bytes decide, not the file name.
     path = tmp_path / "plain.peff.gz"
-    path.write_text(TEXT)
-    with pytest.raises(PeffParseError, match="Cannot read the input") as info:
+    path.write_bytes(TEXT.encode())
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        assert read_peff(path) == plain
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs os.mkfifo")
+@pytest.mark.parametrize("suffix", ["", *COMPRESSORS])
+def test_fifo_is_read_once(tmp_path: Path, plain, suffix: str) -> None:  # type: ignore[no-untyped-def]
+    # A pipe can be read only once: the format sniff must not consume its first bytes.
+    data = COMPRESSORS[suffix](TEXT.encode()) if suffix else TEXT.encode()
+    fifo = tmp_path / "pipe.peff"
+    os.mkfifo(fifo)
+
+    def feed() -> None:
+        with fifo.open("wb") as w:
+            w.write(data)
+
+    def read() -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            result.append(read_peff(fifo))
+
+    result: list = []  # type: ignore[type-arg]
+    writer_thread = threading.Thread(target=feed, daemon=True)
+    reader_thread = threading.Thread(target=read, daemon=True)
+    writer_thread.start()
+    reader_thread.start()
+    reader_thread.join(timeout=10)
+    if reader_thread.is_alive():  # a second open() of the FIFO blocks: give it EOF, then fail
+        os.close(os.open(fifo, os.O_WRONLY | os.O_NONBLOCK))
+        pytest.fail("reading the FIFO blocked (was it opened twice?)")
+    writer_thread.join(timeout=10)
+    assert result == [plain]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="/dev/fd is POSIX only")
+def test_os_pipe_path(plain) -> None:  # type: ignore[no-untyped-def]
+    r, w = os.pipe()
+    feeder = threading.Thread(target=lambda: (os.write(w, TEXT.encode()), os.close(w)))
+    feeder.start()
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            with PeffReader(f"/dev/fd/{r}") as reader:
+                assert (reader.header, list(reader)) == plain
+    finally:
+        feeder.join(timeout=10)
+        os.close(r)
+
+
+_NO_LZMA_BZ2 = """
+import sys, warnings
+sys.modules["_lzma"] = None
+sys.modules["_bz2"] = None
+import pefftacular
+from pefftacular import PeffError, read_peff
+warnings.simplefilter("ignore")
+header, entries = read_peff(sys.argv[1])
+assert entries
+for path, module in ((sys.argv[2], "lzma"), (sys.argv[3], "bz2")):
+    try:
         read_peff(path)
-    assert isinstance(info.value.__cause__, OSError)
+    except PeffError as e:
+        assert module in str(e), e
+    else:
+        raise SystemExit(f"{path} read without {module}")
+print("ok")
+"""
+
+
+def test_import_without_lzma_and_bz2(tmp_path: Path) -> None:
+    # Minimal Python builds (pyenv, slim images) can lack _lzma and _bz2.
+    plain_path = tmp_path / "p.peff"
+    plain_path.write_bytes(TEXT.encode())
+    xz = tmp_path / "x.peff.xz"
+    xz.write_bytes(lzma.compress(TEXT.encode()))
+    bz = tmp_path / "x.peff.bz2"
+    bz.write_bytes(bz2.compress(TEXT.encode()))
+    result = subprocess.run(
+        [sys.executable, "-c", _NO_LZMA_BZ2, str(plain_path), str(xz), str(bz)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "ok"
 
 
 @pytest.mark.parametrize("compress", [False, True])
