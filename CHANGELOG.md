@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `write_peff()` no longer ignores edits to a parsed custom-key value: `dataclasses.replace(value, fields=...)` used to write the stale original text from `CustomKeyValue.raw`. `raw` is now used verbatim only if re-parsing it with the key's `CustomKeyDef` gives the value's current `fields`, otherwise the item is rebuilt from `fields`. Unedited values still round-trip byte-exact.
 - The last database block in the file header is no longer dropped when the header runs straight into the first `>` entry without a closing `# //` (now a `PeffWarning`), or when a `# //` separator has trailing whitespace. Previously its `Prefix` and `CustomKeyDef`s were lost and its custom keys ended up in `extra`.
 - A blank line inside the file header no longer ends the header and discards the database blocks after it. It is skipped with a `PeffWarning` (spec section 3.3.1: every header line starts with `# `). Blank lines between the header and the first entry are still ignored silently.
 
