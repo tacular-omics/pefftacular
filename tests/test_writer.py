@@ -323,6 +323,14 @@ class TestWritePeffValidation:
         assert exc.value.index == 1
         assert exc.value.hint
 
+    def test_write_to_path_round_trips(self, tmp_path) -> None:
+        from pefftacular import read_peff
+
+        path = tmp_path / "out.peff"
+        write_peff(_make_minimal_header(), [self._valid_entry()], path)
+        _, entries = read_peff(path)
+        assert entries == [self._valid_entry()]
+
     def test_header_error_has_no_index(self) -> None:
         with pytest.raises(PeffWriteError) as exc:
             write_peff(None, [], io.StringIO())  # type: ignore[arg-type]

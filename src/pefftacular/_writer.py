@@ -452,8 +452,6 @@ def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str |
         try:
             texts.append(_format_entry(entry, defs_by_prefix))
         except PeffWriteError as err:
-            if err.index is not None:
-                raise
             raise PeffWriteError(str(err), index=index, hint=err.hint) from err
 
     if isinstance(dest, (str, Path)):
