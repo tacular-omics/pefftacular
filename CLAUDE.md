@@ -59,6 +59,7 @@ src/pefftacular/
   _parser.py    # PeffReader (lazy) + read_peff (eager): header parsing, per-key
                 #   annotation parsing, custom-key coercion, spec validation warnings
   _writer.py    # write_peff: serializes models back to canonical PEFF text
+  _convert.py   # SequenceEntry.from_fasta / to_fasta / to_proforma logic (models delegate here)
   errors.py     # PeffError base, PeffParseError, PeffWriteError, PeffWarning
 scripts/release_version.py   # version sync/check used by the release recipes
 tests/                       # one file per area; fixtures in tests/fixtures/*.peff
@@ -87,7 +88,9 @@ the package root in tests and examples.
   `write_peff(header, entries, dest, *, verify=True)`. Paths may be gzip/bzip2/xz (magic bytes only; opened once and peeked so FIFOs work;
   `bz2`/`lzma` imported lazily).
 - **Header models:** `FileHeader`, `DatabaseHeader`, `CustomKeyDef`, `OptionalTagDef`.
-- **Entry model:** `SequenceEntry`.
+- **Entry model:** `SequenceEntry`, with conversion methods `from_fasta(header, sequence,
+  *, prefix=None)` (classmethod), `to_fasta()` -> `(header, sequence)` and
+  `to_proforma(*, mods="psimod"|"unimod", variants=(), errors="raise"|"skip")`.
 - **Annotation models:** `VariantSimple`, `VariantComplex`, `ModResUnimod`, `ModResPsi`,
   `ModRes`, `Processed`, `DisulfideBond`, `Proteoform`, `SequenceRange`, `CustomKeyValue`.
 - **Errors/warnings:** `PeffError` (base, subclasses `ValueError`), `PeffParseError`
@@ -165,6 +168,12 @@ Full signatures and examples: `llms-full.txt`.
 - **Free-text scalar values** (`pname`, `gname`, `tax_name`, `comment`) are escaped by
   the writer with `_escape_component` and unescaped by the parser. `extra` values and
   `CustomKeyValue.raw` are written verbatim: they are raw, possibly structured values.
+
+- **Conversions take plain strings.** `from_fasta`/`to_fasta` must not import
+  fastatacular (runtime deps stay empty); their header rules mirror fastatacular's
+  `_KV_PATTERN` / `_UNIPROT_ID` / `_PIPE_ID`. `tests/test_convert.py` cross-checks with
+  fastatacular when it is installed. `to_proforma` renders accessions only (no name or
+  mass lookup).
 
 ## Releasing
 

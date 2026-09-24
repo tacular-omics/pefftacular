@@ -282,6 +282,15 @@ wheels = [
 ]
 
 [[package]]
+name = "fastatacular"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/05/d7/96240be5e67f5f012ec4f89ea7472fe2f1121440139e9e3409ba34767888/fastatacular-1.0.0.tar.gz", hash = "sha256:3ae4499bb8f21f74502bc1216ce32952ce3631f2fc49dd2bd0aa22396c0a0083", size = 68471, upload-time = "2026-09-24T04:21:42.817Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2f/aa/5581546df4987de5cfcfedb699111cf231513254494814bac0dcfd62e776/fastatacular-1.0.0-py3-none-any.whl", hash = "sha256:5e36a22713565ff656f3293c5362f7dfc44856bc4c67dd1c4f014fe898413af7", size = 13137, upload-time = "2026-09-24T04:21:41.519Z" },
+]
+
+[[package]]
 name = "ghp-import"
 version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -641,6 +650,7 @@ source = { editable = "." }
 
 [package.dev-dependencies]
 dev = [
+    { name = "fastatacular" },
     { name = "hypothesis" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -657,6 +667,7 @@ docs = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "fastatacular", specifier = ">=1.0,<2" },
     { name = "hypothesis", specifier = ">=6.100" },
     { name = "pytest", specifier = ">=9" },
     { name = "pytest-cov", specifier = ">=6.0" },

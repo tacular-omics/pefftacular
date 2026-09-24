@@ -1,8 +1,36 @@
 # From FASTA and UniProt
 
-pefftacular has no built-in converter: it reads and writes PEFF, and does not fetch or parse
-other formats. Converting is short, though, because a PEFF entry is just a `SequenceEntry` you
-build yourself. This page shows two ways to do it.
+`SequenceEntry.from_fasta(header, sequence)` builds a PEFF entry from one FASTA record, and
+`entry.to_fasta()` goes back. pefftacular has no dependencies, so both use a plain header
+string and a sequence string rather than another package's objects.
+
+```python
+from pefftacular import SequenceEntry
+
+entry = SequenceEntry.from_fasta(
+    ">sp|P69905|HBA_HUMAN Hemoglobin subunit alpha OS=Homo sapiens OX=9606 GN=HBA1 PE=1 SV=2",
+    "MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHG",
+)
+print(entry.prefix, entry.db_unique_id, entry.id, entry.gname, entry.ncbi_tax_id)
+# sp P69905 HBA_HUMAN HBA1 9606
+header, sequence = entry.to_fasta()
+print(header)
+# sp|P69905|HBA_HUMAN Hemoglobin subunit alpha OS=Homo sapiens OX=9606 GN=HBA1 PE=1 SV=2
+```
+
+`from_fasta` reads `db|ACCESSION|ENTRY_NAME`, `db|ACCESSION|...` and PEFF-style `db:ACCESSION`
+identifiers:
+
+- `db` becomes the PEFF `prefix`, `ACCESSION` the `db_unique_id` and `ENTRY_NAME` the `id`.
+- `OS`, `OX`, `GN`, `PE` and `SV` become `tax_name`, `ncbi_tax_id`, `gname`, `pe` and `sv`.
+  Any other `KEY=value` goes to `extra`, and `length` is set from the sequence.
+- For other identifiers, pass `prefix=`.
+
+`to_fasta` writes the same fields back. It drops the annotations, `comment`, `ev` and `decoy`,
+which have no FASTA form.
+
+The rest of this page builds the entries field by field, which is useful when you want a
+different mapping.
 
 ## From a UniProt FASTA file with fastatacular
 
@@ -28,7 +56,9 @@ VKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFG
 KEFTPPVQAAYQKVVAGVANALAHKYH
 ```
 
-Map each FASTA record to a `SequenceEntry` and write the PEFF file:
+Map each FASTA record to a `SequenceEntry` and write the PEFF file. With fastatacular,
+`SequenceEntry.from_fasta(r.raw_header, r.sequence)` is the short form. The explicit version
+below shows the mapping:
 
 ```python
 from fastatacular import read_fasta

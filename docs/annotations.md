@@ -249,6 +249,51 @@ print(entry.extra)
 # {}
 ```
 
+## ProForma strings
+
+`entry.to_proforma()` writes the sequence with its modification sites as a
+[ProForma 2.0](https://github.com/HUPO-PSI/ProForma) string. Pass it to a ProForma parser such as
+[peptacular](https://github.com/tacular-omics/peptacular) to get masses or fragments.
+
+```python
+print(insulin.to_proforma()[25:50])
+# VNQHLC[MOD:00798]GSHLVEAL
+print(insulin.to_proforma(mods="unimod")[44:64])
+# ERGFFYTPK[UNIMOD:45]
+```
+
+- `mods="psimod"` (the default) writes `\ModResPsi` sites and `mods="unimod"` writes
+  `\ModResUnimod` sites. A `\ModRes` site is included when its accession is from the same
+  vocabulary (`MOD:` or `UNIMOD:`), and left out otherwise.
+- Every listed site is modified at once. To render a subset, build a copy with
+  `dataclasses.replace(entry, mod_res_psi=...)` first.
+- A `?` position becomes a ProForma unknown-position modification: `[MOD:00046]^2?SEQ...`.
+- A site listed in both `\ModResPsi` (or `\ModResUnimod`) and `\ModRes` is written once.
+- A modification with no accession is written by name: `[M:name]` or `[U:name]`.
+- PEFF does not say whether a modification on residue 1 is on the N-terminus or on the side
+  chain, so it is always written on the residue.
+
+`variants=` applies `VariantSimple` substitutions first. A modification on a substituted
+residue is dropped (the spec says a modified variant needs its own entry), and a `*` variant
+truncates the sequence before its position:
+
+```python
+print(insulin.to_proforma(variants=insulin.variant_simple[:1])[:12])
+# MALWMCLLPLLA
+```
+
+`?` sites are dropped after a `*` truncation, since they may lie in the removed part.
+
+Positions outside the sequence, or two different substitutions at one position, raise
+`PeffError`; the message starts with the entry's `prefix:db_unique_id`. `VariantComplex`
+is not applied. Real files have such entries (12 of the 20,431 in the neXtProt human
+PEFF list sites past the sequence end). To convert a whole file, skip them with
+`errors="skip"`, which returns `None` for an entry that cannot be written:
+
+```python
+forms = [p for e in entries if (p := e.to_proforma(errors="skip")) is not None]
+```
+
 ## Writing annotations
 
 Build the annotation objects and pass them to `SequenceEntry` as tuples:

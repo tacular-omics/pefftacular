@@ -59,6 +59,7 @@ package = true
 
 [dependency-groups]
 dev = [
+    "fastatacular>=1.0,<2",
     "hypothesis>=6.100",
     "pytest>=9",
     "pytest-cov>=6.0",

@@ -164,6 +164,28 @@ If no `RegExp` is declared, the value is split on `|` and zipped with
 value = entry.extra.get("MyCustomKey")
 ```
 
+## FASTA and ProForma
+
+```python
+from pefftacular import SequenceEntry
+
+entry = SequenceEntry.from_fasta(
+    "sp|P31946|1433B_HUMAN 14-3-3 protein beta/alpha OS=Homo sapiens OX=9606 GN=YWHAB PE=1 SV=3",
+    "MTMDKSELVQKAKLAEQAERYDDMAAAMK",
+)
+entry.prefix, entry.db_unique_id, entry.id   # ("sp", "P31946", "1433B_HUMAN")
+header, sequence = entry.to_fasta()          # back to a plain FASTA record
+
+entry.to_proforma()                  # \ModResPsi sites, e.g. "MS[MOD:00046]TK..."
+entry.to_proforma(mods="unimod")     # from \ModResUnimod sites
+entry.to_proforma(variants=entry.variant_simple[:1])   # with a substitution applied
+entry.to_proforma(errors="skip")     # None instead of PeffError (e.g. sites past the end)
+```
+
+These use plain strings (pefftacular has no dependencies). With fastatacular, pass
+`(record.raw_header, record.sequence)`. See [From FASTA](docs/fasta.md) and
+[ProForma strings](docs/annotations.md#proforma-strings).
+
 ## Writing
 
 Build a header and entries, then write:
