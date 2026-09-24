@@ -11,6 +11,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 import warnings
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -243,6 +244,31 @@ def test_os_pipe_path(plain) -> None:  # type: ignore[no-untyped-def]
             warnings.simplefilter("ignore")
             with PeffReader(f"/dev/fd/{r}") as reader:
                 assert (reader.header, list(reader)) == plain
+    finally:
+        feeder.join(timeout=10)
+        os.close(r)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="/dev/fd is POSIX only")
+@pytest.mark.parametrize("suffix", ["", *COMPRESSORS])
+def test_pipe_short_first_chunk(plain, suffix: str) -> None:  # type: ignore[no-untyped-def]
+    # The first read of a pipe returns only what the writer has sent so far; the
+    # format sniff must wait for the whole magic number, not decide on one byte.
+    data = COMPRESSORS[suffix](TEXT.encode()) if suffix else TEXT.encode()
+    r, w = os.pipe()
+
+    def feed() -> None:
+        os.write(w, data[:1])
+        time.sleep(0.2)
+        os.write(w, data[1:])
+        os.close(w)
+
+    feeder = threading.Thread(target=feed)
+    feeder.start()
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            assert read_peff(f"/dev/fd/{r}") == plain
     finally:
         feeder.join(timeout=10)
         os.close(r)
