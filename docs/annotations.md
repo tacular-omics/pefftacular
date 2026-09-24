@@ -237,9 +237,10 @@ Supported `FieldTypes` are `string`, `integer`, `decimal`, `boolean`, `date`, `t
 `enumeration(a|b|c)`. A value that does not fit its type stays a string and raises a
 `PeffWarning`. With no `RegExp`, the value is split on `|` and paired with `FieldNames` in order.
 
-`raw` keeps the original text, and the writer uses it when it is set, so a read-then-write round
-trip reproduces the value exactly. To write a value you built yourself, leave `raw` empty and fill
-`fields`.
+`raw` keeps the original text. The writer uses it only while it still matches `fields`, so a
+read-then-write round trip reproduces the value exactly, and an edit made with
+`dataclasses.replace(value, fields=...)` is written. To write a value you built yourself, leave
+`raw` empty and fill `fields`.
 
 Keys that no `CustomKeyDef` declares are not dropped: they land in `entry.extra` as raw strings.
 

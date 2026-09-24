@@ -140,8 +140,10 @@ Full signatures and examples: `llms-full.txt`.
   exact inverses, but key order, `\OX` → `\NcbiTaxId`, and header key order normalize.
 - **`\Variant=` (deprecated)** emits `PeffWarning` and the value lands in
   `extra["Variant"]`.
-- **`CustomKeyValue.raw` wins on write.** If `raw` is non-empty the writer emits it
-  verbatim and ignores `fields`; clear `raw` when building a value from edited fields.
+- **`CustomKeyValue.raw` is used on write only while it still matches `fields`.** The
+  writer re-parses `raw` with the key's `CustomKeyDef`; if that gives the current `fields`
+  it emits `raw` verbatim, otherwise it rebuilds the item from `fields`. With no def,
+  `raw` is trusted as is.
 - **Header keys `SpecificKey` / `SpecificValue`** are parsed and then dropped; they do
   not survive a round trip. Unknown single-valued header keys go to
   `DatabaseHeader.extra`.

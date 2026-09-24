@@ -504,8 +504,9 @@ print(ss[0].fields["Description"])     # Helix
 print(ss[0].raw)                       # 10|20|ncithesaurus:C47937|Helix
 ```
 
-When writing, a non-empty `raw` is emitted verbatim and `fields` is ignored. To write
-values you built or edited, set `raw=""` so the writer serializes `fields` (in
+When writing, a non-empty `raw` is emitted verbatim only if re-parsing it with the
+key's `CustomKeyDef` gives the current `fields`; otherwise (e.g. after
+`dataclasses.replace(v, fields=...)`) the writer serializes `fields` (in
 `field_names` order when the database declares the key).
 
 ## Worked example: annotation IDs, disulfides and proteoforms
@@ -653,7 +654,7 @@ logging.getLogger("pefftacular").setLevel(logging.DEBUG)
   is kept.
 - **`SpecificKey` / `SpecificValue` header lines are dropped** and do not round-trip.
 - **Readers iterate once.** Create a new `PeffReader` to read the file again.
-- **`CustomKeyValue.raw` takes priority on write**: clear it after editing `fields`.
+- **`CustomKeyValue.raw` is kept on write only while it matches `fields`**; edited `fields` are written. Without a `CustomKeyDef`, `raw` is trusted, so clear it after editing.
 - **`DisulfideBond.annot_id_refs` are annotation IDs, not positions.**
 - Header lines must start with `# ` (hash, space) or be exactly `#`; the first other line
   ends the header.
