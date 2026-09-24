@@ -78,7 +78,11 @@ def test_to_fasta_drops_annotations_and_writes_minimal_header() -> None:
     assert e.to_fasta() == ("nxp|NX_1", "MKV")
 
 
-@pytest.mark.parametrize("path", sorted(FIXTURES.glob("*_Valid.peff")) + sorted(FIXTURES.glob("[a-z]*.peff")))
+# Valid fixtures only. Filter by name in Python: glob is case-insensitive on Windows.
+_VALID_FIXTURES = [p for p in sorted(FIXTURES.glob("*.peff")) if p.name.endswith("_Valid.peff") or p.name[0].islower()]
+
+
+@pytest.mark.parametrize("path", _VALID_FIXTURES, ids=lambda p: p.name)
 def test_fixture_entries_round_trip_their_fasta_fields(path: Path) -> None:
     _, entries = read_peff(path)
     for entry in entries:
