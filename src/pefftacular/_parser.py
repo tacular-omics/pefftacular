@@ -1049,6 +1049,14 @@ class PeffReader:
         assert self._header is not None
         return self._header
 
+    def to_records(self) -> list[dict[str, str | int | bool | None]]:
+        """Read the remaining entries as flat dicts (see :func:`pefftacular.to_records`)."""
+        from pefftacular._records import entry_to_record
+
+        self._ensure_header()
+        defs = self._defs_by_prefix
+        return [entry_to_record(e, defs.get(e.prefix)) for e in self]
+
     def __iter__(self) -> Iterator[SequenceEntry]:
         """Return an iterator over the sequence entries after the header."""
         # Check eagerly so ``iter(reader)`` outside ``with`` fails at once, not on first ``next``.

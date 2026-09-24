@@ -60,6 +60,7 @@ src/pefftacular/
                 #   annotation parsing, custom-key coercion, spec validation warnings
   _writer.py    # write_peff: serializes models back to canonical PEFF text
   _convert.py   # SequenceEntry.from_fasta / to_fasta / to_proforma logic (models delegate here)
+  _records.py   # to_records / RECORD_KEYS: flat dicts for data frames (no pandas/polars dependency)
   errors.py     # PeffError base, PeffParseError, PeffWriteError, PeffWarning
 scripts/release_version.py   # version sync/check used by the release recipes
 tests/                       # one file per area; fixtures in tests/fixtures/*.peff
@@ -96,6 +97,9 @@ the package root in tests and examples.
 - **Errors/warnings:** `PeffError` (base, subclasses `ValueError`), `PeffParseError`
   (`.line`, `.context`, `.hint`), `PeffWriteError` (`.index`, `.hint`), `PeffWarning`
   (`UserWarning` subclass).
+- **Tables:** `to_records(source)`, `PeffReader.to_records()`, `SequenceEntry.to_record()`,
+  `RECORD_KEYS` (a stable contract: add keys only at a major). README "Tables with pandas
+  or polars" lists them; `tests/test_records.py` execs its example.
 - `__version__`.
 
 Full signatures and examples: `llms-full.txt`.

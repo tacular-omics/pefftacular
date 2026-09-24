@@ -10,7 +10,8 @@ compressed. Write with `write_peff(header, entries, dest, *, verify=True)`
 (`verify=False` skips the read-back check for unchanged entries).
 `SequenceEntry.from_fasta(header, sequence)` / `entry.to_fasta()` convert to and from plain
 FASTA (UniProt-style header strings), and `entry.to_proforma(mods="psimod"|"unimod",
-variants=...)` renders a ProForma 2.0 string. All models are frozen dataclasses importable from the
+variants=...)` renders a ProForma 2.0 string. `to_records(path)` returns flat dicts
+for `pandas.DataFrame(...)` / `polars.DataFrame(...)` (neither is a dependency). All models are frozen dataclasses importable from the
 package root (`SequenceEntry` is not hashable: it holds dicts). `PeffReader` must be used
 in a `with` block. Parsing is permissive: spec violations are reported as `PeffWarning`
 (`warnings.simplefilter("error", PeffWarning)` for strict mode); structural failures raise

@@ -338,3 +338,13 @@ class SequenceEntry:
         from pefftacular._convert import entry_to_proforma
 
         return entry_to_proforma(self, mods=mods, variants=variants, errors=errors)
+
+    def to_record(self) -> dict[str, str | int | bool | None]:
+        """Return this entry as a flat ``dict`` (the keys of :func:`pefftacular.to_records`).
+
+        Custom values are written from ``CustomKeyValue.raw`` (no header definitions are
+        available here); :meth:`PeffReader.to_records` uses the file's definitions.
+        """
+        from pefftacular._records import entry_to_record
+
+        return entry_to_record(self)
