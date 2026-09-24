@@ -293,7 +293,7 @@ def _parse_custom_key_def(raw: str) -> tuple[CustomKeyDef, ...]:
     Multiple parenthesized items on the same line are supported, though the
     spec example uses one item per line.
     """
-    items = split_items(raw)
+    items = split_items(raw, quotes=True)
     results: list[CustomKeyDef] = []
     for item in items:
         fields_raw = split_fields(item)
@@ -653,6 +653,11 @@ def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
 _DESC_PREFIX_RE = re.compile(r"^>(\S+?):(\S+)\s*(.*)")
 
 
+def _is_residues(s: str) -> bool:
+    """Whether *s* is only ASCII letters and ``*`` (residue codes and stop)."""
+    return all(("A" <= c <= "Z") or ("a" <= c <= "z") or c == "*" for c in s)
+
+
 def _warn_on_invalid_annotations(entry: SequenceEntry) -> None:
     """Emit PeffWarnings for annotations that violate the spec's ``MUST`` rules.
 
@@ -669,6 +674,36 @@ def _warn_on_invalid_annotations(entry: SequenceEntry) -> None:
     for v in entry.variant_simple:
         if not v.new_amino_acid.strip():
             warnings.warn(f"Entry {uid!r}: VariantSimple newAminoAcid must not be empty", PeffWarning, stacklevel=2)
+        elif not _is_residues(v.new_amino_acid) or len(v.new_amino_acid) != 1:
+            # Spec §3.3.8: one residue code or "*"; no other non-alphabetic character.
+            warnings.warn(
+                f"Entry {uid!r}: VariantSimple newAminoAcid {v.new_amino_acid!r} must be one residue letter or '*'",
+                PeffWarning,
+                stacklevel=2,
+            )
+    for vc in entry.variant_complex:
+        # Spec §3.3.9: no regular expressions or gap characters, and a single-residue
+        # substitution MUST be a VariantSimple.
+        if vc.new_sequence and not _is_residues(vc.new_sequence):
+            warnings.warn(
+                f"Entry {uid!r}: VariantComplex newSequence {vc.new_sequence!r} must contain only residue letters "
+                "or '*'",
+                PeffWarning,
+                stacklevel=2,
+            )
+        elif isinstance(vc.start_pos, int) and vc.start_pos == vc.end_pos and len(vc.new_sequence) == 1:
+            warnings.warn(
+                f"Entry {uid!r}: VariantComplex ({vc.start_pos}|{vc.end_pos}|{vc.new_sequence}) is a single "
+                r"substitution; encode it as \VariantSimple",
+                PeffWarning,
+                stacklevel=2,
+            )
+    for pr in entry.processed:
+        # Spec §3.3.13: accession and name from the PEFF CV MUST be provided.
+        if not pr.accession.strip():
+            warnings.warn(f"Entry {uid!r}: Processed accession must be provided", PeffWarning, stacklevel=2)
+        if not pr.name.strip():
+            warnings.warn(f"Entry {uid!r}: Processed name must be provided", PeffWarning, stacklevel=2)
     for label, mods, needs_accession in (
         ("ModResUnimod", entry.mod_res_unimod, True),
         ("ModResPsi", entry.mod_res_psi, True),

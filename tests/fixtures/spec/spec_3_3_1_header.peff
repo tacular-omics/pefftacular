@@ -1,0 +1,23 @@
+# PEFF 1.0
+# GeneralComment=This is a hand-crafted example comment
+# //
+# DbName=neXtProt-extract
+# Prefix=nxp
+# DbDescription=extract of neXtProt with manual modifications
+# GeneralComment=A GeneralComment specific to one database is also legal here
+# Decoy=false
+# DbVersion=2018-01-11
+# DbSource=http://www.nextprot.org
+# NumberOfEntries=62
+# SequenceType=AA
+# //
+# DbName=myDB
+# Prefix=my
+# DbDescription=FGF21 proteoforms from top-down experiment PXD123456
+# DbVersion=1.1
+# DbSource=PXD123456
+# NumberOfEntries=2
+# SequenceType=AA
+# ProteoformDB=true
+# HasAnnotationIdentifiers=true
+# //
