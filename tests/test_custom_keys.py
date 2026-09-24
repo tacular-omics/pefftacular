@@ -30,6 +30,12 @@ FIXTURES = Path(__file__).parent / "fixtures"
 # ---------------------------------------------------------------------------
 
 
+def _header(source):
+    """Parse only the header of *source* inside the reader's context manager."""
+    with PeffReader(source) as reader:
+        return reader.header
+
+
 class TestSplitFieldsQuoteAware:
     def test_pipes_inside_quotes_are_preserved(self):
         # A RegExp value containing escaped pipes at depth 0 must not be split.
@@ -54,22 +60,22 @@ class TestSplitFieldsQuoteAware:
 
 class TestCustomKeyDefHeader:
     def test_multiple_custom_key_defs_preserved(self):
-        reader = PeffReader(FIXTURES / "custom_keys.peff")
-        defs = reader.header.databases[0].custom_key_defs
+        header = _header(FIXTURES / "custom_keys.peff")
+        defs = header.databases[0].custom_key_defs
         assert len(defs) == 2
         names = [d.key_name for d in defs]
         assert names == ["SecondaryStructure", "Score"]
 
     def test_concept_curie_captured(self):
-        reader = PeffReader(FIXTURES / "custom_keys.peff")
-        ss = reader.header.databases[0].custom_key_defs[0]
+        header = _header(FIXTURES / "custom_keys.peff")
+        ss = header.databases[0].custom_key_defs[0]
         assert ss.concept_curie == "BAO:0000014"
         assert ss.field_names == ("StartPosition", "EndPosition", "CURIE", "Description")
         assert ss.field_types == ("integer", "integer", "string", "string")
 
     def test_regexp_with_pipes_round_trips(self):
-        reader = PeffReader(FIXTURES / "custom_keys.peff")
-        ss = reader.header.databases[0].custom_key_defs[0]
+        header = _header(FIXTURES / "custom_keys.peff")
+        ss = header.databases[0].custom_key_defs[0]
         assert ss.regexp == r"([0-9]+)\|([0-9]+)\|([A-Za-z]+:[A-Za-z0-9]+)?\|(.+)"
 
 

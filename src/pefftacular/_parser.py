@@ -45,7 +45,7 @@ _ENUM_RE = re.compile(r"^enumeration\((.*)\)$")
 _HEADER_RE = re.compile(r"^# PEFF (\d+\.\d+)\s*$")
 
 
-def parse_position(s: str) -> int | str:
+def _parse_position(s: str) -> int | str:
     """Convert a position string to int, or leave as str if non-numeric (e.g. '?')."""
     try:
         return int(s)
@@ -53,9 +53,13 @@ def parse_position(s: str) -> int | str:
         return s
 
 
+# Kept for callers that imported it from this internal module before 1.0.
+parse_position = _parse_position
+
+
 def parse_positions(s: str) -> tuple[int | str, ...]:
     """Parse a comma-separated list of positions."""
-    return tuple(parse_position(p.strip()) for p in s.split(","))
+    return tuple(_parse_position(p.strip()) for p in s.split(","))
 
 
 def _extract_annot_id(s: str) -> tuple[int | None, str]:
@@ -101,7 +105,7 @@ def _parse_variant_simple(raw: str) -> tuple[VariantSimple, ...]:
         annot_id, pos_str = _extract_annot_id(fields[0])
         tag = fields[2] if len(fields) > 2 and fields[2] else None
         results.append(
-            VariantSimple(position=parse_position(pos_str), new_amino_acid=fields[1], tag=tag, annot_id=annot_id)
+            VariantSimple(position=_parse_position(pos_str), new_amino_acid=fields[1], tag=tag, annot_id=annot_id)
         )
     return tuple(results)
 
@@ -121,8 +125,8 @@ def _parse_variant_complex(raw: str) -> tuple[VariantComplex, ...]:
         tag = fields[3] if len(fields) > 3 and fields[3] else None
         results.append(
             VariantComplex(
-                start_pos=parse_position(pos_str),
-                end_pos=parse_position(fields[1]),
+                start_pos=_parse_position(pos_str),
+                end_pos=_parse_position(fields[1]),
                 new_sequence=fields[2],
                 tag=tag,
                 annot_id=annot_id,
@@ -185,8 +189,8 @@ def _parse_processed(raw: str) -> tuple[Processed, ...]:
         tag = fields[4] if len(fields) > 4 and fields[4] else None
         results.append(
             Processed(
-                start_pos=parse_position(pos_str),
-                end_pos=parse_position(fields[1]),
+                start_pos=_parse_position(pos_str),
+                end_pos=_parse_position(fields[1]),
                 accession=fields[2],
                 name=fields[3],
                 tag=tag,
@@ -212,9 +216,9 @@ def _parse_sequence_range(s: str) -> SequenceRange:
     """Parse 'start-end' into a SequenceRange."""
     if "-" in s:
         parts = s.split("-", 1)
-        return SequenceRange(start=parse_position(parts[0]), end=parse_position(parts[1]))
+        return SequenceRange(start=_parse_position(parts[0]), end=_parse_position(parts[1]))
     # fallback: treat whole string as start with unknown end
-    return SequenceRange(start=parse_position(s), end=parse_position(s))
+    return SequenceRange(start=_parse_position(s), end=_parse_position(s))
 
 
 def _parse_proteoform(raw: str) -> tuple[Proteoform, ...]:
@@ -457,6 +461,8 @@ def _parse_file_header(lines: Iterable[str]) -> tuple[FileHeader, Iterator[str],
     for raw_line in line_iter:
         line_no += 1
         first_line = raw_line.rstrip("\n\r")
+        if line_no == 1:
+            first_line = first_line.removeprefix("\ufeff")  # UTF-8 BOM from a stream
         if first_line.strip():
             break
     else:
@@ -768,7 +774,16 @@ def _parse_entry(
     rest = m.group(3)
 
     raw_keys = split_description_keys(rest)
-    sequence = "".join(sl.strip() for sl in seq_lines)
+    # Drop all whitespace, not just line ends: the writer rejects it, so keeping it
+    # would make a read -> write round trip fail.
+    sequence = "".join("".join(sl.split()) for sl in seq_lines)
+    if not sequence:
+        raise PeffParseError(
+            f"Entry {prefix}:{db_unique_id} has an empty sequence",
+            line=line_no,
+            context=description,
+            hint="Every '>' description line must be followed by at least one line of residues",
+        )
 
     # Defaults
     entry_id: str | None = None
@@ -899,25 +914,35 @@ def _parse_entry(
 
 
 class PeffReader:
-    """Lazy reader for PEFF files."""
+    """Lazy reader for PEFF files.
+
+    Use it as a context manager, like ``fastatacular.FastaReader``: a path is opened
+    in ``__enter__`` (UTF-8, a leading BOM is skipped) and closed in ``__exit__``; a
+    stream you pass in is read but never closed. Accessing ``header`` or iterating
+    outside the ``with`` block raises :class:`RuntimeError`. Entries can be
+    iterated once; a second iteration over the same reader yields nothing.
+
+    Example::
+
+        with PeffReader("proteins.peff") as reader:
+            header = reader.header
+            for entry in reader:
+                ...
+    """
 
     def __init__(self, source: str | Path | IO[str]) -> None:
-        if isinstance(source, (str, Path)):
-            path = Path(source)
-            logger.debug("opening PEFF file: %s", path)
-            self._owned_file: IO[str] | None = path.open(encoding="utf-8")
-            self._lines: Iterator[str] = iter(self._owned_file)
-        else:
-            logger.debug("reading PEFF from in-memory stream: %r", type(source).__name__)
-            self._owned_file = None
-            self._lines = iter(source)
-
+        self._source = source
+        self._fh: IO[str] | None = None
+        self._owns_fh = False
+        self._lines: Iterator[str] | None = None
         self._header: FileHeader | None = None
         self._remaining: Iterator[str] | None = None
         self._first_entry_line_no: int = 1
         self._defs_by_prefix: dict[str, dict[str, CustomKeyDef]] = {}
 
     def _ensure_header(self) -> None:
+        if self._lines is None:
+            raise RuntimeError("PeffReader must be used as a context manager (`with PeffReader(...) as r:`)")
         if self._header is None:
             self._header, self._remaining, self._first_entry_line_no = _parse_file_header(self._lines)
             for db in self._header.databases:
@@ -932,8 +957,12 @@ class PeffReader:
         return self._header
 
     def __iter__(self) -> Iterator[SequenceEntry]:
-        """Yield sequence entries after the header."""
+        """Return an iterator over the sequence entries after the header."""
+        # Check eagerly so ``iter(reader)`` outside ``with`` fails at once, not on first ``next``.
         self._ensure_header()
+        return self._iter_entries()
+
+    def _iter_entries(self) -> Iterator[SequenceEntry]:
         assert self._remaining is not None
         assert self._header is not None
 
@@ -961,6 +990,14 @@ class PeffReader:
                 current_desc_line = line_no
                 seq_lines = []
             elif line.strip():
+                if current_desc is None:
+                    raise PeffParseError(
+                        "Sequence text before the first '>' entry line",
+                        line=line_no,
+                        context=line,
+                        hint="After the '# ' header lines the file must continue with a '>' description line; "
+                        "header lines must start with '# '",
+                    )
                 seq_lines.append(line)
 
         if current_desc is not None:
@@ -996,11 +1033,23 @@ class PeffReader:
         return self._defs_by_prefix.get(m.group(1))
 
     def __enter__(self) -> Self:
+        if isinstance(self._source, (str, Path)):
+            path = Path(self._source)
+            logger.debug("opening PEFF file: %s", path)
+            self._fh = path.open(encoding="utf-8-sig")
+            self._owns_fh = True
+        else:
+            logger.debug("reading PEFF from in-memory stream: %r", type(self._source).__name__)
+            self._fh = self._source
+            self._owns_fh = False
+        self._lines = iter(self._fh)
         return self
 
     def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object) -> None:
-        if self._owned_file is not None:
-            self._owned_file.close()
+        if self._owns_fh and self._fh is not None:
+            self._fh.close()
+        self._fh = None
+        self._lines = None
 
 
 def read_peff(source: str | Path | IO[str]) -> tuple[FileHeader, list[SequenceEntry]]:

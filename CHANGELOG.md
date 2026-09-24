@@ -4,8 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** `PeffReader` now follows the same contract as `fastatacular.FastaReader`: a path is opened in `__enter__`, not in `__init__` (constructing a reader no longer leaks an open file), and accessing `.header` or iterating outside a `with` block raises `RuntimeError`. Use `with PeffReader(path) as reader:` or `read_peff()`.
+- `SequenceEntry` is now explicitly unhashable (`__hash__ = None`). It holds `custom_values` / `extra` dicts, so `hash()` already failed; it now fails with a clear `TypeError` at the class level. Equality is unchanged.
+- `parse_position` in the internal `_parser` module is now `_parse_position`; the old name remains as an alias.
+- `PeffWriteError` has an `.index` attribute (0-based position of the bad entry, `None` for header problems) and its message starts with `Entry N: ` for entry problems, matching `fastatacular.FastaWriteError`.
+- `write_peff()` now serializes every entry before writing anything, so a custom-key value that no longer matches its RegExp also leaves the destination untouched (it used to fail after the header and earlier entries were written).
+- Classifier is now `Development Status :: 5 - Production/Stable`.
+
 ### Fixed
 
+- Whitespace inside sequence lines (spaces, tabs) is now removed, not only at line ends. It used to be kept, so `write_peff()` rejected the parsed entry and a read -> write round trip failed.
+- A `>` entry with no sequence now raises `PeffParseError` (the writer already rejected empty sequences, so such a file could be read but not written back).
+- Non-blank text between the header and the first `>` entry line now raises `PeffParseError` instead of being dropped silently (spec section 3.3.1: header lines start with `# `).
+- Files starting with a UTF-8 BOM are now read (paths are opened as `utf-8-sig`; a BOM at the start of a stream is skipped). They used to fail with "First line must be '# PEFF <version>'".
 - `write_peff()` no longer ignores edits to a parsed custom-key value: `dataclasses.replace(value, fields=...)` used to write the stale original text from `CustomKeyValue.raw`. `raw` is now used verbatim only if re-parsing it with the key's `CustomKeyDef` gives the value's current `fields`, otherwise the item is rebuilt from `fields`. Unedited values still round-trip byte-exact.
 - The last database block in the file header is no longer dropped when the header runs straight into the first `>` entry without a closing `# //` (now a `PeffWarning`), or when a `# //` separator has trailing whitespace. Previously its `Prefix` and `CustomKeyDef`s were lost and its custom keys ended up in `extra`.
 - A blank line inside the file header no longer ends the header and discards the database blocks after it. It is skipped with a `PeffWarning` (spec section 3.3.1: every header line starts with `# `). Blank lines between the header and the first entry are still ignored silently.

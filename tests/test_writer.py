@@ -315,3 +315,23 @@ class TestWritePeffValidation:
         entry = SequenceEntry(prefix="sp", db_unique_id="P00001", sequence="")
         with pytest.raises(PeffWriteError, match="sequence"):
             write_peff(_make_minimal_header(), [entry], io.StringIO())
+
+    def test_entry_error_carries_index(self) -> None:
+        bad = SequenceEntry(prefix="sp", db_unique_id="P00002", sequence="")
+        with pytest.raises(PeffWriteError, match=r"^Entry 1: ") as exc:
+            write_peff(_make_minimal_header(), [self._valid_entry(), bad], io.StringIO())
+        assert exc.value.index == 1
+        assert exc.value.hint
+
+    def test_write_to_path_round_trips(self, tmp_path) -> None:
+        from pefftacular import read_peff
+
+        path = tmp_path / "out.peff"
+        write_peff(_make_minimal_header(), [self._valid_entry()], path)
+        _, entries = read_peff(path)
+        assert entries == [self._valid_entry()]
+
+    def test_header_error_has_no_index(self) -> None:
+        with pytest.raises(PeffWriteError) as exc:
+            write_peff(None, [], io.StringIO())  # type: ignore[arg-type]
+        assert exc.value.index is None

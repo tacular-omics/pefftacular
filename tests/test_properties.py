@@ -562,6 +562,18 @@ def test_edited_regexp_value_that_breaks_the_item_raises() -> None:
         _write(header, [entry])
 
 
+def test_regexp_write_error_is_raised_before_anything_is_written() -> None:
+    header = _custom_header(_REGEXP_DEF)
+    value = CustomKeyValue("Custom", {"start": 1, "end": 2, "label": ")"})
+    ok = SequenceEntry(prefix="sp", db_unique_id="P0", sequence="MK")
+    bad = SequenceEntry(prefix="sp", db_unique_id="P1", sequence="MK", custom_values={"Custom": (value,)})
+    buf = StringIO()
+    with pytest.raises(PeffWriteError, match=r"^Entry 1: Custom key") as exc:
+        write_peff(header, [ok, bad], buf)
+    assert exc.value.index == 1
+    assert buf.getvalue() == ""
+
+
 def test_custom_key_def_quoted_values_may_hold_unbalanced_parens() -> None:
     for ckd in (
         CustomKeyDef(key_name="Custom", description="left ( only"),

@@ -83,14 +83,14 @@ Exactly what `pefftacular.__all__` exports. Underscore modules are internal; imp
 the package root in tests and examples.
 
 - **I/O:** `read_peff(source)` → `(FileHeader, list[SequenceEntry])`;
-  `PeffReader(source)` lazy reader (`.header`, iterate for entries, context manager);
+  `PeffReader(source)` lazy reader (`.header`, iterate for entries; must be used in `with`);
   `write_peff(header, entries, dest)`.
 - **Header models:** `FileHeader`, `DatabaseHeader`, `CustomKeyDef`, `OptionalTagDef`.
 - **Entry model:** `SequenceEntry`.
 - **Annotation models:** `VariantSimple`, `VariantComplex`, `ModResUnimod`, `ModResPsi`,
   `ModRes`, `Processed`, `DisulfideBond`, `Proteoform`, `SequenceRange`, `CustomKeyValue`.
 - **Errors/warnings:** `PeffError` (base, subclasses `ValueError`), `PeffParseError`
-  (`.line`, `.context`, `.hint`), `PeffWriteError` (`.hint`), `PeffWarning`
+  (`.line`, `.context`, `.hint`), `PeffWriteError` (`.index`, `.hint`), `PeffWarning`
   (`UserWarning` subclass).
 - `__version__`.
 
@@ -148,8 +148,12 @@ Full signatures and examples: `llms-full.txt`.
   not survive a round trip. Unknown single-valued header keys go to
   `DatabaseHeader.extra`.
 - **Duplicate description keys:** the last `\Key=` on a line wins silently.
-- **`PeffReader` iterates once.** It wraps a single line iterator; a second `for` over
-  the same reader yields nothing. Use `with PeffReader(path)` so an owned file closes.
+- **`PeffReader` iterates once and needs `with`.** It opens a path in `__enter__`
+  (matching `fastatacular.FastaReader`); `.header` or iteration outside `with` raises
+  `RuntimeError`. It wraps a single line iterator; a second `for` yields nothing.
+- **Sequences:** all whitespace is removed; an empty sequence or non-blank text before
+  the first `>` raises `PeffParseError`. `SequenceEntry` is explicitly unhashable
+  (`__hash__ = None`, dict fields).
 - **Free-text scalar values** (`pname`, `gname`, `tax_name`, `comment`) are escaped by
   the writer with `_escape_component` and unescaped by the parser. `extra` values and
   `CustomKeyValue.raw` are written verbatim: they are raw, possibly structured values.

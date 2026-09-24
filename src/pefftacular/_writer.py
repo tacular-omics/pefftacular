@@ -312,11 +312,11 @@ def _write_header(header: FileHeader, out: IO[str]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _write_entry(
+def _format_entry(
     entry: SequenceEntry,
-    out: IO[str],
     defs_by_prefix: dict[str, dict[str, CustomKeyDef]] | None = None,
-) -> None:
+) -> str:
+    """Serialize one entry (description line plus wrapped sequence) to PEFF text."""
     # Build key-value pairs in canonical order
     kv_parts: list[str] = []
 
@@ -368,15 +368,16 @@ def _write_entry(
         kv_parts.append(f"\\{k}={v}")
 
     desc_suffix = " ".join(kv_parts)
-    if desc_suffix:
-        out.write(f">{entry.prefix}:{entry.db_unique_id} {desc_suffix}\n")
-    else:
-        out.write(f">{entry.prefix}:{entry.db_unique_id}\n")
+    lines = [
+        f">{entry.prefix}:{entry.db_unique_id} {desc_suffix}"
+        if desc_suffix
+        else f">{entry.prefix}:{entry.db_unique_id}"
+    ]
 
     # Sequence wrapped at 60 chars
     seq = entry.sequence
-    for i in range(0, len(seq), _SEQ_LINE_WIDTH):
-        out.write(seq[i : i + _SEQ_LINE_WIDTH] + "\n")
+    lines.extend(seq[i : i + _SEQ_LINE_WIDTH] for i in range(0, len(seq), _SEQ_LINE_WIDTH))
+    return "\n".join(lines) + "\n"
 
 
 # ---------------------------------------------------------------------------
@@ -396,59 +397,71 @@ def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str |
         )
 
     entry_list = list(entries)
-    for entry in entry_list:
+    defs_by_prefix: dict[str, dict[str, CustomKeyDef]] = {}
+    for db in header.databases:
+        if db.prefix and db.custom_key_defs:
+            defs_by_prefix[db.prefix] = {ckd.key_name: ckd for ckd in db.custom_key_defs}
+
+    texts: list[str] = []
+    for index, entry in enumerate(entry_list):
         if not entry.prefix:
             raise PeffWriteError(
                 f"SequenceEntry has an empty prefix: db_unique_id={entry.db_unique_id!r}",
+                index=index,
                 hint="Every SequenceEntry needs a non-empty prefix matching a database in the header",
             )
         if not entry.db_unique_id:
             raise PeffWriteError(
                 f"SequenceEntry has an empty db_unique_id: prefix={entry.prefix!r}",
+                index=index,
                 hint="Every SequenceEntry needs a non-empty db_unique_id (the accession after the prefix)",
             )
         if not entry.sequence:
             raise PeffWriteError(
                 f"SequenceEntry {entry.prefix}:{entry.db_unique_id!r} has an empty sequence",
+                index=index,
                 hint="A PEFF entry must carry at least one residue in its sequence",
             )
         if ":" in entry.prefix or any(c.isspace() for c in entry.prefix):
             raise PeffWriteError(
                 f"SequenceEntry prefix {entry.prefix!r} contains ':' or whitespace",
+                index=index,
                 hint="The prefix is the token before the first ':' of '>prefix:DbUniqueId'",
             )
         if any(c.isspace() for c in entry.db_unique_id):
             raise PeffWriteError(
                 f"SequenceEntry db_unique_id {entry.db_unique_id!r} contains whitespace",
+                index=index,
                 hint="The DbUniqueId ends at the first space of the description line",
             )
         if ">" in entry.sequence or any(c.isspace() for c in entry.sequence):
             raise PeffWriteError(
                 f"SequenceEntry {entry.prefix}:{entry.db_unique_id} sequence contains whitespace or '>'",
+                index=index,
                 hint="Pass the residues only; the writer wraps the sequence itself",
             )
         bad = _line_break_at(entry, "SequenceEntry")
         if bad:
             raise PeffWriteError(
                 f"{entry.prefix}:{entry.db_unique_id}: {bad} contains a line break",
+                index=index,
                 hint="A PEFF description line is single-line; remove the \\n or \\r",
             )
-
-    defs_by_prefix: dict[str, dict[str, CustomKeyDef]] = {}
-    for db in header.databases:
-        if db.prefix and db.custom_key_defs:
-            defs_by_prefix[db.prefix] = {ckd.key_name: ckd for ckd in db.custom_key_defs}
+        # Serialize now so a late failure (e.g. a RegExp-controlled custom key) is
+        # raised before anything is written.
+        try:
+            texts.append(_format_entry(entry, defs_by_prefix))
+        except PeffWriteError as err:
+            raise PeffWriteError(str(err), index=index, hint=err.hint) from err
 
     if isinstance(dest, (str, Path)):
         logger.debug("writing PEFF file: %s (%d entries)", dest, len(entry_list))
         with Path(dest).open("w", encoding="utf-8") as f:
             _write_header(header, f)
-            for entry in entry_list:
-                _write_entry(entry, f, defs_by_prefix)
+            f.writelines(texts)
     else:
         logger.debug("writing PEFF to in-memory stream: %s (%d entries)", type(dest).__name__, len(entry_list))
         _write_header(header, dest)
-        for entry in entry_list:
-            _write_entry(entry, dest, defs_by_prefix)
+        dest.writelines(texts)
 
     logger.info("write_peff: wrote %d entries across %d database(s)", len(entry_list), len(header.databases))
