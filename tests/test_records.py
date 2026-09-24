@@ -158,14 +158,14 @@ def test_polars() -> None:
 
 
 def _readme_block() -> str:
-    section = README.read_text().split("## Tables with pandas or polars", 1)[1]
+    section = README.read_text(encoding="utf-8").split("## Tables with pandas or polars", 1)[1]
     return re.search(r"```python\n(.*?)```", section, re.S).group(1)  # type: ignore[union-attr]
 
 
 def test_readme_example(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     pytest.importorskip("pandas")
     pytest.importorskip("polars")
-    (tmp_path / "proteins.peff").write_text((FIXTURES / "SmallTestDB-PEFF1.0.peff").read_text(encoding="utf-8"))
+    (tmp_path / "proteins.peff").write_bytes((FIXTURES / "SmallTestDB-PEFF1.0.peff").read_bytes())
     monkeypatch.chdir(tmp_path)
     ns: dict[str, object] = {}
     with warnings.catch_warnings():
