@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import bz2
+import gzip
 import itertools
 import logging
+import lzma
 import re
 import warnings
 from collections.abc import Iterable, Iterator, Mapping
@@ -913,11 +916,49 @@ def _parse_entry(
 # ---------------------------------------------------------------------------
 
 
+# Leading bytes of the compressed formats read transparently.
+_MAGIC = ((b"\x1f\x8b", "gz"), (b"BZh", "bz2"), (b"\xfd7zXZ\x00", "xz"))
+_SUFFIXES = {".gz": "gz", ".bz2": "bz2", ".xz": "xz"}
+_OPENERS = {"gz": gzip.open, "bz2": bz2.open, "xz": lzma.open}
+# What a corrupt or truncated compressed stream raises while it is read.
+_COMPRESSED_ERRORS: tuple[type[Exception], ...] = (UnicodeDecodeError, EOFError, OSError, lzma.LZMAError)
+
+
+def _open_path(path: Path) -> tuple[IO[str], bool]:
+    """Open a PEFF path as UTF-8 text, decompressing gzip/bzip2/xz input.
+
+    The format comes from the magic bytes, else the ``.gz``/``.bz2``/``.xz`` suffix.
+    Returns the handle and whether it is compressed.
+    """
+    with path.open("rb") as raw:
+        head = raw.read(6)
+    kind = next((k for magic, k in _MAGIC if head.startswith(magic)), None) or _SUFFIXES.get(path.suffix.lower())
+    if kind is None:
+        return path.open(encoding="utf-8-sig"), False
+    return _OPENERS[kind](path, "rt", encoding="utf-8-sig"), True
+
+
+def _checked_lines(fh: IO[str], compressed: bool) -> Iterator[str]:
+    """Yield the lines of *fh*; undecodable or corrupt input raises ``PeffParseError``."""
+    errors = _COMPRESSED_ERRORS if compressed else (UnicodeDecodeError,)
+    line_no = 0
+    try:
+        for line in fh:
+            line_no += 1
+            yield line
+    except errors as err:
+        raise PeffParseError(
+            f"Cannot read the input after line {line_no}: {err}",
+            hint="PEFF input must be UTF-8 text, optionally gzip, bzip2 or xz compressed",
+        ) from err
+
+
 class PeffReader:
     """Lazy reader for PEFF files.
 
     Use it as a context manager, like ``fastatacular.FastaReader``: a path is opened
-    in ``__enter__`` (UTF-8, a leading BOM is skipped) and closed in ``__exit__``; a
+    in ``__enter__`` (UTF-8, a leading BOM is skipped; gzip, bzip2 and xz files are
+    decompressed, detected from the magic bytes or the suffix) and closed in ``__exit__``; a
     stream you pass in is read but never closed. Accessing ``header`` or iterating
     outside the ``with`` block raises :class:`RuntimeError`. Entries can be
     iterated once; a second iteration over the same reader yields nothing.
@@ -1056,13 +1097,14 @@ class PeffReader:
             self._defs_by_prefix = {}
             path = Path(self._source)
             logger.debug("opening PEFF file: %s", path)
-            self._fh = path.open(encoding="utf-8-sig")
+            self._fh, compressed = _open_path(path)
             self._owns_fh = True
         else:
             logger.debug("reading PEFF from in-memory stream: %r", type(self._source).__name__)
             self._fh = self._source
             self._owns_fh = False
-        self._lines = iter(self._fh)
+            compressed = False
+        self._lines = _checked_lines(self._fh, compressed)
         return self
 
     def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object) -> None:
@@ -1073,7 +1115,11 @@ class PeffReader:
 
 
 def read_peff(source: str | Path | IO[str]) -> tuple[FileHeader, list[SequenceEntry]]:
-    """Convenience: parse an entire PEFF file into header + list of entries."""
+    """Convenience: parse an entire PEFF file into header + list of entries.
+
+    A path may be plain or gzip/bzip2/xz compressed. Undecodable (non-UTF-8) or
+    corrupt compressed input raises ``PeffParseError`` chained to the cause.
+    """
     with PeffReader(source) as reader:
         header = reader.header
         entries = list(reader)

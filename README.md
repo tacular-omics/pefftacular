@@ -58,6 +58,8 @@ with PeffReader("proteins.peff") as reader:
         process(entry)
 ```
 
+Both accept gzip, bzip2 and xz compressed files (`proteins.peff.gz`) directly.
+
 ## Data model
 
 `read_peff` and `PeffReader` yield `SequenceEntry` objects with these fields:
@@ -193,6 +195,17 @@ write_peff(file_header, [entry], "output.peff")
 ```
 
 `dest` can be a file path string, a `pathlib.Path`, or a text-mode file object.
+`entries` can be any iterable, including a generator: it is consumed once, as a stream.
+
+Every written line is parsed back and compared with the entry, so a value that would
+read back differently raises `PeffWriteError` instead of corrupting the file. For
+entries that came unchanged from `read_peff`, pass `verify=False` to skip that check
+(about 3x faster writes):
+
+```python
+header, entries = read_peff("proteins.peff.gz")
+write_peff(header, (e for e in entries if e.variant_simple), "variants.peff", verify=False)
+```
 
 ## Error handling
 

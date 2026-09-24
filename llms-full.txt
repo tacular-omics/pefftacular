@@ -81,7 +81,10 @@ read_peff(source: str | Path | IO[str]) -> tuple[FileHeader, list[SequenceEntry]
 ```
 
 Parse an entire PEFF file (path or text-mode stream) into its header and a list of
-entries. Opens paths as UTF-8 (a leading BOM is skipped). Logs an INFO summary on `pefftacular.parser`.
+entries. Opens paths as UTF-8 (a leading BOM is skipped); gzip, bzip2 and xz files are
+decompressed transparently (detected from the magic bytes, else the `.gz`/`.bz2`/`.xz`
+suffix). Input that is not UTF-8, or a corrupt compressed file, raises `PeffParseError`
+chained to the original error. Logs an INFO summary on `pefftacular.parser`.
 
 ```python
 from pefftacular import read_peff
@@ -155,8 +158,13 @@ print(entry.variant_simple)    # (VariantSimple(position=3, new_amino_acid='W', 
 ### write_peff
 
 ```
-write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str | Path | IO[str]) -> None
+write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str | Path | IO[str], *, verify: bool = True) -> None
 ```
+
+`entries` is consumed once, as a stream (formatted text spools to a temporary file past
+32 MiB). With `verify=True` every written line is parsed back and compared with its
+entry; `verify=False` skips that (about 3/4 of the write time) and is safe for entries
+that came unchanged from `read_peff` / `PeffReader`.
 
 Write a complete PEFF file. `dest` is a path (opened as UTF-8, overwritten) or a
 text-mode stream. Entries are validated first: a `None` header, an empty `prefix`, an
@@ -664,6 +672,8 @@ logging.getLogger("pefftacular").setLevel(logging.DEBUG)
 - **Last duplicate key wins.** If a description line repeats a key, only the last value
   is kept.
 - **`SpecificKey` / `SpecificValue` header lines are dropped** and do not round-trip.
+- **`verify=False` trusts the entries.** A hand-built or edited value holding PEFF
+  syntax is then written as is and may read back differently. Keep the default for them.
 - **Readers iterate once.** Create a new `PeffReader` to read the file again.
 - **`CustomKeyValue.raw` is kept on write only while it matches `fields`**; edited `fields` are written. Without a `CustomKeyDef`, `raw` is trusted, so clear it after editing.
 - **`DisulfideBond.annot_id_refs` are annotation IDs, not positions.**
