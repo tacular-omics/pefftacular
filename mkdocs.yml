@@ -6,6 +6,10 @@ repo_name: tacular-omics/pefftacular
 edit_uri: edit/main/docs/
 copyright: Copyright &copy; the pefftacular authors. MIT licence.
 
+# Copies the repo-root llms.txt and llms-full.txt into the built site.
+hooks:
+  - hooks.py
+
 theme:
   name: material
   palette:
