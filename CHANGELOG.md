@@ -19,7 +19,7 @@ All notable changes to this project will be documented in this file.
   Unknown (`?`) positions are handled, and `VariantSimple` substitutions can be applied.
   `errors="skip"` returns `None` for an entry that cannot be written (for example, a site
   past the end of the sequence) instead of raising `PeffError`.
-- `read_peff()` and `PeffReader` read gzip, bzip2 and xz compressed files directly (`proteins.peff.gz`). The format is detected from the magic bytes. Paths are opened once, so pipes and FIFOs work; `bz2` and `lzma` are imported only when needed. Standard library only; no new dependency.
+- `read_peff()` and `PeffReader` read gzip, bzip2 and xz compressed files directly (`proteins.peff.gz`). The format is detected from the magic bytes. Paths are opened once, so pipes and FIFOs work, even when the first chunk written is shorter than the magic number; `bz2` and `lzma` are imported only when needed. Standard library only; no new dependency.
 - `write_peff(..., verify=False)` skips the per-entry read-back check (about three quarters of the write time) for entries that came unchanged from `read_peff()`/`PeffReader` or were already written once. The default, `verify=True`, is unchanged; the basic checks (empty or malformed prefix, id or sequence, line breaks, duplicate keys) always run.
 
 ### Performance

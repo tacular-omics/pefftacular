@@ -10,7 +10,7 @@ import warnings
 from collections.abc import Iterable, Iterator, Mapping
 from datetime import date, time
 from pathlib import Path
-from typing import IO, Self
+from typing import IO, Any, Self
 
 from pefftacular._lexer import _unescape_component, split_description_keys, split_fields, split_items
 from pefftacular._models import (
@@ -971,6 +971,46 @@ def _decompressor(kind: str, raw: io.BufferedReader) -> io.BufferedIOBase:
         raise err from e
 
 
+class _Prefixed(io.RawIOBase):
+    """Bytes already read from ``raw`` (``head``), then the rest of ``raw``."""
+
+    def __init__(self, head: bytes, raw: io.BufferedReader) -> None:
+        super().__init__()
+        self._head = head
+        self._raw = raw
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, buffer: Any) -> int:
+        if self._head:
+            n = min(len(buffer), len(self._head))
+            buffer[:n] = self._head[:n]
+            self._head = self._head[n:]
+            return n
+        return self._raw.readinto(buffer)
+
+    def close(self) -> None:
+        try:
+            self._raw.close()
+        finally:
+            super().close()
+
+
+def _with_head(raw: io.BufferedReader, n: int = 6) -> tuple[io.BufferedReader, bytes]:
+    """Return a reader positioned at the start of ``raw`` and its first ``n`` bytes.
+
+    ``peek`` returns only what one read delivered, which on a pipe can be shorter than
+    ``n`` (a writer that sends one byte first). Then read until ``n`` bytes or the end
+    of input and put them back in front of the stream.
+    """
+    head = raw.peek(n)[:n]
+    if len(head) >= n:
+        return raw, head
+    head = raw.read(n)  # blocks until n bytes or EOF
+    return io.BufferedReader(_Prefixed(head, raw)), head
+
+
 def _open_path(path: Path) -> tuple[IO[str], bool]:
     """Open a PEFF path as UTF-8 text, decompressing gzip/bzip2/xz input.
 
@@ -980,7 +1020,7 @@ def _open_path(path: Path) -> tuple[IO[str], bool]:
     """
     raw = path.open("rb")  # noqa: SIM115 - closed by the returned handle
     try:
-        head = raw.peek(6)[:6]
+        raw, head = _with_head(raw)
         kind = next((k for magic, k in _MAGIC if head.startswith(magic)), None)
         if kind is None:
             return io.TextIOWrapper(raw, encoding="utf-8-sig"), False
