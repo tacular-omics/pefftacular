@@ -220,6 +220,21 @@ header is not included. Every record has these keys, in this order
 | `custom_values`, `extra` | str | header-declared custom keys / unknown keys as `\Key=value` text |
 | `sequence` | str | the residues |
 
+The same fields in [fastatacular](https://github.com/tacular-omics/fastatacular) records have
+other names where each package follows its own model. Rename these to put both in one
+frame:
+
+| field | fastatacular | pefftacular |
+|---|---|---|
+| database prefix | `prefix` | `prefix` |
+| accession | `accession` | `db_unique_id` |
+| entry name | `entry_name` | `id` |
+| protein name, gene | `pname`, `gname` | `pname`, `gname` |
+| organism name | `os_name` | `tax_name` |
+| taxon id, PE, SV | `ncbi_tax_id`, `pe`, `sv` | `ncbi_tax_id`, `pe`, `sv` |
+| other keys | `extra`, `KEY=value` pairs | `extra`, `\Key=value` pairs |
+| length, residues | `length`, `sequence` | `length`, `sequence` |
+
 ## Writing
 
 Build a header and entries, then write:
