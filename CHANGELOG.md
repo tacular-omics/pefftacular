@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 - `write_peff()` no longer ignores edits to a parsed custom-key value: `dataclasses.replace(value, fields=...)` used to write the stale original text from `CustomKeyValue.raw`. `raw` is now used verbatim only if re-parsing it with the key's `CustomKeyDef` gives the value's current `fields`, otherwise the item is rebuilt from `fields`. Unedited values still round-trip byte-exact.
 - The last database block in the file header is no longer dropped when the header runs straight into the first `>` entry without a closing `# //` (now a `PeffWarning`), or when a `# //` separator has trailing whitespace. Previously its `Prefix` and `CustomKeyDef`s were lost and its custom keys ended up in `extra`.
 - A blank line inside the file header no longer ends the header and discards the database blocks after it. It is skipped with a `PeffWarning` (spec section 3.3.1: every header line starts with `# `). Blank lines between the header and the first entry are still ignored silently.
+- `write_peff()` now escapes a `Proteoform` id, so an id containing `|` or an unbalanced paren no longer writes an unparseable line.
+- `write_peff()` no longer writes a trailing `|` for a `DisulfideBond` with `description=""` (it read back as `None`, so the text changed on a second write).
+- A quoted `Description` or `RegExp` in a `CustomKeyDef` may now contain an unbalanced paren; it used to raise `PeffParseError` on read.
+- `write_peff()` raises `PeffWriteError` instead of writing a corrupt file when an edited field of a `RegExp`-controlled custom key can no longer be read back through the RegExp, when any header or entry value contains a line break, when a prefix contains `:` or whitespace, when a `db_unique_id` contains whitespace, or when a sequence contains whitespace or `>`. The check runs before anything is written.
+- The reader now warns (`PeffWarning`) on the spec's illegal examples it used to accept silently: a `VariantSimple` new residue that is not one letter or `*` (section 3.3.8), a `VariantComplex` new sequence with non-residue characters, or a single-residue substitution that should be a `VariantSimple` (3.3.9), and a `Processed` item without an accession or name (3.3.13).
+
+### Tests
+
+- `tests/test_spec_examples.py`: every example in the PEFF 1.0 specification (header, custom keys, entry rules, TYRO3, insulin, legal and illegal annotation examples) parses to the expected structure and writes back; fixtures in `tests/fixtures/spec/`.
+- `tests/test_properties.py`: Hypothesis properties for write -> read -> write stability, edited custom-key fields, and malformed input raising only `PeffError`. `HYPOTHESIS_PROFILE=thorough` runs 5000 examples per property.
 
 ## [0.4.4] (2026-09-23)
 

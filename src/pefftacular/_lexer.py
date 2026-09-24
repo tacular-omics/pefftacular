@@ -43,7 +43,7 @@ def _has_unescaped(s: str, target: str) -> bool:
     return False
 
 
-def split_items(raw: str) -> list[str]:
+def split_items(raw: str, *, quotes: bool = False) -> list[str]:
     r"""Split parenthesized multi-item values into individual items.
 
     ``(A|B)(C|D)`` -> ``["A|B", "C|D"]``
@@ -52,6 +52,10 @@ def split_items(raw: str) -> list[str]:
     Backslash-escaped parens (``\(`` / ``\)``) do not affect nesting depth, so
     an item may contain an escaped unpaired paren. The returned substrings keep
     their escapes; unescaping happens per-component in :func:`split_fields`.
+
+    With ``quotes=True`` (``CustomKeyDef`` header values), parens inside a
+    ``"..."`` span do not change the depth either, so a quoted Description or
+    RegExp may hold an unbalanced one.
 
     Raises:
         PeffParseError: On mismatched parentheses.
@@ -70,6 +74,7 @@ def split_items(raw: str) -> list[str]:
     items: list[str] = []
     depth = 0
     item_start = -1
+    in_quote = False
     i = 0
     length = len(raw)
 
@@ -78,7 +83,11 @@ def split_items(raw: str) -> list[str]:
         if ch == "\\" and i + 1 < length:
             i += 2
             continue
-        if ch == "(":
+        if quotes and ch == '"':
+            in_quote = not in_quote
+        elif in_quote:
+            pass
+        elif ch == "(":
             if depth == 0:
                 item_start = i + 1
             depth += 1

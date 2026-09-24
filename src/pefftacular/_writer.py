@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import warnings
 from collections.abc import Iterable
@@ -136,7 +137,7 @@ def _serialize_disulfide_bond(items: tuple[DisulfideBond, ...]) -> str:
     parts: list[str] = []
     for d in items:
         fields = [_fmt_annot_positions(d.annot_id, d.annot_id_refs)]
-        if d.description is not None:
+        if d.description:
             fields.append(_escape_component(d.description))
         parts.append(f"({'|'.join(fields)})")
     return "".join(parts)
@@ -145,7 +146,8 @@ def _serialize_disulfide_bond(items: tuple[DisulfideBond, ...]) -> str:
 def _serialize_proteoform(items: tuple[Proteoform, ...]) -> str:
     parts: list[str] = []
     for p in items:
-        pf_id = f"{p.annot_id}:{p.proteoform_id}" if p.annot_id is not None else p.proteoform_id
+        escaped_id = _escape_component(p.proteoform_id)
+        pf_id = f"{p.annot_id}:{escaped_id}" if p.annot_id is not None else escaped_id
         ranges_str = ",".join(f"{r.start}-{r.end}" for r in p.ranges)
         refs_str = ",".join(str(i) for i in p.annot_id_refs)
         fields = [pf_id, ranges_str, refs_str, _escape_component(p.name) if p.name else ""]
@@ -216,8 +218,44 @@ def _serialize_custom_values(items: tuple[CustomKeyValue, ...], ckd: CustomKeyDe
         # field, so escape to match. A RegExp-controlled key sees the raw item.
         if ckd is None or ckd.regexp is None:
             ordered = [_escape_component(f) for f in ordered]
-        parts.append(f"({'|'.join(ordered)})")
+        item = "|".join(ordered)
+        if (
+            ckd is not None
+            and ckd.regexp is not None
+            and not _raw_matches_fields(CustomKeyValue(v.key_name, v.fields, raw=item), ckd)
+        ):
+            raise PeffWriteError(
+                f"Custom key {ckd.key_name!r}: fields {v.fields!r} cannot be written through RegExp {ckd.regexp!r}",
+                hint="The joined value must match the RegExp and keep its parentheses balanced; change the fields",
+            )
+        parts.append(f"({item})")
     return "".join(parts)
+
+
+def _line_break_at(obj: object, path: str) -> str | None:
+    """Return the path of the first string under *obj* holding a line break, else ``None``.
+
+    Every PEFF value is written on a single line, so a ``\\n`` or ``\\r`` anywhere
+    would silently split a header or description line.
+    """
+    if isinstance(obj, str):
+        return path if "\n" in obj or "\r" in obj else None
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            found = _line_break_at(k, f"{path}[{k!r}]") or _line_break_at(v, f"{path}[{k!r}]")
+            if found:
+                return found
+    elif isinstance(obj, (tuple, list)):
+        for i, v in enumerate(obj):
+            found = _line_break_at(v, f"{path}[{i}]")
+            if found:
+                return found
+    elif dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        for f in dataclasses.fields(obj):
+            found = _line_break_at(getattr(obj, f.name), f"{path}.{f.name}")
+            if found:
+                return found
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -351,6 +389,12 @@ def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str |
     if header is None:
         raise PeffWriteError("header must not be None", hint="Pass a FileHeader instance, e.g. from read_peff()")
 
+    bad = _line_break_at(header, "header")
+    if bad:
+        raise PeffWriteError(
+            f"{bad} contains a line break", hint="PEFF header values are single-line; remove the \\n or \\r"
+        )
+
     entry_list = list(entries)
     for entry in entry_list:
         if not entry.prefix:
@@ -367,6 +411,27 @@ def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str |
             raise PeffWriteError(
                 f"SequenceEntry {entry.prefix}:{entry.db_unique_id!r} has an empty sequence",
                 hint="A PEFF entry must carry at least one residue in its sequence",
+            )
+        if ":" in entry.prefix or any(c.isspace() for c in entry.prefix):
+            raise PeffWriteError(
+                f"SequenceEntry prefix {entry.prefix!r} contains ':' or whitespace",
+                hint="The prefix is the token before the first ':' of '>prefix:DbUniqueId'",
+            )
+        if any(c.isspace() for c in entry.db_unique_id):
+            raise PeffWriteError(
+                f"SequenceEntry db_unique_id {entry.db_unique_id!r} contains whitespace",
+                hint="The DbUniqueId ends at the first space of the description line",
+            )
+        if ">" in entry.sequence or any(c.isspace() for c in entry.sequence):
+            raise PeffWriteError(
+                f"SequenceEntry {entry.prefix}:{entry.db_unique_id} sequence contains whitespace or '>'",
+                hint="Pass the residues only; the writer wraps the sequence itself",
+            )
+        bad = _line_break_at(entry, "SequenceEntry")
+        if bad:
+            raise PeffWriteError(
+                f"{entry.prefix}:{entry.db_unique_id}: {bad} contains a line break",
+                hint="A PEFF description line is single-line; remove the \\n or \\r",
             )
 
     defs_by_prefix: dict[str, dict[str, CustomKeyDef]] = {}
