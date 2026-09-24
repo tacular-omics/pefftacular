@@ -3,7 +3,7 @@
 > Pure-Python, zero-dependency library for reading and writing PEFF (PSI Extended FASTA
 > Format) files: FASTA plus structured per-entry proteomics annotations.
 
-This file is a self-contained usage guide for pefftacular (version 0.4.x). It lists every
+This file is a self-contained usage guide for pefftacular (version 1.x). It lists every
 public name with its signature, explains the data model, and gives worked examples that
 run as written. Source: https://github.com/tacular-omics/pefftacular
 
@@ -63,7 +63,7 @@ from pefftacular import (
     PeffError, PeffParseError, PeffWriteError, PeffWarning,
 )
 import pefftacular
-pefftacular.__version__   # e.g. "0.4.3"
+pefftacular.__version__   # e.g. "1.0.0"
 ```
 
 All models are `@dataclass(frozen=True, slots=True)`: immutable, compared by value. Use
@@ -116,7 +116,8 @@ with PeffReader("tests/fixtures/PEFF_Tiny_Valid.peff") as reader:
 Notes:
 
 - A reader iterates **once**. It wraps a single line iterator; a second loop over the
-  same reader yields nothing. Create a new reader to read again.
+  same reader yields nothing. Create a new reader to read again (entering `with` again on
+  a path reader also restarts from the top of the file).
 - It **must** be used as a context manager, like `fastatacular.FastaReader`: a path is
   opened in `__enter__` and closed in `__exit__`. `.header` or iteration outside the
   `with` block raises `RuntimeError`. When you pass a stream, the caller owns and closes it.
@@ -625,6 +626,7 @@ reported with `warnings.warn(..., PeffWarning)`:
 - empty `new_amino_acid`, empty ModRes name, empty ModResUnimod/ModResPsi accession
 - custom-key value not matching its `RegExp`, failed type coercion, enumeration mismatch,
   invalid `RegExp`
+- a `#` line inside an entry's sequence lines (skipped)
 
 Strict mode:
 
@@ -656,7 +658,9 @@ logging.getLogger("pefftacular").setLevel(logging.DEBUG)
 
 - **Free-text values are escaped.** `pname`, `gname`, `tax_name` and `comment` are
   written with spec §3.3.3 escaping and unescaped on read. `extra` values are raw and
-  written verbatim; a value containing ` \Key=` reads back as a new key.
+  written verbatim. `write_peff` re-parses every line it writes and raises
+  `PeffWriteError` if a value would read back differently (e.g. ` \Key=` inside a value,
+  an `extra` key that is a known PEFF key or contains `=`, an unbalanced paren in a position).
 - **Last duplicate key wins.** If a description line repeats a key, only the last value
   is kept.
 - **`SpecificKey` / `SpecificValue` header lines are dropped** and do not round-trip.
@@ -665,7 +669,8 @@ logging.getLogger("pefftacular").setLevel(logging.DEBUG)
 - **`DisulfideBond.annot_id_refs` are annotation IDs, not positions.**
 - Header lines must start with `# ` (hash, space) or be exactly `#`; the first other line
   ends the header. Any non-blank line after the header and before the first `>` raises
-  `PeffParseError`, as does a `>` line with no sequence.
+  `PeffParseError`, as does a `>` line with no sequence. Lines starting with `;` (FASTA
+  comments) are skipped anywhere; a `#` line inside an entry is skipped with a `PeffWarning`.
 
 ## Related
 

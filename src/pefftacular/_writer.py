@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import io
 import logging
 import warnings
 from collections.abc import Iterable
@@ -24,7 +25,7 @@ from pefftacular._models import (
     VariantComplex,
     VariantSimple,
 )
-from pefftacular._parser import _parse_custom_value
+from pefftacular._parser import _parse_custom_value, _parse_entry, _parse_file_header
 from pefftacular.errors import PeffError, PeffWriteError
 
 logger = logging.getLogger("pefftacular.writer")
@@ -263,7 +264,8 @@ def _line_break_at(obj: object, path: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def _write_header(header: FileHeader, out: IO[str]) -> None:
+def _format_header(header: FileHeader) -> str:
+    out = io.StringIO()
     out.write(f"# PEFF {header.peff_version}\n")
 
     for comment in header.general_comments:
@@ -305,6 +307,7 @@ def _write_header(header: FileHeader, out: IO[str]) -> None:
             out.write(f"# {k}={v}\n")
 
     out.write("# //\n")
+    return out.getvalue()
 
 
 # ---------------------------------------------------------------------------
@@ -381,6 +384,85 @@ def _format_entry(
 
 
 # ---------------------------------------------------------------------------
+# Read-back verification
+# ---------------------------------------------------------------------------
+
+
+def _as_written(obj: object) -> object:
+    """Reduce a model to the text each value is written as, for comparison with its read-back.
+
+    This ignores only differences the file cannot carry: ``""`` vs ``None`` for optional
+    text, ``"5"`` vs ``5`` for a position or field, dict order, and ``CustomKeyValue.raw``.
+    """
+    if obj is None or isinstance(obj, str):
+        return obj or None
+    if isinstance(obj, CustomKeyValue):
+        return (obj.key_name, _as_written(obj.fields))
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        return tuple(_as_written(getattr(obj, f.name)) for f in dataclasses.fields(obj))
+    if isinstance(obj, dict):
+        return tuple(sorted(((str(k), _as_written(v)) for k, v in obj.items()), key=lambda kv: kv[0]))
+    if isinstance(obj, (tuple, list)):
+        return tuple(_as_written(v) for v in obj)
+    return _fmt_custom_field(obj)
+
+
+def _first_difference(expected: object, actual: object) -> str:
+    """Name the first dataclass field whose written form differs (for the error message)."""
+    if dataclasses.is_dataclass(expected) and not isinstance(expected, type):
+        for f in dataclasses.fields(expected):
+            if _as_written(getattr(expected, f.name)) != _as_written(getattr(actual, f.name)):
+                return f.name
+    return "value"
+
+
+def _check_header_reads_back(header: FileHeader, text: str) -> None:
+    """Raise PeffWriteError if *text* does not parse back to *header*."""
+    try:
+        parsed, remaining, _ = _parse_file_header(io.StringIO(text))
+    except PeffError as err:
+        raise PeffWriteError(
+            f"header would not read back: {err}",
+            hint="peff_version must look like '1.0'; header keys and values must not contain PEFF syntax",
+        ) from err
+    if next(remaining, None) is not None or _as_written(parsed) != _as_written(header):
+        raise PeffWriteError(
+            "header does not read back as written",
+            hint="A DatabaseHeader.extra key must not contain '=' or repeat a known header key (e.g. Prefix, "
+            "DbSource); OptionalTagDef.tag must be non-empty without ':'",
+        )
+
+
+def _check_entry_reads_back(entry: SequenceEntry, text: str, defs: dict[str, CustomKeyDef]) -> None:
+    """Raise PeffWriteError if the description line in *text* does not parse back to *entry*."""
+    desc = text.split("\n", 1)[0]
+    try:
+        parsed = _parse_entry(desc, [entry.sequence], custom_key_defs=defs)
+    except PeffError as err:
+        raise PeffWriteError(
+            f"{entry.prefix}:{entry.db_unique_id} would not read back: {err}",
+            hint="A value holds text the reader treats as syntax; fix the value named in the message",
+        ) from err
+    expected = entry
+    undeclared = {k: v for k, v in entry.custom_values.items() if k not in defs}
+    if undeclared:
+        # Without a CustomKeyDef the reader keeps the written text in ``extra``.
+        expected = dataclasses.replace(
+            entry,
+            custom_values={k: v for k, v in entry.custom_values.items() if k in defs},
+            extra={**{k: _serialize_custom_values(v, None) for k, v in undeclared.items()}, **entry.extra},
+        )
+    # Plain equality is the common case and much cheaper than normalizing both sides.
+    if parsed != expected and _as_written(parsed) != _as_written(expected):
+        name = _first_difference(expected, parsed)
+        raise PeffWriteError(
+            f"{entry.prefix}:{entry.db_unique_id}: {name} does not read back as written",
+            hint="Values must not contain '\\Key=' text or unbalanced parens / '|' in positions; an extra key "
+            "must not contain '=' or repeat a known PEFF key; annotation positions must be non-empty",
+        )
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -396,6 +478,11 @@ def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str |
             f"{bad} contains a line break", hint="PEFF header values are single-line; remove the \\n or \\r"
         )
 
+    header_text = _format_header(header)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        _check_header_reads_back(header, header_text)
+
     entry_list = list(entries)
     defs_by_prefix: dict[str, dict[str, CustomKeyDef]] = {}
     for db in header.databases:
@@ -403,65 +490,87 @@ def write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str |
             defs_by_prefix[db.prefix] = {ckd.key_name: ckd for ckd in db.custom_key_defs}
 
     texts: list[str] = []
-    for index, entry in enumerate(entry_list):
-        if not entry.prefix:
-            raise PeffWriteError(
-                f"SequenceEntry has an empty prefix: db_unique_id={entry.db_unique_id!r}",
-                index=index,
-                hint="Every SequenceEntry needs a non-empty prefix matching a database in the header",
-            )
-        if not entry.db_unique_id:
-            raise PeffWriteError(
-                f"SequenceEntry has an empty db_unique_id: prefix={entry.prefix!r}",
-                index=index,
-                hint="Every SequenceEntry needs a non-empty db_unique_id (the accession after the prefix)",
-            )
-        if not entry.sequence:
-            raise PeffWriteError(
-                f"SequenceEntry {entry.prefix}:{entry.db_unique_id!r} has an empty sequence",
-                index=index,
-                hint="A PEFF entry must carry at least one residue in its sequence",
-            )
-        if ":" in entry.prefix or any(c.isspace() for c in entry.prefix):
-            raise PeffWriteError(
-                f"SequenceEntry prefix {entry.prefix!r} contains ':' or whitespace",
-                index=index,
-                hint="The prefix is the token before the first ':' of '>prefix:DbUniqueId'",
-            )
-        if any(c.isspace() for c in entry.db_unique_id):
-            raise PeffWriteError(
-                f"SequenceEntry db_unique_id {entry.db_unique_id!r} contains whitespace",
-                index=index,
-                hint="The DbUniqueId ends at the first space of the description line",
-            )
-        if ">" in entry.sequence or any(c.isspace() for c in entry.sequence):
-            raise PeffWriteError(
-                f"SequenceEntry {entry.prefix}:{entry.db_unique_id} sequence contains whitespace or '>'",
-                index=index,
-                hint="Pass the residues only; the writer wraps the sequence itself",
-            )
-        bad = _line_break_at(entry, "SequenceEntry")
-        if bad:
-            raise PeffWriteError(
-                f"{entry.prefix}:{entry.db_unique_id}: {bad} contains a line break",
-                index=index,
-                hint="A PEFF description line is single-line; remove the \\n or \\r",
-            )
-        # Serialize now so a late failure (e.g. a RegExp-controlled custom key) is
-        # raised before anything is written.
-        try:
-            texts.append(_format_entry(entry, defs_by_prefix))
-        except PeffWriteError as err:
-            raise PeffWriteError(str(err), index=index, hint=err.hint) from err
+    # Re-parsing warns on spec violations the reader tolerates; the writer only raises.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for index, entry in enumerate(entry_list):
+            if not entry.prefix:
+                raise PeffWriteError(
+                    f"SequenceEntry has an empty prefix: db_unique_id={entry.db_unique_id!r}",
+                    index=index,
+                    hint="Every SequenceEntry needs a non-empty prefix matching a database in the header",
+                )
+            if not entry.db_unique_id:
+                raise PeffWriteError(
+                    f"SequenceEntry has an empty db_unique_id: prefix={entry.prefix!r}",
+                    index=index,
+                    hint="Every SequenceEntry needs a non-empty db_unique_id (the accession after the prefix)",
+                )
+            if not entry.sequence:
+                raise PeffWriteError(
+                    f"SequenceEntry {entry.prefix}:{entry.db_unique_id!r} has an empty sequence",
+                    index=index,
+                    hint="A PEFF entry must carry at least one residue in its sequence",
+                )
+            if ":" in entry.prefix or any(c.isspace() for c in entry.prefix):
+                raise PeffWriteError(
+                    f"SequenceEntry prefix {entry.prefix!r} contains ':' or whitespace",
+                    index=index,
+                    hint="The prefix is the token before the first ':' of '>prefix:DbUniqueId'",
+                )
+            if any(c.isspace() for c in entry.db_unique_id):
+                raise PeffWriteError(
+                    f"SequenceEntry db_unique_id {entry.db_unique_id!r} contains whitespace",
+                    index=index,
+                    hint="The DbUniqueId ends at the first space of the description line",
+                )
+            if ">" in entry.sequence or any(c.isspace() for c in entry.sequence):
+                raise PeffWriteError(
+                    f"SequenceEntry {entry.prefix}:{entry.db_unique_id} sequence contains whitespace or '>'",
+                    index=index,
+                    hint="Pass the residues only; the writer wraps the sequence itself",
+                )
+            if any(entry.sequence[i] in ";#" for i in range(0, len(entry.sequence), _SEQ_LINE_WIDTH)):
+                raise PeffWriteError(
+                    f"SequenceEntry {entry.prefix}:{entry.db_unique_id} sequence would put ';' or '#' at the start "
+                    "of a line",
+                    index=index,
+                    hint="The reader skips lines starting with ';' (comments) or '#'; remove these characters",
+                )
+            dup = set(entry.custom_values) & set(entry.extra)
+            if dup:
+                raise PeffWriteError(
+                    f"SequenceEntry {entry.prefix}:{entry.db_unique_id} has key(s) {sorted(dup)} in both "
+                    "custom_values and extra",
+                    index=index,
+                    hint="Each description key is written once; keep it in custom_values or in extra",
+                )
+            bad = _line_break_at(entry, "SequenceEntry")
+            if bad:
+                raise PeffWriteError(
+                    f"{entry.prefix}:{entry.db_unique_id}: {bad} contains a line break",
+                    index=index,
+                    hint="A PEFF description line is single-line; remove the \\n or \\r",
+                )
+            # Serialize now so a late failure (e.g. a RegExp-controlled custom key) is
+            # raised before anything is written.
+            # Then re-parse it: a value holding PEFF syntax (e.g. "\\Key=" or an unbalanced
+            # paren) would otherwise write a file that reads back different or not at all.
+            try:
+                text = _format_entry(entry, defs_by_prefix)
+                _check_entry_reads_back(entry, text, defs_by_prefix.get(entry.prefix, {}))
+            except PeffWriteError as err:
+                raise PeffWriteError(str(err), index=index, hint=err.hint) from err
+            texts.append(text)
 
     if isinstance(dest, (str, Path)):
         logger.debug("writing PEFF file: %s (%d entries)", dest, len(entry_list))
         with Path(dest).open("w", encoding="utf-8") as f:
-            _write_header(header, f)
+            f.write(header_text)
             f.writelines(texts)
     else:
         logger.debug("writing PEFF to in-memory stream: %s (%d entries)", type(dest).__name__, len(entry_list))
-        _write_header(header, dest)
+        dest.write(header_text)
         dest.writelines(texts)
 
     logger.info("write_peff: wrote %d entries across %d database(s)", len(entry_list), len(header.databases))
