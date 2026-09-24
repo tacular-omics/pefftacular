@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0] (2026-09-23)
+
+The public API (everything in `pefftacular.__all__`) is now stable and follows semantic versioning.
+
 ### Changed
 
 - **Breaking:** `PeffReader` now follows the same contract as `fastatacular.FastaReader`: a path is opened in `__enter__`, not in `__init__` (constructing a reader no longer leaks an open file), and accessing `.header` or iterating outside a `with` block raises `RuntimeError`. Use `with PeffReader(path) as reader:` or `read_peff()`.
@@ -12,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - `PeffWriteError` has an `.index` attribute (0-based position of the bad entry, `None` for header problems) and its message starts with `Entry N: ` for entry problems, matching `fastatacular.FastaWriteError`.
 - `write_peff()` now serializes every entry before writing anything, so a custom-key value that no longer matches its RegExp also leaves the destination untouched (it used to fail after the header and earlier entries were written).
 - Classifier is now `Development Status :: 5 - Production/Stable`.
+- The wheel ships `py.typed`, so type checkers use the package's inline type hints.
 
 ### Fixed
 
