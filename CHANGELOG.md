@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- `SequenceEntry.from_fasta(header, sequence, *, prefix=None)` and `entry.to_fasta()`
+  convert to and from plain FASTA with UniProt-style headers (`sp|P12345|NAME_HUMAN ... OS=
+  OX= GN= PE= SV=`). They take plain strings, so there is still no dependency on
+  fastatacular.
+- `entry.to_proforma(*, mods="psimod"|"unimod", variants=())` renders the sequence and its
+  `\ModResPsi` / `\ModResUnimod` (and matching `\ModRes`) sites as a ProForma 2.0 string.
+  Unknown (`?`) positions are handled, and `VariantSimple` substitutions can be applied.
 - `read_peff()` and `PeffReader` read gzip, bzip2 and xz compressed files directly (`proteins.peff.gz`). The format is detected from the magic bytes. Paths are opened once, so pipes and FIFOs work; `bz2` and `lzma` are imported only when needed. Standard library only; no new dependency.
 - `write_peff(..., verify=False)` skips the per-entry read-back check (about three quarters of the write time) for entries that came unchanged from `read_peff()`/`PeffReader` or were already written once. The default, `verify=True`, is unchanged; the basic checks (empty or malformed prefix, id or sequence, line breaks, duplicate keys) always run.
 

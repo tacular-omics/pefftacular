@@ -392,6 +392,37 @@ SequenceEntry(
 
 A non-integer value for an int key raises `PeffParseError` with the line number.
 
+#### Conversions (methods on SequenceEntry)
+
+```
+SequenceEntry.from_fasta(header: str, sequence: str, *, prefix: str | None = None) -> SequenceEntry
+entry.to_fasta() -> tuple[str, str]          # (header without ">", sequence)
+entry.to_proforma(*, mods: "psimod" | "unimod" = "psimod",
+                  variants: Iterable[VariantSimple] = ()) -> str
+```
+
+- from_fasta takes plain strings (no fastatacular dependency; pass
+  `(r.raw_header, r.sequence)` for a fastatacular record). Identifiers: `db:ACC` (PEFF style,
+  checked first), `db|ACC|NAME`, `db|ACC|...`; otherwise pass `prefix=` or get `PeffError`.
+  `OS`/`OX`/`GN`/`PE`/`SV` map to tax_name/ncbi_tax_id/gname/pe/sv, other `KEY=value` to
+  extra, and length is set to len(sequence).
+- to_fasta writes `prefix|db_unique_id[|id] pname OS= OX= GN= PE= SV= extra...`
+  (`prefix:db_unique_id` if the id contains `|`). Annotations, comment, ev and decoy are
+  dropped. `from_fasta(*e.to_fasta())` restores those fields.
+- to_proforma writes the ModResPsi (or ModResUnimod) sites, plus ModRes sites whose
+  accession is `MOD:` (or `UNIMOD:`), as `X[MOD:00046]`. It writes `[M:name]`/`[U:name]` when the
+  accession is empty and `[acc]^n?SEQ` for `?` positions. All sites are applied at once.
+  variants: substitutions are applied, mods on substituted residues are dropped, and `*`
+  truncates. Bad positions or conflicting substitutions raise PeffError.
+
+    >>> from pefftacular import SequenceEntry, ModResPsi
+    >>> e = SequenceEntry(prefix="sp", db_unique_id="P1", sequence="MSTK",
+    ...                   mod_res_psi=(ModResPsi((2,), "MOD:00046", "O-phospho-L-serine"),))
+    >>> e.to_proforma()
+    'MS[MOD:00046]TK'
+    >>> e.to_fasta()
+    ('sp|P1', 'MSTK')
+
 ## Annotation models
 
 Positions are 1-based and inclusive. A position that is not an integer (e.g. `?` for

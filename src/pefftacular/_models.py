@@ -1,7 +1,11 @@
 """Frozen dataclass models for PEFF file structures."""
 
+from __future__ import annotations
+
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, time
+from typing import Literal
 
 CustomFieldValue = str | int | float | bool | date | time
 
@@ -228,3 +232,76 @@ class SequenceEntry:
     proteoform: tuple[Proteoform, ...] = ()
     custom_values: dict[str, tuple[CustomKeyValue, ...]] = field(default_factory=dict)
     extra: dict[str, str] = field(default_factory=dict)
+
+    # -- conversions (logic in _convert.py; models stay plain data) ---------------------
+
+    @classmethod
+    def from_fasta(cls, header: str, sequence: str, *, prefix: str | None = None) -> SequenceEntry:
+        """Build an entry from a plain FASTA header and sequence.
+
+        pefftacular has no dependencies, so this takes strings rather than a
+        ``fastatacular.SequenceEntry``; pass ``(e.raw_header, e.sequence)`` for one of those.
+        UniProt-style headers are split into fields: ``sp|P12345|NAME_HUMAN Name OS=Homo
+        sapiens OX=9606 GN=ABC PE=1 SV=2`` gives ``prefix="sp"``, ``db_unique_id="P12345"``,
+        ``id="NAME_HUMAN"``, ``pname``, ``tax_name``, ``ncbi_tax_id``, ``gname``, ``pe``,
+        ``sv``; other ``KEY=value`` pairs go to ``extra``. ``length`` is set from the sequence.
+
+        Args:
+            header: The header line, with or without the leading ``>``.
+            sequence: Residues; whitespace is removed.
+            prefix: PEFF database prefix. Default: the ``db`` of a ``db:ACC`` (PEFF style,
+                checked first) or ``db|ACC...`` identifier. Required for other identifiers.
+
+        Raises:
+            PeffError: The header is empty, or no prefix is given or derivable.
+        """
+        from pefftacular._convert import entry_from_fasta
+
+        return entry_from_fasta(cls, header, sequence, prefix=prefix)
+
+    def to_fasta(self) -> tuple[str, str]:
+        """Return ``(header, sequence)`` for a plain FASTA record (header without ``>``).
+
+        The header is ``prefix|db_unique_id[|id] [pname] [OS=] [OX=] [GN=] [PE=] [SV=]``
+        followed by ``extra`` as ``KEY=value``. When ``db_unique_id`` contains ``|`` the
+        identifier is the PEFF form ``prefix:db_unique_id`` instead, and ``id`` is dropped.
+        Annotations (variants, modifications, processing, proteoforms), ``comment``, ``ev``
+        and ``decoy`` have no FASTA form and are dropped.
+        ``SequenceEntry.from_fasta(*entry.to_fasta())`` restores the fields above as long as
+        ``pname`` and the values contain no `` KEY=`` text.
+        """
+        from pefftacular._convert import entry_to_fasta
+
+        return entry_to_fasta(self)
+
+    def to_proforma(
+        self,
+        *,
+        mods: Literal["psimod", "unimod"] = "psimod",
+        variants: Iterable[VariantSimple] = (),
+    ) -> str:
+        """Render the sequence with its modifications as a ProForma 2.0 string.
+
+        ``mods="psimod"`` writes ``\\ModResPsi`` sites (``S[MOD:00046]``) and
+        ``"unimod"`` writes ``\\ModResUnimod`` sites (``S[UNIMOD:21]``). ``\\ModRes``
+        sites are included when their accession is from the same vocabulary; others are
+        left out. An empty accession is written by name (``[M:name]`` / ``[U:name]``). Every
+        listed site is modified at once. Unknown positions (``?``) become a ProForma
+        unknown-position prefix (``[MOD:00046]^2?SEQ``). PEFF cannot tell a terminal
+        modification from one on the terminal residue, so all are written on the residue.
+
+        Args:
+            mods: Which vocabulary to render.
+            variants: ``VariantSimple`` substitutions to apply, usually a subset of
+                ``self.variant_simple``. A modification on a substituted residue is
+                dropped (spec section 3.3.10: a modified variant needs its own entry).
+                ``*`` (stop) truncates the sequence before that position.
+
+        Raises:
+            PeffError: Unknown ``mods``, a position outside the sequence, a non-numeric
+                position other than ``?``, two different substitutions at one position,
+                or a square bracket in a modification.
+        """
+        from pefftacular._convert import entry_to_proforma
+
+        return entry_to_proforma(self, mods=mods, variants=variants)
