@@ -51,6 +51,10 @@ ty:
 test:
     uv run pytest tests
 
+# Run the test suite with CI's Hypothesis example counts (the default profile is cut down)
+test-all:
+    HYPOTHESIS_PROFILE=ci uv run pytest tests
+
 # Run the test suite with verbose output
 test-v:
     uv run pytest tests -v

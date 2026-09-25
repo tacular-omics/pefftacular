@@ -34,6 +34,7 @@ just lint            # ruff check src tests
 just format          # ruff isort fix + ruff format
 just ty              # ty check src
 just test            # pytest tests
+just test-all        # pytest with HYPOTHESIS_PROFILE=ci (CI's example counts)
 just test-v          # pytest tests -v
 just test-file tests/test_errors.py   # one file, verbose
 just cov             # pytest with --cov=src/pefftacular, term-missing report

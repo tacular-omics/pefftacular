@@ -7,6 +7,8 @@ any input, in particular inputs dense in ``\\ ( ) | " =`` and spaces.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -191,20 +193,27 @@ _alphabet = st.sampled_from(list('\\()|" =ab1:?') + ["  ", "\\K", "(A|B)", "\\("
 _lexer_text = st.lists(_alphabet, max_size=30).map("".join) | st.text(max_size=40)
 
 
+def _examples(n: int) -> settings:
+    """``n`` examples under the ``ci``/``thorough`` profiles, the profile count locally."""
+    if os.environ.get("HYPOTHESIS_PROFILE", "default") == "default":
+        return settings()
+    return settings(max_examples=max(n, settings().max_examples))
+
+
 @given(_lexer_text, st.booleans())
-@settings(max_examples=3000)
+@_examples(3000)
 def test_split_items_matches_reference(raw: str, quotes: bool) -> None:
     assert _outcome(split_items, raw, quotes=quotes) == _outcome(_ref_split_items, raw, quotes=quotes)
 
 
 @given(_lexer_text)
-@settings(max_examples=3000)
+@_examples(3000)
 def test_split_fields_escaped_matches_reference(item: str) -> None:
     assert _split_fields_escaped(item) == _ref_split_fields_escaped(item)
 
 
 @given(_lexer_text)
-@settings(max_examples=3000)
+@_examples(3000)
 def test_split_description_keys_matches_reference(rest: str) -> None:
     assert split_description_keys(rest) == _ref_split_description_keys(rest)
 
