@@ -196,11 +196,10 @@ requires Python 3.12 or later.
 
 # AI usage disclosure
 
-<!-- TODO(author): AI-usage disclosure. State which AI tools were used for code, tests,
-documentation and this manuscript, and how the output was reviewed. -->
+During the preparation of this work the authors used Anthropic Claude large language models via the Claude Code interface for software-development assistance, including code, tests, and documentation, and for manuscript drafting and editing. The authors reviewed and edited all content and take full responsibility for the software and the publication.
 
 # Acknowledgements
 
-<!-- TODO(author): acknowledgements and funding. -->
+We thank Claire Delahunty, Ph.D., for a careful reading of the manuscript. This work was supported by the U.S. National Institutes of Health (grants R01 HL165168, R01 AG077046, R01 MH100175, and R01 AG075862 to J.R.Y.) and by the Skaggs Graduate School of Chemical and Biological Sciences at The Scripps Research Institute (P.T.G.).
 
 # References
