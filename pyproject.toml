@@ -37,7 +37,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
-# Source, tests and paperwork only: not the spec PDF, docs site or repo tooling.
+# Source, tests and paperwork only: no paper, docs, lockfile or repo tooling.
 only-include = [
     "src/pefftacular",
     "tests",
