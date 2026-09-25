@@ -35,6 +35,10 @@ uv run pytest tests
 python scripts/release_version.py check
 ```
 
+`uv run pytest tests` uses a small Hypothesis profile (30 examples) so it finishes in
+seconds. CI runs `HYPOTHESIS_PROFILE=ci` (100 examples, more for the lexer checks);
+`HYPOTHESIS_PROFILE=thorough` (5000) is for changes to the lexer, parser or writer.
+
 If you change the documentation, build it the way CI does:
 
 ```bash

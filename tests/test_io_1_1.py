@@ -59,8 +59,15 @@ _component = st.lists(_special, max_size=10).map("".join)
 _nonempty = _component.filter(bool)
 
 
+def _examples(n: int) -> settings:
+    """``n`` examples under the ``ci``/``thorough`` profiles, the profile count locally."""
+    if os.environ.get("HYPOTHESIS_PROFILE", "default") == "default":
+        return settings()
+    return settings(max_examples=max(n, settings().max_examples))
+
+
 @given(tag=_nonempty, new_aa=_component, mod_name=_nonempty)
-@settings(max_examples=500)
+@_examples(500)
 def test_escaped_components_round_trip(tag: str, new_aa: str, mod_name: str) -> None:
     entry = SequenceEntry(
         prefix="sp",

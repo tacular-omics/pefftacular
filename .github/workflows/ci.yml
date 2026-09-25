@@ -16,6 +16,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Full Hypothesis example counts in CI; the local default profile is cut down.
+env:
+  HYPOTHESIS_PROFILE: ci
+
 jobs:
   lint:
     runs-on: ubuntu-latest

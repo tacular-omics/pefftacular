@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+# Full Hypothesis example counts in CI; the local default profile is cut down.
+env:
+  HYPOTHESIS_PROFILE: ci
+
 jobs:
   latest:
     strategy:
