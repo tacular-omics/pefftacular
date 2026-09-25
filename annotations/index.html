@@ -1,0 +1,1494 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A pure-Python library for reading and writing PEFF (PSI Extended FASTA Format) files.">
+      
+      
+      
+        <link rel="canonical" href="https://tacular-omics.github.io/pefftacular/annotations/">
+      
+      
+        <link rel="prev" href="../getting-started/">
+      
+      
+        <link rel="next" href="../fasta/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Annotations - pefftacular</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#annotations" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="pefftacular" class="md-header__button md-logo" aria-label="pefftacular" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            pefftacular
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Annotations
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/tacular-omics/pefftacular" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tacular-omics/pefftacular
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="pefftacular" class="md-nav__button md-logo" aria-label="pefftacular" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    pefftacular
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/tacular-omics/pefftacular" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tacular-omics/pefftacular
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-example-entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The example entry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#positions-and-annotation-ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Positions and annotation IDs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#variants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Variants
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Variants">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#variantsimple-one-residue-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VariantSimple: one residue changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#variantcomplex-a-stretch-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VariantComplex: a stretch changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modifications
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#processed-regions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processed regions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#disulfide-bonds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disulfide bonds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proteoforms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proteoforms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proforma-strings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProForma strings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing annotations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fasta/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From FASTA and UniProt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/io/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading and writing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File and database headers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/entries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sequence entries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/annotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors and warnings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../citation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Citation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-example-entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The example entry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#positions-and-annotation-ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Positions and annotation IDs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#variants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Variants
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Variants">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#variantsimple-one-residue-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VariantSimple: one residue changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#variantcomplex-a-stretch-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VariantComplex: a stretch changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modifications
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#processed-regions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processed regions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#disulfide-bonds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disulfide bonds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proteoforms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proteoforms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proforma-strings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProForma strings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing annotations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="annotations">Annotations<a class="headerlink" href="#annotations" title="Permanent link">&para;</a></h1>
+<p>PEFF's value over FASTA is the per-entry annotation: sequence variants, modifications,
+processing events, disulfide bonds and proteoforms. pefftacular parses each annotation key into a
+tuple of typed objects on the <code>SequenceEntry</code>.</p>
+<table>
+<thead>
+<tr>
+<th>PEFF key</th>
+<th>Field on <code>SequenceEntry</code></th>
+<th>Model</th>
+<th>Describes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>\VariantSimple</code></td>
+<td><code>variant_simple</code></td>
+<td><code>VariantSimple</code></td>
+<td>a single-residue substitution</td>
+</tr>
+<tr>
+<td><code>\VariantComplex</code></td>
+<td><code>variant_complex</code></td>
+<td><code>VariantComplex</code></td>
+<td>an insertion, deletion or multi-residue replacement</td>
+</tr>
+<tr>
+<td><code>\ModResUnimod</code></td>
+<td><code>mod_res_unimod</code></td>
+<td><code>ModResUnimod</code></td>
+<td>a modification with a UNIMOD accession</td>
+</tr>
+<tr>
+<td><code>\ModResPsi</code></td>
+<td><code>mod_res_psi</code></td>
+<td><code>ModResPsi</code></td>
+<td>a modification with a PSI-MOD accession</td>
+</tr>
+<tr>
+<td><code>\ModRes</code></td>
+<td><code>mod_res</code></td>
+<td><code>ModRes</code></td>
+<td>a modification with any other (or no) accession</td>
+</tr>
+<tr>
+<td><code>\Processed</code></td>
+<td><code>processed</code></td>
+<td><code>Processed</code></td>
+<td>a processed region: signal peptide, chain, propeptide</td>
+</tr>
+<tr>
+<td><code>\DisulfideBond</code></td>
+<td><code>disulfide_bond</code></td>
+<td><code>DisulfideBond</code></td>
+<td>a bond between two annotated half-cystines</td>
+</tr>
+<tr>
+<td><code>\Proteoform</code></td>
+<td><code>proteoform</code></td>
+<td><code>Proteoform</code></td>
+<td>a defined combination of ranges and annotations</td>
+</tr>
+<tr>
+<td>declared by <code>CustomKeyDef</code></td>
+<td><code>custom_values</code></td>
+<td><code>CustomKeyValue</code></td>
+<td>your own structured keys</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-example-entry">The example entry<a class="headerlink" href="#the-example-entry" title="Permanent link">&para;</a></h2>
+<p>Every example on this page reads the same insulin entry, adapted from the official PEFF
+examples. Run this first:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pefftacular</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_peff</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">PEFF</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">"""# PEFF 1.0</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="s2"># //</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="s2"># DbName=Insulin example</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="s2"># Prefix=nxp</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="s2"># DbVersion=1.0</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="s2"># DbSource=www.nextprot.org</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="s2"># NumberOfEntries=1</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="s2"># SequenceType=AA</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="s2"># HasAnnotationIdentifiers=true</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="s2"># //</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="s2">&gt;nxp:NX_P01308-1 \PName=Insulin \GName=INS \NcbiTaxId=9606 \Length=110 \ModResPsi=(1:31|MOD:00798|half cystine)(2:96|MOD:00798|half cystine) \ModResUnimod=(3:53|UNIMOD:45|Myristoyl) \VariantSimple=(4:6|C)(5:12|V|dbSNP) \VariantComplex=(6:1|3|M) \Processed=(7:1|24|PEFF:0001021|signal peptide)(8:25|54|PEFF:0001020|mature protein) \DisulfideBond=(9:1,2|between chains) \Proteoform=(10:NX_P01308-1-pf1|1-110||preproinsulin)(11:NX_P01308-1-pf2|90-110,25-54|9|insulin A and B chains joined)</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="s2">MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAED</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="s2">LQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="s2">"""</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="n">header</span><span class="p">,</span> <span class="p">(</span><span class="n">insulin</span><span class="p">,)</span> <span class="o">=</span> <span class="n">read_peff</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">PEFF</span><span class="p">))</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="nb">print</span><span class="p">(</span><span class="n">insulin</span><span class="o">.</span><span class="n">gname</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">insulin</span><span class="o">.</span><span class="n">sequence</span><span class="p">))</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="c1"># INS 110</span>
+</code></pre></div>
+<h2 id="positions-and-annotation-ids">Positions and annotation IDs<a class="headerlink" href="#positions-and-annotation-ids" title="Permanent link">&para;</a></h2>
+<p>Two rules apply to every annotation type:</p>
+<ul>
+<li><strong>Positions are 1-based and inclusive</strong>, counted on <code>entry.sequence</code>. Position 1 is the first
+  residue. A position the source marks as unknown (<code>?</code>) is kept as the string <code>"?"</code>, so position
+  fields are typed <code>int | str</code>.</li>
+<li><strong>Annotation IDs</strong> are optional integers written as <code>id:</code> in front of the first field
+  (<code>(4:6|C)</code> is annotation 4, at position 6). They appear when the database header sets
+  <code>HasAnnotationIdentifiers=true</code>, and are how <code>DisulfideBond</code> and <code>Proteoform</code> refer to other
+  annotations. Without them, <code>annot_id</code> is <code>None</code>.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">print</span><span class="p">(</span><span class="n">header</span><span class="o">.</span><span class="n">databases</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">has_annotation_identifiers</span><span class="p">)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># True</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nb">print</span><span class="p">([</span><span class="n">v</span><span class="o">.</span><span class="n">annot_id</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">insulin</span><span class="o">.</span><span class="n">variant_simple</span><span class="p">])</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># [4, 5]</span>
+</code></pre></div>
+<p>Each annotation also has an optional <code>tag</code>, a free-text source label such as <code>dbSNP</code>. If the
+database header declares tags with <code># OptionalTagDef=tag:description</code>, they are available as
+<code>DatabaseHeader.optional_tag_defs</code>.</p>
+<h2 id="variants">Variants<a class="headerlink" href="#variants" title="Permanent link">&para;</a></h2>
+<h3 id="variantsimple-one-residue-changes"><code>VariantSimple</code>: one residue changes<a class="headerlink" href="#variantsimple-one-residue-changes" title="Permanent link">&para;</a></h3>
+<p><code>(position|newAminoAcid|tag)</code>. <code>new_amino_acid</code> is a single residue, or <code>*</code> for a stop codon.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">insulin</span><span class="o">.</span><span class="n">variant_simple</span><span class="p">:</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="n">ref</span> <span class="o">=</span> <span class="n">insulin</span><span class="o">.</span><span class="n">sequence</span><span class="p">[</span><span class="n">v</span><span class="o">.</span><span class="n">position</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">ref</span><span class="si">}{</span><span class="n">v</span><span class="o">.</span><span class="n">position</span><span class="si">}{</span><span class="n">v</span><span class="o">.</span><span class="n">new_amino_acid</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">v</span><span class="o">.</span><span class="n">tag</span><span class="p">)</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># R6C None</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># A12V dbSNP</span>
+</code></pre></div>
+<p>To build the variant sequence, replace one residue:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">apply_simple</span><span class="p">(</span><span class="n">sequence</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">variant</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">i</span> <span class="o">=</span> <span class="n">variant</span><span class="o">.</span><span class="n">position</span> <span class="o">-</span> <span class="mi">1</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="k">return</span> <span class="n">sequence</span><span class="p">[:</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">variant</span><span class="o">.</span><span class="n">new_amino_acid</span> <span class="o">+</span> <span class="n">sequence</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="p">:]</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">mutant</span> <span class="o">=</span> <span class="n">apply_simple</span><span class="p">(</span><span class="n">insulin</span><span class="o">.</span><span class="n">sequence</span><span class="p">,</span> <span class="n">insulin</span><span class="o">.</span><span class="n">variant_simple</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">mutant</span><span class="p">[:</span><span class="mi">15</span><span class="p">])</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># MALWMRLLPLLVLLA</span>
+</code></pre></div>
+<h3 id="variantcomplex-a-stretch-changes"><code>VariantComplex</code>: a stretch changes<a class="headerlink" href="#variantcomplex-a-stretch-changes" title="Permanent link">&para;</a></h3>
+<p><code>(startPosition|endPosition|newSequence|tag)</code>. Residues <code>start_pos</code> to <code>end_pos</code> inclusive are
+replaced by <code>new_sequence</code>. An empty <code>new_sequence</code> is a deletion; a <code>new_sequence</code> longer than the
+range is an insertion.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">vc</span> <span class="o">=</span> <span class="n">insulin</span><span class="o">.</span><span class="n">variant_complex</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">vc</span><span class="o">.</span><span class="n">start_pos</span><span class="p">,</span> <span class="n">vc</span><span class="o">.</span><span class="n">end_pos</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">vc</span><span class="o">.</span><span class="n">new_sequence</span><span class="p">))</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># 1 3 'M'</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">variant</span> <span class="o">=</span> <span class="n">insulin</span><span class="o">.</span><span class="n">sequence</span><span class="p">[:</span> <span class="n">vc</span><span class="o">.</span><span class="n">start_pos</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">vc</span><span class="o">.</span><span class="n">new_sequence</span> <span class="o">+</span> <span class="n">insulin</span><span class="o">.</span><span class="n">sequence</span><span class="p">[</span><span class="n">vc</span><span class="o">.</span><span class="n">end_pos</span> <span class="p">:]</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">variant</span><span class="p">[:</span><span class="mi">10</span><span class="p">],</span> <span class="nb">len</span><span class="p">(</span><span class="n">variant</span><span class="p">))</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># MWMRLLPLLA 108</span>
+</code></pre></div>
+<h2 id="modifications">Modifications<a class="headerlink" href="#modifications" title="Permanent link">&para;</a></h2>
+<p>The three modification keys share one shape, <code>(positions|accession|name|tag)</code>, and differ only in
+the controlled vocabulary of the accession:</p>
+<ul>
+<li><code>ModResUnimod</code>: a UNIMOD accession, such as <code>UNIMOD:21</code> (Phospho).</li>
+<li><code>ModResPsi</code>: a PSI-MOD accession, such as <code>MOD:00798</code> (half cystine).</li>
+<li><code>ModRes</code>: any other accession, or none. Use it for modifications that are not in either
+  vocabulary.</li>
+</ul>
+<p><code>positions</code> is always a tuple, because one annotation can mark the same modification at several
+residues: <code>(12,15,20|UNIMOD:21|Phospho)</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">for</span> <span class="n">mod</span> <span class="ow">in</span> <span class="n">insulin</span><span class="o">.</span><span class="n">mod_res_unimod</span><span class="p">:</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">positions</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">accession</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="c1"># (53,) UNIMOD:45 Myristoyl</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">for</span> <span class="n">mod</span> <span class="ow">in</span> <span class="n">insulin</span><span class="o">.</span><span class="n">mod_res_psi</span><span class="p">:</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">mod</span><span class="o">.</span><span class="n">annot_id</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">positions</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">accession</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># 1 (31,) MOD:00798 half cystine</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="c1"># 2 (96,) MOD:00798 half cystine</span>
+</code></pre></div>
+<p>To collect every modified position, whatever its vocabulary:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">sites</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="p">(</span><span class="o">*</span><span class="n">insulin</span><span class="o">.</span><span class="n">mod_res_unimod</span><span class="p">,</span> <span class="o">*</span><span class="n">insulin</span><span class="o">.</span><span class="n">mod_res_psi</span><span class="p">,</span> <span class="o">*</span><span class="n">insulin</span><span class="o">.</span><span class="n">mod_res</span><span class="p">)</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">m</span><span class="o">.</span><span class="n">positions</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="p">)</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">sites</span><span class="p">)</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># [(31, 'half cystine'), (53, 'Myristoyl'), (96, 'half cystine')]</span>
+</code></pre></div>
+<h2 id="processed-regions">Processed regions<a class="headerlink" href="#processed-regions" title="Permanent link">&para;</a></h2>
+<p><code>Processed</code> marks a region produced by post-translational processing:
+<code>(startPosition|endPosition|accession|name|tag)</code>. The accession comes from the PEFF controlled
+vocabulary, for example <code>PEFF:0001021</code> (signal peptide) and <code>PEFF:0001020</code> (mature protein).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">for</span> <span class="n">region</span> <span class="ow">in</span> <span class="n">insulin</span><span class="o">.</span><span class="n">processed</span><span class="p">:</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="n">piece</span> <span class="o">=</span> <span class="n">insulin</span><span class="o">.</span><span class="n">sequence</span><span class="p">[</span><span class="n">region</span><span class="o">.</span><span class="n">start_pos</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="n">region</span><span class="o">.</span><span class="n">end_pos</span><span class="p">]</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">region</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">region</span><span class="o">.</span><span class="n">start_pos</span><span class="p">,</span> <span class="n">region</span><span class="o">.</span><span class="n">end_pos</span><span class="p">,</span> <span class="n">piece</span><span class="p">[:</span><span class="mi">8</span><span class="p">])</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># signal peptide 1 24 MALWMRLL</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># mature protein 25 54 FVNQHLCG</span>
+</code></pre></div>
+<h2 id="disulfide-bonds">Disulfide bonds<a class="headerlink" href="#disulfide-bonds" title="Permanent link">&para;</a></h2>
+<p>A <code>\DisulfideBond</code> does not give residue positions. It references two earlier <code>ModResPsi</code>
+half-cystine annotations <strong>by annotation ID</strong>, so <code>annot_id_refs</code> holds IDs, not positions.
+Resolve them through the modifications:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">by_id</span> <span class="o">=</span> <span class="p">{</span><span class="n">m</span><span class="o">.</span><span class="n">annot_id</span><span class="p">:</span> <span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">insulin</span><span class="o">.</span><span class="n">mod_res_psi</span><span class="p">}</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">for</span> <span class="n">bond</span> <span class="ow">in</span> <span class="n">insulin</span><span class="o">.</span><span class="n">disulfide_bond</span><span class="p">:</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="p">(</span><span class="n">by_id</span><span class="p">[</span><span class="n">ref</span><span class="p">]</span><span class="o">.</span><span class="n">positions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">ref</span> <span class="ow">in</span> <span class="n">bond</span><span class="o">.</span><span class="n">annot_id_refs</span><span class="p">)</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Cys</span><span class="si">{</span><span class="n">a</span><span class="si">}</span><span class="s2">-Cys</span><span class="si">{</span><span class="n">b</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">bond</span><span class="o">.</span><span class="n">description</span><span class="p">)</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="c1"># Cys31-Cys96 between chains</span>
+</code></pre></div>
+<h2 id="proteoforms">Proteoforms<a class="headerlink" href="#proteoforms" title="Permanent link">&para;</a></h2>
+<p>A <code>Proteoform</code> names one specific molecular form of the protein:
+<code>(proteoformId|ranges|annotIdRefs|name)</code>.</p>
+<ul>
+<li><code>ranges</code> is a tuple of <code>SequenceRange(start, end)</code>. Several ranges mean several chains, such as
+  insulin's A and B chains.</li>
+<li><code>annot_id_refs</code> lists the annotation IDs (modifications, variants, bonds) present in this form.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">for</span> <span class="n">pf</span> <span class="ow">in</span> <span class="n">insulin</span><span class="o">.</span><span class="n">proteoform</span><span class="p">:</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="n">spans</span> <span class="o">=</span> <span class="p">[(</span><span class="n">r</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">end</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">pf</span><span class="o">.</span><span class="n">ranges</span><span class="p">]</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">pf</span><span class="o">.</span><span class="n">proteoform_id</span><span class="p">,</span> <span class="n">spans</span><span class="p">,</span> <span class="n">pf</span><span class="o">.</span><span class="n">annot_id_refs</span><span class="p">,</span> <span class="n">pf</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># NX_P01308-1-pf1 [(1, 110)] () preproinsulin</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="c1"># NX_P01308-1-pf2 [(90, 110), (25, 54)] (9,) insulin A and B chains joined</span>
+</code></pre></div>
+<p>Databases built around proteoforms set <code>ProteoformDb=true</code> in the header, available as
+<code>DatabaseHeader.proteoform_db</code>.</p>
+<h2 id="custom-keys">Custom keys<a class="headerlink" href="#custom-keys" title="Permanent link">&para;</a></h2>
+<p>A database header can declare its own entry keys with <code># CustomKeyDef=</code>. The definition names
+the fields, their XSD types, and optionally a regular expression that splits the value.
+pefftacular uses it to parse matching entry values into typed fields on <code>entry.custom_values</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pefftacular</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_peff</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="n">CUSTOM</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">"""# PEFF 1.0</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="s2"># //</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="s2"># DbName=Custom demo</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="s2"># Prefix=cu</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="s2"># DbVersion=1</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="s2"># DbSource=local</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="s2"># NumberOfEntries=1</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="s2"># SequenceType=AA</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="s2"># CustomKeyDef=(KeyName=SecondaryStructure|Description="Secondary structure element"|RegExp="([0-9]+)\|([0-9]+)\|(.+)"|FieldNames=StartPosition,EndPosition,Description|FieldTypes=integer,integer,string)</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="s2"># //</span>
+<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a><span class="s2">&gt;cu:P00001 \SecondaryStructure=(10|20|Helix)(25|30|Strand)</span>
+<a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a><span class="s2">MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVK</span>
+<a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a><span class="s2">"""</span>
+<a id="__codelineno-10-18" name="__codelineno-10-18" href="#__codelineno-10-18"></a>
+<a id="__codelineno-10-19" name="__codelineno-10-19" href="#__codelineno-10-19"></a><span class="n">header</span><span class="p">,</span> <span class="p">(</span><span class="n">entry</span><span class="p">,)</span> <span class="o">=</span> <span class="n">read_peff</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">CUSTOM</span><span class="p">))</span>
+<a id="__codelineno-10-20" name="__codelineno-10-20" href="#__codelineno-10-20"></a>
+<a id="__codelineno-10-21" name="__codelineno-10-21" href="#__codelineno-10-21"></a><span class="n">key_def</span> <span class="o">=</span> <span class="n">header</span><span class="o">.</span><span class="n">databases</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">custom_key_defs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-10-22" name="__codelineno-10-22" href="#__codelineno-10-22"></a><span class="nb">print</span><span class="p">(</span><span class="n">key_def</span><span class="o">.</span><span class="n">key_name</span><span class="p">,</span> <span class="n">key_def</span><span class="o">.</span><span class="n">field_names</span><span class="p">,</span> <span class="n">key_def</span><span class="o">.</span><span class="n">field_types</span><span class="p">)</span>
+<a id="__codelineno-10-23" name="__codelineno-10-23" href="#__codelineno-10-23"></a><span class="c1"># SecondaryStructure ('StartPosition', 'EndPosition', 'Description') ('integer', 'integer', 'string')</span>
+<a id="__codelineno-10-24" name="__codelineno-10-24" href="#__codelineno-10-24"></a>
+<a id="__codelineno-10-25" name="__codelineno-10-25" href="#__codelineno-10-25"></a><span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">entry</span><span class="o">.</span><span class="n">custom_values</span><span class="p">[</span><span class="s2">"SecondaryStructure"</span><span class="p">]:</span>
+<a id="__codelineno-10-26" name="__codelineno-10-26" href="#__codelineno-10-26"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">fields</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">raw</span><span class="p">)</span>
+<a id="__codelineno-10-27" name="__codelineno-10-27" href="#__codelineno-10-27"></a><span class="c1"># {'StartPosition': 10, 'EndPosition': 20, 'Description': 'Helix'} 10|20|Helix</span>
+<a id="__codelineno-10-28" name="__codelineno-10-28" href="#__codelineno-10-28"></a><span class="c1"># {'StartPosition': 25, 'EndPosition': 30, 'Description': 'Strand'} 25|30|Strand</span>
+</code></pre></div>
+<p>Supported <code>FieldTypes</code> are <code>string</code>, <code>integer</code>, <code>decimal</code>, <code>boolean</code>, <code>date</code>, <code>time</code> and
+<code>enumeration(a|b|c)</code>. A value that does not fit its type stays a string and raises a
+<code>PeffWarning</code>. With no <code>RegExp</code>, the value is split on <code>|</code> and paired with <code>FieldNames</code> in order.</p>
+<p><code>raw</code> keeps the original text. The writer uses it only while it still matches <code>fields</code>, so a
+read-then-write round trip reproduces the value exactly, and an edit made with
+<code>dataclasses.replace(value, fields=...)</code> is written. To write a value you built yourself, leave
+<code>raw</code> empty and fill <code>fields</code>.</p>
+<p>Keys that no <code>CustomKeyDef</code> declares are not dropped: they land in <code>entry.extra</code> as raw strings.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">print</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">extra</span><span class="p">)</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="c1"># {}</span>
+</code></pre></div>
+<h2 id="proforma-strings">ProForma strings<a class="headerlink" href="#proforma-strings" title="Permanent link">&para;</a></h2>
+<p><code>entry.to_proforma()</code> writes the sequence with its modification sites as a
+<a href="https://github.com/HUPO-PSI/ProForma">ProForma 2.0</a> string. Pass it to a ProForma parser such as
+<a href="https://github.com/tacular-omics/peptacular">peptacular</a> to get masses or fragments.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nb">print</span><span class="p">(</span><span class="n">insulin</span><span class="o">.</span><span class="n">to_proforma</span><span class="p">()[</span><span class="mi">25</span><span class="p">:</span><span class="mi">50</span><span class="p">])</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="c1"># VNQHLC[MOD:00798]GSHLVEAL</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">insulin</span><span class="o">.</span><span class="n">to_proforma</span><span class="p">(</span><span class="n">mods</span><span class="o">=</span><span class="s2">"unimod"</span><span class="p">)[</span><span class="mi">44</span><span class="p">:</span><span class="mi">64</span><span class="p">])</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># ERGFFYTPK[UNIMOD:45]</span>
+</code></pre></div>
+<ul>
+<li><code>mods="psimod"</code> (the default) writes <code>\ModResPsi</code> sites and <code>mods="unimod"</code> writes
+  <code>\ModResUnimod</code> sites. A <code>\ModRes</code> site is included when its accession is from the same
+  vocabulary (<code>MOD:</code> or <code>UNIMOD:</code>), and left out otherwise.</li>
+<li>Every listed site is modified at once. To render a subset, build a copy with
+  <code>dataclasses.replace(entry, mod_res_psi=...)</code> first.</li>
+<li>A <code>?</code> position becomes a ProForma unknown-position modification: <code>[MOD:00046]^2?SEQ...</code>.</li>
+<li>A site listed in both <code>\ModResPsi</code> (or <code>\ModResUnimod</code>) and <code>\ModRes</code> is written once.</li>
+<li>A modification with no accession is written by name: <code>[M:name]</code> or <code>[U:name]</code>.</li>
+<li>PEFF does not say whether a modification on residue 1 is on the N-terminus or on the side
+  chain, so it is always written on the residue.</li>
+</ul>
+<p><code>variants=</code> applies <code>VariantSimple</code> substitutions first. A modification on a substituted
+residue is dropped (the spec says a modified variant needs its own entry), and a <code>*</code> variant
+truncates the sequence before its position:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nb">print</span><span class="p">(</span><span class="n">insulin</span><span class="o">.</span><span class="n">to_proforma</span><span class="p">(</span><span class="n">variants</span><span class="o">=</span><span class="n">insulin</span><span class="o">.</span><span class="n">variant_simple</span><span class="p">[:</span><span class="mi">1</span><span class="p">])[:</span><span class="mi">12</span><span class="p">])</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="c1"># MALWMCLLPLLA</span>
+</code></pre></div>
+<p><code>?</code> sites are dropped after a <code>*</code> truncation, since they may lie in the removed part.</p>
+<p>Positions outside the sequence, or two different substitutions at one position, raise
+<code>PeffError</code>; the message starts with the entry's <code>prefix:db_unique_id</code>. <code>VariantComplex</code>
+is not applied. Real files have such entries (12 of the 20,431 in the neXtProt human
+PEFF list sites past the sequence end). To convert a whole file, skip them with
+<code>errors="skip"</code>, which returns <code>None</code> for an entry that cannot be written:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">forms</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">entries</span> <span class="k">if</span> <span class="p">(</span><span class="n">p</span> <span class="o">:=</span> <span class="n">e</span><span class="o">.</span><span class="n">to_proforma</span><span class="p">(</span><span class="n">errors</span><span class="o">=</span><span class="s2">"skip"</span><span class="p">))</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+</code></pre></div>
+<h2 id="writing-annotations">Writing annotations<a class="headerlink" href="#writing-annotations" title="Permanent link">&para;</a></h2>
+<p>Build the annotation objects and pass them to <code>SequenceEntry</code> as tuples:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pefftacular</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="n">DatabaseHeader</span><span class="p">,</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="n">FileHeader</span><span class="p">,</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="n">ModResPsi</span><span class="p">,</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>    <span class="n">Processed</span><span class="p">,</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>    <span class="n">SequenceEntry</span><span class="p">,</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>    <span class="n">VariantSimple</span><span class="p">,</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>    <span class="n">write_peff</span><span class="p">,</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="p">)</span>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a><span class="n">header</span> <span class="o">=</span> <span class="n">FileHeader</span><span class="p">(</span>
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>    <span class="n">peff_version</span><span class="o">=</span><span class="s2">"1.0"</span><span class="p">,</span>
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a>    <span class="n">databases</span><span class="o">=</span><span class="p">(</span><span class="n">DatabaseHeader</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">"my"</span><span class="p">,</span> <span class="n">db_name</span><span class="o">=</span><span class="s2">"Demo"</span><span class="p">,</span> <span class="n">db_version</span><span class="o">=</span><span class="s2">"1"</span><span class="p">,</span> <span class="n">db_sources</span><span class="o">=</span><span class="p">(</span><span class="s2">"local"</span><span class="p">,),</span>
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a>                              <span class="n">number_of_entries</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sequence_type</span><span class="o">=</span><span class="s2">"AA"</span><span class="p">),),</span>
+<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a><span class="p">)</span>
+<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a>
+<a id="__codelineno-15-19" name="__codelineno-15-19" href="#__codelineno-15-19"></a><span class="n">entry</span> <span class="o">=</span> <span class="n">SequenceEntry</span><span class="p">(</span>
+<a id="__codelineno-15-20" name="__codelineno-15-20" href="#__codelineno-15-20"></a>    <span class="n">prefix</span><span class="o">=</span><span class="s2">"my"</span><span class="p">,</span>
+<a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a>    <span class="n">db_unique_id</span><span class="o">=</span><span class="s2">"PROT001"</span><span class="p">,</span>
+<a id="__codelineno-15-22" name="__codelineno-15-22" href="#__codelineno-15-22"></a>    <span class="n">sequence</span><span class="o">=</span><span class="s2">"MKTAYIAKQRQISFVKSHFSRQ"</span><span class="p">,</span>
+<a id="__codelineno-15-23" name="__codelineno-15-23" href="#__codelineno-15-23"></a>    <span class="n">variant_simple</span><span class="o">=</span><span class="p">(</span><span class="n">VariantSimple</span><span class="p">(</span><span class="n">position</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">new_amino_acid</span><span class="o">=</span><span class="s2">"C"</span><span class="p">),),</span>
+<a id="__codelineno-15-24" name="__codelineno-15-24" href="#__codelineno-15-24"></a>    <span class="n">mod_res_psi</span><span class="o">=</span><span class="p">(</span><span class="n">ModResPsi</span><span class="p">(</span><span class="n">positions</span><span class="o">=</span><span class="p">(</span><span class="mi">13</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span> <span class="n">accession</span><span class="o">=</span><span class="s2">"MOD:00046"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"O-phospho-L-serine"</span><span class="p">),),</span>
+<a id="__codelineno-15-25" name="__codelineno-15-25" href="#__codelineno-15-25"></a>    <span class="n">processed</span><span class="o">=</span><span class="p">(</span><span class="n">Processed</span><span class="p">(</span><span class="n">start_pos</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">end_pos</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">accession</span><span class="o">=</span><span class="s2">"PEFF:0001021"</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"signal peptide"</span><span class="p">),),</span>
+<a id="__codelineno-15-26" name="__codelineno-15-26" href="#__codelineno-15-26"></a><span class="p">)</span>
+<a id="__codelineno-15-27" name="__codelineno-15-27" href="#__codelineno-15-27"></a>
+<a id="__codelineno-15-28" name="__codelineno-15-28" href="#__codelineno-15-28"></a><span class="n">out</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+<a id="__codelineno-15-29" name="__codelineno-15-29" href="#__codelineno-15-29"></a><span class="n">write_peff</span><span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="p">[</span><span class="n">entry</span><span class="p">],</span> <span class="n">out</span><span class="p">)</span>
+<a id="__codelineno-15-30" name="__codelineno-15-30" href="#__codelineno-15-30"></a><span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+<a id="__codelineno-15-31" name="__codelineno-15-31" href="#__codelineno-15-31"></a><span class="c1"># &gt;my:PROT001 \VariantSimple=(5|C) \ModResPsi=(13,16|MOD:00046|O-phospho-L-serine) \Processed=(1|4|PEFF:0001021|signal peptide)</span>
+</code></pre></div>
+<p>Set <code>annot_id</code> on each annotation if you want annotation IDs in the output, and set
+<code>HasAnnotationIdentifiers</code> by passing <code>has_annotation_identifiers=True</code> to the <code>DatabaseHeader</code>.</p>
+<p>The writer escapes <code>\</code> and <code>|</code> inside annotation fields, and parentheses when they are
+unbalanced, so names such as <code>N-linked (GlcNAc...)</code> or <code>a|b</code> survive a round trip.</p>
+<p>The same escaping applies to the plain-text fields <code>pname</code>, <code>gname</code>, <code>tax_name</code> and
+<code>comment</code>, and to custom-key fields built without a <code>RegExp</code>; the reader reverses it.</p>
+<div class="admonition warning">
+<p class="admonition-title"><code>extra</code> values are written as-is</p>
+<p>Values in <code>extra</code> are raw strings and are written without escaping. Keep them free of
+the sequence <code>\</code> (space, backslash), which starts a new key.</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../getting-started/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Getting started">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Getting started
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../fasta/" class="md-footer__link md-footer__link--next" aria-label="Next: From FASTA and UniProt">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                From FASTA and UniProt
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; the pefftacular authors. MIT licence.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "navigation.footer", "content.code.copy", "search.highlight", "search.suggest"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

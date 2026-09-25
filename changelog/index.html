@@ -1,0 +1,1675 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A pure-Python library for reading and writing PEFF (PSI Extended FASTA Format) files.">
+      
+      
+      
+        <link rel="canonical" href="https://tacular-omics.github.io/pefftacular/changelog/">
+      
+      
+        <link rel="prev" href="../api/errors/">
+      
+      
+        <link rel="next" href="../citation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Changelog - pefftacular</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#changelog" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="pefftacular" class="md-header__button md-logo" aria-label="pefftacular" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            pefftacular
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Changelog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/tacular-omics/pefftacular" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tacular-omics/pefftacular
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="pefftacular" class="md-nav__button md-logo" aria-label="pefftacular" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    pefftacular
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/tacular-omics/pefftacular" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tacular-omics/pefftacular
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../annotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fasta/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From FASTA and UniProt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/io/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading and writing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File and database headers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/entries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sequence entries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/annotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors and warnings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [Unreleased]
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[Unreleased]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#110-2026-09-24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [1.1.0] (2026-09-24)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[1.1.0] (2026-09-24)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#100-2026-09-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [1.0.0] (2026-09-23)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[1.0.0] (2026-09-23)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#044-2026-09-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.4.4] (2026-09-23)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.4.4] (2026-09-23)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#043-2026-09-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.4.3] (2026-09-23)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.4.3] (2026-09-23)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#042-2026-09-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.4.2] (2026-09-23)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.4.2] (2026-09-23)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#041-2026-09-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.4.1] (2026-09-23)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#040-2026-07-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.4.0] (2026-07-10)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.4.0] (2026-07-10)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Breaking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spec-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spec compliance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors-warnings-and-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors, warnings, and logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tooling-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tooling &amp; docs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#030-2026-05-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.3.0] (2026-05-14)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#020-2026-03-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.2.0] (2026-03-18)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#010-2026-03-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.0] (2026-03-18)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../citation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Citation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [Unreleased]
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[Unreleased]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#110-2026-09-24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [1.1.0] (2026-09-24)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[1.1.0] (2026-09-24)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#100-2026-09-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [1.0.0] (2026-09-23)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[1.0.0] (2026-09-23)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#044-2026-09-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.4.4] (2026-09-23)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.4.4] (2026-09-23)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#043-2026-09-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.4.3] (2026-09-23)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.4.3] (2026-09-23)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#042-2026-09-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.4.2] (2026-09-23)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.4.2] (2026-09-23)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#041-2026-09-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.4.1] (2026-09-23)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#040-2026-07-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.4.0] (2026-07-10)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.4.0] (2026-07-10)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Breaking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spec-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spec compliance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors-warnings-and-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors, warnings, and logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tooling-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tooling &amp; docs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#030-2026-05-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.3.0] (2026-05-14)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#020-2026-03-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.2.0] (2026-03-18)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#010-2026-03-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.0] (2026-03-18)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
+<p>All notable changes to this project will be documented in this file.</p>
+<h2 id="unreleased">[Unreleased]<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The source distribution now contains only the source, tests and the README, changelog, citation and license files: no paper, docs, lockfile or repository tooling.</li>
+</ul>
+<h2 id="110-2026-09-24">[1.1.0] (2026-09-24)<a class="headerlink" href="#110-2026-09-24" title="Permanent link">&para;</a></h2>
+<h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>to_records(source)</code>, <code>PeffReader.to_records()</code> and <code>SequenceEntry.to_record()</code>: one
+  plain <code>dict</code> per entry with stable snake_case keys (<code>RECORD_KEYS</code>), annotations as their
+  PEFF value text, ready for <code>pandas.DataFrame(records)</code> or <code>polars.DataFrame(records)</code>.
+  No new dependency.</li>
+<li><code>SequenceEntry.from_fasta(header, sequence, *, prefix=None)</code> and <code>entry.to_fasta()</code>
+  convert to and from plain FASTA with UniProt-style headers (<code>sp|P12345|NAME_HUMAN ... OS=
+  OX= GN= PE= SV=</code>). They take plain strings, so there is still no dependency on
+  fastatacular.</li>
+<li><code>entry.to_proforma(*, mods="psimod"|"unimod", variants=())</code> renders the sequence and its
+  <code>\ModResPsi</code> / <code>\ModResUnimod</code> (and matching <code>\ModRes</code>) sites as a ProForma 2.0 string.
+  Unknown (<code>?</code>) positions are handled, and <code>VariantSimple</code> substitutions can be applied.
+  <code>errors="skip"</code> returns <code>None</code> for an entry that cannot be written (for example, a site
+  past the end of the sequence) instead of raising <code>PeffError</code>.</li>
+<li><code>read_peff()</code> and <code>PeffReader</code> read gzip, bzip2 and xz compressed files directly (<code>proteins.peff.gz</code>). The format is detected from the magic bytes. Paths are opened once, so pipes and FIFOs work, even when the first chunk written is shorter than the magic number; <code>bz2</code> and <code>lzma</code> are imported only when needed. Standard library only; no new dependency.</li>
+<li><code>write_peff(..., verify=False)</code> skips the per-entry read-back check (about three quarters of the write time) for entries that came unchanged from <code>read_peff()</code>/<code>PeffReader</code> or were already written once. The default, <code>verify=True</code>, is unchanged; the basic checks (empty or malformed prefix, id or sequence, line breaks, duplicate keys) always run.</li>
+</ul>
+<h3 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Description-line lexer fast paths: <code>split_description_keys</code>, <code>split_items</code> and the escaped <code>split_fields</code> skip the character-by-character scan when the text holds no backslash escape or nested parens. Output is identical (checked against the 1.0 implementation with Hypothesis and on the 20k-entry human UniProt PEFF). On that file (one core, indicative) <code>read_peff</code> takes about 2.2 s instead of 4.6 s, and <code>write_peff</code> 3.2 s instead of 5.6 s (0.9 s with <code>verify=False</code>).</li>
+<li><code>write_peff()</code> consumes <code>entries</code> as a stream instead of building a list, and spools the formatted text to a temporary file past 32 MiB, so a large write no longer holds every entry's text in memory. The validate-before-write guarantee is unchanged: on a <code>PeffWriteError</code> a path is not created and nothing is written to a handle.</li>
+</ul>
+<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>A file that is not valid UTF-8, or a corrupt or truncated compressed file, raises <code>PeffParseError</code> ("Cannot read the input after line N", chained to the original error) instead of a bare <code>UnicodeDecodeError</code>.</li>
+</ul>
+<h2 id="100-2026-09-23">[1.0.0] (2026-09-23)<a class="headerlink" href="#100-2026-09-23" title="Permanent link">&para;</a></h2>
+<p>The public API (everything in <code>pefftacular.__all__</code>) is now stable and follows semantic versioning.</p>
+<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Breaking:</strong> <code>PeffReader</code> now follows the same contract as <code>fastatacular.FastaReader</code>: a path is opened in <code>__enter__</code>, not in <code>__init__</code> (constructing a reader no longer leaks an open file), and accessing <code>.header</code> or iterating outside a <code>with</code> block raises <code>RuntimeError</code>. Use <code>with PeffReader(path) as reader:</code> or <code>read_peff()</code>.</li>
+<li><code>SequenceEntry</code> is now explicitly unhashable (<code>__hash__ = None</code>). It holds <code>custom_values</code> / <code>extra</code> dicts, so <code>hash()</code> already failed; it now fails with a clear <code>TypeError</code> at the class level. Equality is unchanged.</li>
+<li><code>parse_position</code> in the internal <code>_parser</code> module is now <code>_parse_position</code>; the old name remains as an alias.</li>
+<li><code>PeffWriteError</code> has an <code>.index</code> attribute (0-based position of the bad entry, <code>None</code> for header problems) and its message starts with <code>Entry N:</code> for entry problems, matching <code>fastatacular.FastaWriteError</code>.</li>
+<li><code>write_peff()</code> now serializes every entry before writing anything, so a custom-key value that no longer matches its RegExp also leaves the destination untouched (it used to fail after the header and earlier entries were written).</li>
+<li>Classifier is now <code>Development Status :: 5 - Production/Stable</code>.</li>
+<li>The wheel ships <code>py.typed</code>, so type checkers use the package's inline type hints.</li>
+</ul>
+<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Entering <code>with</code> a second time on a path <code>PeffReader</code> (e.g. <code>with r: r.header</code> then <code>with r: list(r)</code>) no longer fails with "I/O operation on closed file": the reopened file is read from the top, like <code>fastatacular.FastaReader</code>. A stream reader still continues where it stopped.</li>
+<li><code>write_peff()</code> now re-parses each description line and the header it writes and raises <code>PeffWriteError</code> (with <code>.index</code> for entries) if they would read back differently or not at all, instead of writing a corrupt file. Caught cases include a string position holding <code>|</code> or an unbalanced paren (<code>VariantSimple("1|2", "A")</code>, <code>VariantSimple("1)", "A")</code>), a <code>ModRes*</code> with no positions, an <code>id</code> / <code>db_unique_id_key</code> / <code>extra</code> value containing <code>\Key=</code>, an <code>extra</code> key that is a known PEFF key or contains <code>=</code>, a non-integer <code>Proteoform.annot_id_refs</code>, a <code>peff_version</code> that is not <code>N.N</code>, and a <code>DatabaseHeader.extra</code> key that repeats a known header key or contains <code>=</code>. It also rejects a key present in both <code>custom_values</code> and <code>extra</code>, and a sequence that would start a wrapped line with <code>;</code> or <code>#</code>. <code>""</code> vs <code>None</code> for optional text and <code>"5"</code> vs <code>5</code> for positions are still accepted. The check costs about one extra parse per entry (the 20k-entry human UniProt PEFF writes in about 4.5 s). The whitespace and line-break pre-checks use a single regex scan and a line count, walking the entry only to name the offending field.</li>
+<li>Lines starting with <code>;</code> (FASTA comments) are skipped, as in <code>fastatacular</code>, instead of being glued into the sequence. A <code>#</code> line after an entry's <code>&gt;</code> line is skipped with a <code>PeffWarning</code> instead of becoming part of the sequence.</li>
+<li><code>DatabaseHeader</code>, <code>FileHeader</code> and <code>CustomKeyValue</code> are now explicitly unhashable (<code>__hash__ = None</code>), like <code>SequenceEntry</code>: they hold dicts, so <code>hash()</code> already failed, now with a clear <code>TypeError</code> at the class level.</li>
+<li>The sdist no longer ships the spec PDF, docs, or repo tooling (hatch <code>only-include</code>); the unused <code>MANIFEST.in</code> is removed.</li>
+<li><code>scripts/release_version.py sync --set X.Y.Z</code> also sets <code>date-released</code> in <code>CITATION.cff</code>.</li>
+<li>Whitespace inside sequence lines (spaces, tabs) is now removed, not only at line ends. It used to be kept, so <code>write_peff()</code> rejected the parsed entry and a read -&gt; write round trip failed.</li>
+<li>A <code>&gt;</code> entry with no sequence now raises <code>PeffParseError</code> (the writer already rejected empty sequences, so such a file could be read but not written back).</li>
+<li>Non-blank text between the header and the first <code>&gt;</code> entry line now raises <code>PeffParseError</code> instead of being dropped silently (spec section 3.3.1: header lines start with <code>#</code>).</li>
+<li>Files starting with a UTF-8 BOM are now read (paths are opened as <code>utf-8-sig</code>; a BOM at the start of a stream is skipped). They used to fail with "First line must be '# PEFF <version>'".</li>
+<li><code>write_peff()</code> no longer ignores edits to a parsed custom-key value: <code>dataclasses.replace(value, fields=...)</code> used to write the stale original text from <code>CustomKeyValue.raw</code>. <code>raw</code> is now used verbatim only if re-parsing it with the key's <code>CustomKeyDef</code> gives the value's current <code>fields</code>, otherwise the item is rebuilt from <code>fields</code>. Unedited values still round-trip byte-exact.</li>
+<li>The last database block in the file header is no longer dropped when the header runs straight into the first <code>&gt;</code> entry without a closing <code># //</code> (now a <code>PeffWarning</code>), or when a <code># //</code> separator has trailing whitespace. Previously its <code>Prefix</code> and <code>CustomKeyDef</code>s were lost and its custom keys ended up in <code>extra</code>.</li>
+<li>A blank line inside the file header no longer ends the header and discards the database blocks after it. It is skipped with a <code>PeffWarning</code> (spec section 3.3.1: every header line starts with <code>#</code>). Blank lines between the header and the first entry are still ignored silently.</li>
+<li><code>write_peff()</code> now escapes a <code>Proteoform</code> id, so an id containing <code>|</code> or an unbalanced paren no longer writes an unparseable line.</li>
+<li><code>write_peff()</code> no longer writes a trailing <code>|</code> for a <code>DisulfideBond</code> with <code>description=""</code> (it read back as <code>None</code>, so the text changed on a second write).</li>
+<li>A quoted <code>Description</code> or <code>RegExp</code> in a <code>CustomKeyDef</code> may now contain an unbalanced paren; it used to raise <code>PeffParseError</code> on read.</li>
+<li><code>write_peff()</code> raises <code>PeffWriteError</code> instead of writing a corrupt file when an edited field of a <code>RegExp</code>-controlled custom key can no longer be read back through the RegExp, when any header or entry value contains a line break, when a prefix contains <code>:</code> or whitespace, when a <code>db_unique_id</code> contains whitespace, or when a sequence contains whitespace or <code>&gt;</code>. The check runs before anything is written.</li>
+<li>The reader now warns (<code>PeffWarning</code>) on the spec's illegal examples it used to accept silently: a <code>VariantSimple</code> new residue that is not one letter or <code>*</code> (section 3.3.8), a <code>VariantComplex</code> new sequence with non-residue characters, or a single-residue substitution that should be a <code>VariantSimple</code> (3.3.9), and a <code>Processed</code> item without an accession or name (3.3.13).</li>
+</ul>
+<h3 id="tests">Tests<a class="headerlink" href="#tests" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>tests/test_spec_examples.py</code>: every example in the PEFF 1.0 specification (header, custom keys, entry rules, TYRO3, insulin, legal and illegal annotation examples) parses to the expected structure and writes back; fixtures in <code>tests/fixtures/spec/</code>.</li>
+<li><code>tests/test_properties.py</code>: Hypothesis properties for write -&gt; read -&gt; write stability, edited custom-key fields, and malformed input raising only <code>PeffError</code>. <code>HYPOTHESIS_PROFILE=thorough</code> runs 5000 examples per property.</li>
+</ul>
+<h2 id="044-2026-09-23">[0.4.4] (2026-09-23)<a class="headerlink" href="#044-2026-09-23" title="Permanent link">&para;</a></h2>
+<h3 id="fixed_2">Fixed<a class="headerlink" href="#fixed_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The description-line key scan now honours spec escapes (section 3.3.3): an escaped unbalanced paren (e.g. a <code>ModRes</code> named <code>odd ( name</code>, written as <code>odd \( name</code>) no longer swallows the following <code>\Key=</code>, so such entries round-trip.</li>
+<li><code>write_peff()</code> now escapes the free-text fields <code>PName</code>, <code>GName</code>, <code>TaxName</code> and <code>Comment</code> (<code>\</code>, <code>|</code>, unbalanced parens) and the reader unescapes them, so values containing those characters or <code>\Key=</code> round-trip.</li>
+<li>The deprecated <code>\Variant=</code> key now warns with <code>PeffWarning</code> instead of <code>DeprecationWarning</code>, like every other spec issue.</li>
+<li><code>write_peff()</code> now escapes custom-key fields built from <code>fields</code> (keys without a <code>RegExp</code>), so a <code>|</code> or unbalanced paren in a field no longer reads back as an extra field or a parse error.</li>
+<li><code>PeffParseError</code> raised while parsing an annotation value now carries the entry's line number (<code>.line</code>) instead of <code>None</code>.</li>
+<li>The <code>Proteoform</code> parse-error hint now shows <code>annotIdRefs</code> as optional, matching the parser (2 fields accepted).</li>
+<li>README: <code>ModResUnimod</code> / <code>ModResPsi</code> examples use <code>positions</code>, not <code>position</code>.</li>
+<li><code>CITATION.cff</code>: <code>date-released</code> for 0.4.3 is 2026-09-23.</li>
+</ul>
+<h2 id="043-2026-09-23">[0.4.3] (2026-09-23)<a class="headerlink" href="#043-2026-09-23" title="Permanent link">&para;</a></h2>
+<h3 id="changed_2">Changed<a class="headerlink" href="#changed_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>First release archived on Zenodo; no code changes.</li>
+</ul>
+<h2 id="042-2026-09-23">[0.4.2] (2026-09-23)<a class="headerlink" href="#042-2026-09-23" title="Permanent link">&para;</a></h2>
+<h3 id="fixed_3">Fixed<a class="headerlink" href="#fixed_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Zenodo archiving: removed the grant ids and hard-coded version from <code>.zenodo.json</code>, which made Zenodo reject the previous release. Funding is now credited in the README.</li>
+</ul>
+<h2 id="041-2026-09-23">[0.4.1] (2026-09-23)<a class="headerlink" href="#041-2026-09-23" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Publish from GitHub Actions with PyPI trusted publishing (<code>publish.yml</code>);
+  release metadata is checked against the tag.</li>
+<li>Keep <code>__version__</code> and <code>CITATION.cff</code> in sync with
+  <code>scripts/release_version.py</code> (<code>just set-version X.Y.Z</code>).</li>
+<li>CI tests Python 3.12-3.14 on Linux plus macOS and Windows, the lowest
+  direct dependency versions, and the built wheel.</li>
+<li>Standardize citation and package metadata.</li>
+</ul>
+<h2 id="040-2026-07-10">[0.4.0] (2026-07-10)<a class="headerlink" href="#040-2026-07-10" title="Permanent link">&para;</a></h2>
+<h3 id="breaking">Breaking<a class="headerlink" href="#breaking" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>DisulfideBond.positions</code> renamed to <code>DisulfideBond.annot_id_refs</code> to reflect that a <code>\DisulfideBond</code> references prior <code>ModResPsi</code> entries by annotation ID, not by residue position (spec section 3.4.2).</li>
+</ul>
+<h3 id="spec-compliance">Spec compliance<a class="headerlink" href="#spec-compliance" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Entry-item components now honor the spec's backslash escaping (section 3.3.3): <code>\|</code>, <code>\(</code>, <code>\)</code>, and <code>\\</code> parse as literals, and <code>write_peff()</code> emits those escapes so values containing pipes or unpaired parens round-trip. Balanced parens (e.g. <code>N-linked (GlcNAc...)</code>) are left unescaped.</li>
+<li>Database-level <code># GeneralComment=</code> lines are now preserved on <code>DatabaseHeader.general_comments</code> and re-emitted, instead of being silently dropped.</li>
+<li><code>DbName</code> is now included in the missing-mandatory-key warning for database headers.</li>
+<li><code>ProteoformDb</code> and <code>HasAnnotationIdentifiers</code> header flags are now recognized case-insensitively (tolerating the spec's own <code>ProteoformDB</code> / singular-form variants).</li>
+</ul>
+<h3 id="errors-warnings-and-logging">Errors, warnings, and logging<a class="headerlink" href="#errors-warnings-and-logging" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Added a <code>PeffError</code> base class (subclass of <code>ValueError</code>); <code>PeffParseError</code> and <code>PeffWriteError</code> now derive from it, so any library failure can be caught with a single <code>except PeffError</code>.</li>
+<li>Parse/write errors now carry an actionable <code>hint</code>, and <code>PeffParseError</code> attaches its <code>context</code> and <code>hint</code> as exception notes (PEP 678) so they appear in tracebacks.</li>
+<li>Non-fatal spec violations are now emitted through a dedicated <code>PeffWarning</code> category (subclass of <code>UserWarning</code>), so they can be filtered or escalated on their own: annotation <code>MUST</code>-rule checks (positions outside <code>1..len(sequence)</code>, empty <code>VariantSimple</code> <code>newAminoAcid</code>, missing required accession/name on <code>ModRes*</code>) plus the existing version/header/count/custom-value warnings.</li>
+<li>Added <code>logging</code> throughout the reader and writer under the <code>pefftacular.parser</code> / <code>pefftacular.writer</code> loggers (with a package-level <code>NullHandler</code>), for a behavioral trace at <code>DEBUG</code>/<code>INFO</code>.</li>
+</ul>
+<h3 id="tooling-docs">Tooling &amp; docs<a class="headerlink" href="#tooling-docs" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Added <code>AGENTS.md</code> and <code>CLAUDE.md</code> guidance for AI coding agents.</li>
+<li>Reworked the <code>justfile</code>: <code>just check</code> is a single read-only pre-commit gate (format-check + lint + types + tests over <code>src</code> and <code>tests</code>), and <code>just fix</code> auto-applies fixes.</li>
+<li>Documented error handling, spec-violation warnings, and logging in the README.</li>
+</ul>
+<h2 id="030-2026-05-14">[0.3.0] (2026-05-14)<a class="headerlink" href="#030-2026-05-14" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Header-declared custom keys (<code># CustomKeyDef=</code>) now drive typed parsing of entry values: registered keys are parsed via their <code>RegExp</code> (with pipe-split as fallback) and coerced per <code>FieldTypes</code> (<code>integer</code>, <code>decimal</code>, <code>boolean</code>, <code>date</code>, <code>time</code>, <code>string</code>, <code>enumeration</code>).</li>
+<li>Parsed custom-key values are exposed on <code>SequenceEntry.custom_values</code>, with the raw string preserved alongside for lossless round-trip writing.</li>
+<li>Undeclared custom keys continue to land in <code>SequenceEntry.extra</code> unchanged.</li>
+<li><code>CustomKeyDef</code> now captures the <code>ConceptCURIE</code> field.</li>
+<li>Multiple <code># CustomKeyDef=</code> lines per database are preserved instead of silently overwriting each other.</li>
+<li>Field tokenization is now quote-aware so a <code>RegExp</code> value containing escaped pipes survives splitting.</li>
+</ul>
+<h2 id="020-2026-03-18">[0.2.0] (2026-03-18)<a class="headerlink" href="#020-2026-03-18" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Added <code>DisulfideBond</code>, <code>Proteoform</code>, <code>SequenceRange</code>, and <code>OptionalTagDef</code> models.</li>
+<li><code>\DisulfideBond=</code> and <code>\Proteoform=</code> entry keys now parse into typed fields instead of <code>extra</code>.</li>
+<li><code>\OX=</code> (UniProt NcbiTaxId alias) now maps to <code>ncbi_tax_id</code>.</li>
+<li><code>\ID=</code>, <code>\DbUniqueId=</code>, and <code>\Comment=</code> entry keys now parse into named fields.</li>
+<li><code>\Variant=</code> (deprecated since 2015) now emits a <code>DeprecationWarning</code>.</li>
+<li><code>DatabaseHeader</code> gains named fields: <code>db_description</code>, <code>db_date</code>, <code>db_sources</code>, <code>decoy</code>, <code>conversion</code>, <code>has_annotation_identifiers</code>, <code>proteoform_db</code>, <code>optional_tag_defs</code>.</li>
+<li><code>db_source: str | None</code> replaced by <code>db_sources: tuple[str, ...]</code> to support multiple <code>DbSource</code> lines.</li>
+<li>Multi-value header keys (<code>DbSource</code>, <code>OptionalTagDef</code>) no longer silently overwrite on repeated lines.</li>
+<li><code>annot_id: int | None</code> field added to all annotation models (<code>VariantSimple</code>, <code>VariantComplex</code>, <code>ModResUnimod</code>, <code>ModResPsi</code>, <code>ModRes</code>, <code>Processed</code>) for <code>HasAnnotationIdentifiers=true</code> databases.</li>
+<li>Integer parsing errors (<code>NcbiTaxId</code>, <code>Length</code>, <code>SV</code>, <code>EV</code>, <code>PE</code>, <code>NumberOfEntries</code>) now raise <code>PeffParseError</code>.</li>
+<li><code>Length</code> mismatch between tag and actual sequence now emits a <code>UserWarning</code>.</li>
+<li><code>write_peff()</code> now raises <code>PeffWriteError</code> for <code>None</code> header or entries with empty <code>prefix</code>, <code>db_unique_id</code>, or <code>sequence</code>.</li>
+<li>Added GitHub Actions CI workflow (Python 3.12 and 3.13).</li>
+<li>Added official PEFF example files as test fixtures.</li>
+</ul>
+<h2 id="010-2026-03-18">[0.1.0] (2026-03-18)<a class="headerlink" href="#010-2026-03-18" title="Permanent link">&para;</a></h2>
+<ul>
+<li>First release on PyPI.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../api/errors/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Errors and warnings">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Errors and warnings
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../citation/" class="md-footer__link md-footer__link--next" aria-label="Next: Citation">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Citation
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; the pefftacular authors. MIT licence.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "navigation.footer", "content.code.copy", "search.highlight", "search.suggest"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
