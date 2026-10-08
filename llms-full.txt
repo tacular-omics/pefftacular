@@ -295,9 +295,10 @@ Metadata for one database block. Mapping to header keys:
 | `proteoform_db` | `ProteoformDb` (case-insensitive; also `IsProteoformDB`) |
 | `custom_key_defs` | `CustomKeyDef` (repeatable) |
 | `optional_tag_defs` | `OptionalTagDef` (repeatable, `tag:description`) |
+| `specific_keys` | `SpecificKey=name:description` / `SpecificValue=name:values`, paired by name (`SpecificKeyDef`) |
 | `extra` | any other `Key=value` line in the block |
 
-`SpecificKey` and `SpecificValue` lines are accepted but discarded. The mandatory keys
+Entry values for a `SpecificKey` (`\name=value`) are kept in `SequenceEntry.extra`. The mandatory keys
 `DbName`, `Prefix`, `DbVersion`, `DbSource`, `NumberOfEntries`, `SequenceType` each emit a
 `PeffWarning` when missing.
 
@@ -738,7 +739,6 @@ logging.getLogger("pefftacular").setLevel(logging.DEBUG)
   an `extra` key that is a known PEFF key or contains `=`, an unbalanced paren in a position).
 - **Last duplicate key wins.** If a description line repeats a key, only the last value
   is kept.
-- **`SpecificKey` / `SpecificValue` header lines are dropped** and do not round-trip.
 - **`verify=False` trusts the entries.** A hand-built or edited value holding PEFF
   syntax is then written as is and may read back differently. Keep the default for them.
 - **Readers iterate once.** Create a new `PeffReader` to read the file again.

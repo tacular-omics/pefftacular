@@ -16,6 +16,7 @@ from pefftacular._models import (
     Proteoform,
     SequenceEntry,
     SequenceRange,
+    SpecificKeyDef,
     VariantComplex,
     VariantSimple,
 )
@@ -60,6 +61,7 @@ __all__ = [
     "RECORD_KEYS",
     "SequenceEntry",
     "SequenceRange",
+    "SpecificKeyDef",
     "VariantComplex",
     "VariantSimple",
     "read_peff",

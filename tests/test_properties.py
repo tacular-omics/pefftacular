@@ -49,6 +49,7 @@ from pefftacular import (
     Proteoform,
     SequenceEntry,
     SequenceRange,
+    SpecificKeyDef,
     VariantComplex,
     VariantSimple,
     read_peff,
@@ -257,6 +258,13 @@ optional_tag_def = st.builds(
     description=header_value,
 )
 
+specific_key_def = st.builds(
+    SpecificKeyDef,
+    key_name=identifier,
+    description=st.none() | header_value,
+    value=st.none() | header_value,
+).filter(lambda d: d.description is not None or d.value is not None)
+
 
 def _database_header(pfx: str) -> st.SearchStrategy:
     return st.builds(
@@ -276,6 +284,7 @@ def _database_header(pfx: str) -> st.SearchStrategy:
         proteoform_db=st.booleans(),
         custom_key_defs=_tuple(custom_key_def),
         optional_tag_defs=_tuple(optional_tag_def),
+        specific_keys=st.lists(specific_key_def, max_size=3, unique_by=lambda d: d.key_name).map(tuple),
         extra=st.dictionaries(
             identifier.map(lambda k: f"X{k}").filter(lambda k: k.lower() not in _KNOWN_HEADER_KEYS),
             header_value,
@@ -461,6 +470,8 @@ _HEADER_TOKENS = st.sampled_from(
         "NumberOfEntries=x",
         "CustomKeyDef=",
         "OptionalTagDef=",
+        "SpecificKey=",
+        "SpecificValue=",
         "GeneralComment=",
         "Decoy=",
         "ProteoformDB=",

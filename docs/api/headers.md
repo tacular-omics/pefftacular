@@ -7,3 +7,5 @@
 ::: pefftacular.CustomKeyDef
 
 ::: pefftacular.OptionalTagDef
+
+::: pefftacular.SpecificKeyDef

@@ -112,7 +112,8 @@ FileHeader
     └── DatabaseHeader
         ├── prefix, db_name, db_version, db_sources, number_of_entries, ...
         ├── custom_key_defs   CustomKeyDef, one per "# CustomKeyDef=" line
-        └── optional_tag_defs OptionalTagDef, one per "# OptionalTagDef=" line
+        ├── optional_tag_defs OptionalTagDef, one per "# OptionalTagDef=" line
+        └── specific_keys     SpecificKeyDef, one per "# SpecificKey=" name
 
 SequenceEntry             one per ">" description line
 ├── prefix, db_unique_id, sequence
@@ -153,8 +154,10 @@ for entry in entries:
 # P68871 from SwissProt
 ```
 
-Header keys pefftacular does not model (for example `SpecificKey` blocks) are kept as raw
-strings in `DatabaseHeader.extra`.
+`# SpecificKey=name:description` and `# SpecificValue=name:values` lines become
+`SpecificKeyDef` objects in `DatabaseHeader.specific_keys`, paired by name in file order; entry
+values for those keys (`\name=value`) are kept in `SequenceEntry.extra`. Other header keys
+pefftacular does not model are kept as raw strings in `DatabaseHeader.extra`.
 
 ### Sequence entries
 

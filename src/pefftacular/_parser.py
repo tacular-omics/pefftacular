@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import io
 import itertools
 import logging
@@ -28,6 +29,7 @@ from pefftacular._models import (
     Proteoform,
     SequenceEntry,
     SequenceRange,
+    SpecificKeyDef,
     VariantComplex,
     VariantSimple,
 )
@@ -609,9 +611,7 @@ def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
     db_sources = tuple(multi.pop("DbSource", []))
     general_comments = tuple(multi.pop("GeneralComment", []))
 
-    # Remove known multi keys that we don't expose further
-    for k in ("SpecificKey", "SpecificValue"):
-        multi.pop(k, None)
+    specific_keys = _build_specific_keys(lines)
 
     prefix = single.pop("Prefix", None)
     db_name = single.pop("DbName", None)
@@ -649,8 +649,33 @@ def _build_database_header(lines: list[tuple[int, str]]) -> DatabaseHeader:
         proteoform_db=proteoform_db,
         custom_key_defs=custom_key_defs,
         optional_tag_defs=optional_tag_defs,
+        specific_keys=specific_keys,
         extra=single,
     )
+
+
+def _build_specific_keys(lines: list[tuple[int, str]]) -> tuple[SpecificKeyDef, ...]:
+    """Pair ``SpecificKey=name:description`` and ``SpecificValue=name:values`` lines by name.
+
+    Keys keep the order of their first line. A ``SpecificValue`` attaches to the latest
+    def of that name that has no value yet; otherwise it starts a def with no description.
+    """
+    defs: list[SpecificKeyDef] = []
+    for _line_no, content in lines:
+        key, eq, value = content.partition("=")
+        if not eq or key not in ("SpecificKey", "SpecificValue"):
+            continue
+        name, _, rest = value.partition(":")
+        if key == "SpecificKey":
+            defs.append(SpecificKeyDef(key_name=name, description=rest))
+            continue
+        for i in range(len(defs) - 1, -1, -1):
+            if defs[i].key_name == name and defs[i].value is None:
+                defs[i] = dataclasses.replace(defs[i], value=rest)
+                break
+        else:
+            defs.append(SpecificKeyDef(key_name=name, value=rest))
+    return tuple(defs)
 
 
 # ---------------------------------------------------------------------------
