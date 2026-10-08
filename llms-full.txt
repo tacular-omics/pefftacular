@@ -174,7 +174,7 @@ like the pandas argument of that name (fastatacular has the same argument):
 | `None` | plain text, even if the bytes look compressed | plain text, even for `x.peff.gz` |
 
 An explicit format with an open handle needs a binary handle (`open(p, "rb")` / `open(p, "wb")`);
-a text handle raises `PeffError` (reading) or `PeffWriteError` (writing) with a hint. A binary
+a text handle raises `PeffError` with an "open in binary mode" hint note. A binary
 handle is never closed. gzip output has `mtime=0`, so the same entries give byte-identical
 bytes. Any other value raises `PeffError` listing the valid values.
 

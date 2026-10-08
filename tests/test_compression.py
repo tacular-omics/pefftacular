@@ -20,7 +20,6 @@ from pefftacular import (
     PeffError,
     PeffParseError,
     PeffReader,
-    PeffWriteError,
     SequenceEntry,
     read_peff,
     to_records,
@@ -249,9 +248,10 @@ def test_write_text_handle_plain(plain: Parsed, compression: Compression) -> Non
 @pytest.mark.parametrize("kind", KINDS)
 def test_write_text_handle_explicit_raises(plain: Parsed, kind: str) -> None:
     buf = io.StringIO()
-    with pytest.raises(PeffWriteError, match="needs a binary handle") as info:
+    with pytest.raises(PeffError, match="needs a binary handle") as info:
         write_peff(*plain, buf, compression=kind)  # ty: ignore[invalid-argument-type]
-    assert info.value.hint is not None and '"wb"' in info.value.hint
+    assert type(info.value) is PeffError
+    assert any("open in binary mode" in note and '"wb"' in note for note in info.value.__notes__)
     assert buf.getvalue() == ""
 
 

@@ -548,10 +548,11 @@ def write_peff(
             kind = None if compression == "infer" else compression
             if not is_binary(dest):
                 if kind is not None:
-                    raise PeffWriteError(
-                        f"compression={kind!r} needs a binary handle, got a text handle ({type(dest).__name__})",
-                        hint='Open the file with open(path, "wb"), or pass the path itself',
+                    err = PeffError(
+                        f"compression={kind!r} needs a binary handle, got a text handle ({type(dest).__name__})"
                     )
+                    err.add_note('hint: open in binary mode, open(path, "wb"), or pass the path itself')
+                    raise err
                 text_dest = cast("IO[str]", dest)
                 text_dest.write(header_text)
                 shutil.copyfileobj(spool, text_dest)

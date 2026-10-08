@@ -1252,7 +1252,7 @@ class PeffReader:
                     f"compression={self._compression!r} needs a binary handle, got a text handle "
                     f"({type(self._source).__name__})"
                 )
-                err.add_note('hint: open the file with open(path, "rb"), or pass the path itself')
+                err.add_note('hint: open in binary mode, open(path, "rb"), or pass the path itself')
                 raise err
         self._lines = _checked_lines(self._fh, compressed)
         return self

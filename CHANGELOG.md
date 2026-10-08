@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- `compression` argument on `read_peff()`, `PeffReader`, `to_records()` and `write_peff()`, typed by the new exported alias `Compression = Literal["infer", "gzip", "bz2", "xz"] | None` (the same argument as fastatacular, after pandas). `"infer"` (the default) keeps today's behaviour: readers detect gzip, bzip2 or xz from the magic bytes, the writer compresses by the `.gz`/`.bz2`/`.xz` suffix (any case), and open handles are plain. An explicit format overrides the suffix or content (a reader raises `PeffParseError` if the bytes are not in that format) and works on binary handles, which are left open; with a text handle it raises `PeffError` / `PeffWriteError` with a hint. `None` is always plain text. Readers and `write_peff()` also accept binary handles for plain text. An unknown value raises `PeffError` listing the valid ones.
+- `compression` argument on `read_peff()`, `PeffReader`, `to_records()` and `write_peff()`, typed by the new exported alias `Compression = Literal["infer", "gzip", "bz2", "xz"] | None` (the same argument as fastatacular, after pandas). `"infer"` (the default) keeps today's behaviour: readers detect gzip, bzip2 or xz from the magic bytes, the writer compresses by the `.gz`/`.bz2`/`.xz` suffix (any case), and open handles are plain. An explicit format overrides the suffix or content (a reader raises `PeffParseError` if the bytes are not in that format) and works on binary handles, which are left open; with a text handle it raises `PeffError` with an "open in binary mode" hint. `None` is always plain text. Readers and `write_peff()` also accept binary handles for plain text. An unknown value raises `PeffError` listing the valid ones.
 
 ### Fixed
 
