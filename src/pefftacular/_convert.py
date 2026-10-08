@@ -144,14 +144,22 @@ def _mod_tag(mod: ModResPsi | ModResUnimod | ModRes, cv: str, name_prefix: str, 
     if acc:
         if acc.isdigit():
             acc = f"{cv}:{acc}"
-        tag = acc
+        prefix, sep, value = acc.partition(":")
+        tag = prefix.upper() + sep + value  # canonical CV spelling: "mod:00046" -> "MOD:00046"
     else:
         tag = f"{name_prefix}:{mod.name}"
-    if "[" in tag or "]" in tag:
-        raise PeffError(
-            f"{name}: modification {tag!r} contains a square bracket and cannot be written as ProForma",
-        )
+    # Inside a ProForma tag "[" / "]" end it, "|" starts another tag (an alternative or
+    # INFO:) and "#" a group label (ProForma 2.0 has no escape): [M:a#b] is "a" in group "b".
+    bad = next((c for c in "[]|#" if c in tag), None)
+    if bad is not None:
+        what = "a square bracket" if bad in "[]" else repr(bad)
+        raise PeffError(f"{name}: modification {tag!r} contains {what} and cannot be written as ProForma")
     return tag
+
+
+def _tag_key(tag: str, name_prefix: str) -> str:
+    """Normalised identity of a tag: accessions ignore case, names (``M:``/``U:``) do not."""
+    return tag if tag.startswith(name_prefix + ":") else tag.upper()
 
 
 ProformaErrors = Literal["raise", "skip"]
@@ -190,8 +198,9 @@ def _to_proforma(entry: SequenceEntry, mods: ModVocabulary, variants: Iterable[V
         if new == "*":  # stop codon: the protein ends before this position
             end = min(end, pos - 1)
             continue
-        if len(new) != 1 or not new.isalpha():
-            raise PeffError(f"{name}: VariantSimple at {pos}: new amino acid {new!r} is not a single letter or '*'")
+        if len(new) != 1 or not ("A" <= new <= "Z"):
+            # Checked here, not as a residue below, so the error names the variant.
+            raise PeffError(f"{name}: VariantSimple at {pos}: new amino acid {new!r} is not a single letter A-Z or '*'")
         if substituted.get(pos, new) != new:
             raise PeffError(f"{name}: two different VariantSimple substitutions at position {pos}")
         substituted[pos] = new
@@ -200,28 +209,37 @@ def _to_proforma(entry: SequenceEntry, mods: ModVocabulary, variants: Iterable[V
 
     own = entry.mod_res_psi if mods == "psimod" else entry.mod_res_unimod
     generic = tuple(m for m in entry.mod_res if m.accession.strip().upper().startswith(cv + ":"))
-    at: dict[int, list[str]] = {}
+    at: dict[int, list[str]] = {}  # position -> written tag texts, in first-seen order
     unknown: dict[str, int] = {}
+    tag_text: dict[str, str] = {}  # normalised key -> first spelling seen
     for source in (own, generic):
-        # The same site may be listed in both \ModResPsi/\ModResUnimod and \ModRes:
-        # write it once. Unknown sites count per list; the larger count wins.
+        # The same site may be listed in both \ModResPsi/\ModResUnimod and \ModRes, in any
+        # case ("MOD:00046", "mod:00046"): write it once, or a reader adds its mass twice.
+        # Tags are compared by their normalised key; the first spelling seen is written.
+        # Unknown sites count per list; the larger count wins.
         source_unknown: dict[str, int] = {}
         for mod in source:
             tag = _mod_tag(mod, cv, name_prefix, name)
+            text = tag_text.setdefault(_tag_key(tag, name_prefix), tag)
             for p in mod.positions:
                 if p == "?":
-                    source_unknown[tag] = source_unknown.get(tag, 0) + 1
+                    source_unknown[text] = source_unknown.get(text, 0) + 1
                     continue
                 pos = _check_position(p, n, type(mod).__name__, name)
                 if pos in substituted or pos > end:
                     continue  # the modified residue is replaced or truncated by a variant
                 tags = at.setdefault(pos, [])
-                if tag not in tags:
-                    tags.append(tag)
-        for tag, count in source_unknown.items():
-            unknown[tag] = max(unknown.get(tag, 0), count)
+                if text not in tags:
+                    tags.append(text)
+        for text, count in source_unknown.items():
+            unknown[text] = max(unknown.get(text, 0), count)
     if end < n:
         unknown = {}  # an unknown site may lie in the truncated part: drop it
+
+    for i, aa in enumerate(seq[:end], 1):
+        if not ("A" <= aa <= "Z"):
+            # PEFF also allows "*" (interruption) and "-" (gap); ProForma 2.0 residues are A-Z only.
+            raise PeffError(f"{name}: residue {aa!r} at position {i} cannot be written as ProForma (A-Z only)")
 
     head = "".join(f"[{tag}]" + (f"^{count}" if count > 1 else "") for tag, count in unknown.items())
     if head:

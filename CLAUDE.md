@@ -178,7 +178,8 @@ Full signatures and examples: `llms-full.txt`.
 - **Conversions take plain strings.** `from_fasta`/`to_fasta` must not import
   fastatacular (runtime deps stay empty); their header rules mirror fastatacular's
   `_KV_PATTERN` / `_UNIPROT_ID` / `_PIPE_ID`. `tests/test_convert.py` cross-checks with
-  fastatacular when it is installed. `to_proforma` renders accessions only (no name or
+  fastatacular when it is installed, and parses `to_proforma` output with peptacular (a dev
+  dependency only). `to_proforma` renders accessions only (no name or
   mass lookup).
 
 ## Releasing

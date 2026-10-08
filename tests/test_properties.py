@@ -24,13 +24,16 @@ The strategies build *canonical* models, i.e. ones the format can represent exac
 from __future__ import annotations
 
 import dataclasses
+import os
 import string
+import tempfile
 import warnings
 from datetime import date, time
-from io import StringIO
+from io import BytesIO, StringIO
+from pathlib import Path
 
 import pytest
-from hypothesis import assume, given
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 from pefftacular import (
@@ -402,6 +405,119 @@ def test_edited_regexp_custom_fields_survive_or_raise(start: int, end: int, labe
         return  # the value cannot be expressed through this RegExp: refused, not corrupted
     _, (reread,) = _read(text)
     assert reread.custom_values["Custom"][0].fields == edited
+
+
+# ---------------------------------------------------------------------------
+# Property 4: every key, every compression, every kind of destination
+# ---------------------------------------------------------------------------
+#
+# Property 1 writes to a StringIO and leaves custom-key values out. This one adds typed
+# header-declared custom keys (several values each) on top of every spec key the entry
+# strategy already draws, spreads entries over two databases, and writes through each
+# ``compression`` value to a path, a binary handle and a text handle.
+
+_COMPRESSIONS = [None, "gzip", "bz2", "xz", "infer"]
+_MAGIC = {"gzip": b"\x1f\x8b", "bz2": b"BZh", "xz": b"\xfd7zXZ\x00"}
+_INFER_SUFFIXES = {".peff": None, ".peff.gz": "gzip", ".PEFF.BZ2": "bz2", ".peff.xz": "xz"}
+
+
+@st.composite
+def peff_file(draw: st.DrawFn) -> tuple[FileHeader, list[SequenceEntry]]:
+    """A header whose ``sp`` database declares typed custom keys, and entries using them."""
+    header = draw(file_header)
+    n_keys = draw(st.integers(0, 3))
+    defs = []
+    for i in range(n_keys):
+        types = draw(st.lists(st.sampled_from(sorted(_FIELD_VALUES)), min_size=1, max_size=3))
+        names = tuple(f"f{j}" for j in range(len(types)))
+        defs.append(CustomKeyDef(key_name=f"K{i}", description="d", field_names=names, field_types=tuple(types)))
+    sp, tr = header.databases
+    sp = dataclasses.replace(sp, custom_key_defs=sp.custom_key_defs + tuple(defs))
+    header = dataclasses.replace(header, databases=(sp, tr))
+
+    entries = []
+    for entry in draw(st.lists(sequence_entry, max_size=3)):
+        if draw(st.booleans()):
+            entries.append(dataclasses.replace(entry, prefix="tr"))
+            continue
+        custom: dict[str, tuple[CustomKeyValue, ...]] = {}
+        for ckd in defs:
+            values = []
+            for _ in range(draw(st.integers(0, 3))):
+                fields = {n: draw(_FIELD_VALUES[t]) for n, t in zip(ckd.field_names, ckd.field_types, strict=True)}
+                values.append(CustomKeyValue(ckd.key_name, fields))
+            if values:
+                custom[ckd.key_name] = tuple(values)
+        entries.append(dataclasses.replace(entry, custom_values=custom))
+    return header, entries
+
+
+def _without_raw(entries: list[SequenceEntry]) -> list[SequenceEntry]:
+    """Entries with ``CustomKeyValue.raw`` cleared: the reader fills it in, the models built here leave it empty."""
+    return [
+        dataclasses.replace(
+            e,
+            custom_values={k: tuple(dataclasses.replace(v, raw="") for v in vs) for k, vs in e.custom_values.items()},
+        )
+        for e in entries
+    ]
+
+
+def _matrix_settings() -> settings:
+    # 15 parameter combinations, ~10 ms an example: about 2 s by default, 5 s on CI.
+    profile = os.environ.get("HYPOTHESIS_PROFILE", "default")
+    if profile in ("default", "ci"):
+        return settings(max_examples=8 if profile == "default" else 25)
+    return settings()
+
+
+@pytest.mark.parametrize("dest_kind", ["path", "binary", "text"])
+@pytest.mark.parametrize("compression", _COMPRESSIONS)
+@_matrix_settings()
+@given(case=peff_file(), data=st.data())
+def test_round_trip_every_key_compression_and_destination(
+    case: tuple[FileHeader, list[SequenceEntry]], data: st.DataObject, compression: str | None, dest_kind: str
+) -> None:
+    header, entries = case
+    expected_kind = None if compression == "infer" else compression
+
+    if dest_kind == "path":
+        suffix = data.draw(st.sampled_from(sorted(_INFER_SUFFIXES))) if compression == "infer" else ".peff"
+        if compression == "infer":
+            expected_kind = _INFER_SUFFIXES[suffix]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / f"out{suffix}"
+            write_peff(header, entries, path, compression=compression)  # type: ignore[arg-type]
+            raw = path.read_bytes()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                header2, entries2 = read_peff(path, compression=compression)  # type: ignore[arg-type]
+    elif dest_kind == "binary":
+        buf = BytesIO()
+        write_peff(header, entries, buf, compression=compression)  # type: ignore[arg-type]
+        raw = buf.getvalue()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            header2, entries2 = read_peff(BytesIO(raw), compression=compression)  # type: ignore[arg-type]
+    else:
+        text_buf = StringIO()
+        if expected_kind is not None:
+            with pytest.raises(PeffError, match="binary handle"):
+                write_peff(header, entries, text_buf, compression=compression)  # type: ignore[arg-type]
+            assert text_buf.getvalue() == ""
+            return
+        write_peff(header, entries, text_buf, compression=compression)  # type: ignore[arg-type]
+        raw = text_buf.getvalue().encode("utf-8")
+        header2, entries2 = _read(text_buf.getvalue())
+
+    if expected_kind is None:
+        assert raw.startswith(b"# PEFF 1.0")
+    else:
+        assert raw.startswith(_MAGIC[expected_kind])
+    assert header2 == header
+    assert _without_raw(entries2) == entries
+    # Writing what was read gives the same text as writing the original.
+    assert _write(header2, entries2) == _write(header, entries)
 
 
 # ---------------------------------------------------------------------------

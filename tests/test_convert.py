@@ -353,3 +353,209 @@ def test_every_valid_fixture_entry_renders(path: Path) -> None:
             except PeffError:
                 continue  # fixtures with out-of-range positions (INValid files)
             assert _parse_proforma(s)[0] == e.sequence
+
+
+@pytest.mark.parametrize("seq", ["MK*V", "MK-V", "MKvV", "MK1V"])
+def test_to_proforma_residue_outside_a_to_z_raises(seq: str) -> None:
+    # PEFF allows "*" (interruption) and "-" (gap); a ProForma residue is one of A-Z.
+    e = SequenceEntry(prefix="x", db_unique_id="1", sequence=seq)
+    with pytest.raises(PeffError, match=r"^x:1: residue .* at position 3 cannot be written as ProForma"):
+        e.to_proforma()
+    assert e.to_proforma(errors="skip") is None
+    assert e.to_proforma(variants=[VariantSimple(3, "*")]) == "MK"  # truncated before it: fine
+
+
+def test_to_proforma_same_modification_in_two_spellings_is_written_once() -> None:
+    # \ModResPsi and \ModRes both list MOD:00046 on K3, in different case and spacing.
+    e = SequenceEntry(
+        prefix="x",
+        db_unique_id="1",
+        sequence="PEK",
+        mod_res_psi=(ModResPsi(positions=(3, "?"), accession="MOD:00046", name="O-phospho-L-serine"),),
+        mod_res=(ModRes(positions=(3, "?"), accession=" mod:00046", name="O-phospho-L-serine"),),
+    )
+    assert e.to_proforma() == "[MOD:00046]?PEK[MOD:00046]"
+    pt = pytest.importorskip("peptacular")
+    site_only = dataclasses.replace(
+        e, mod_res_psi=(ModResPsi(positions=(3,), accession="MOD:00046", name="p"),), mod_res=()
+    )
+    one = site_only.to_proforma()
+    assert one == "PEK[MOD:00046]"
+    two = dataclasses.replace(site_only, mod_res=(ModRes(positions=(3,), accession="mod:00046", name="p"),))
+    assert pt.mass(two.to_proforma()) == pytest.approx(pt.mass(one))
+    assert pt.mass(one) == pytest.approx(pt.mass("PEK") + 79.966331, abs=1e-4)
+
+
+@pytest.mark.parametrize("new", ["k", "\u00e9", "1"])
+def test_to_proforma_variant_outside_a_to_z_names_the_variant(new: str) -> None:
+    e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MKV")
+    with pytest.raises(PeffError, match=r"^x:1: VariantSimple at 2: new amino acid .* is not a single letter A-Z"):
+        e.to_proforma(variants=[VariantSimple(2, new)])
+
+
+@pytest.mark.parametrize(("accession", "name"), [("", "a|b"), ("", "a#b"), ("MOD:00046|INFO:x", "p"), ("MOD:1#g", "p")])
+def test_to_proforma_pipe_or_hash_in_modification_raises(accession: str, name: str) -> None:
+    # No ProForma escape: "|" would start a second tag and "#" a group label.
+    e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MKV", mod_res_psi=(ModResPsi((2,), accession, name),))
+    with pytest.raises(PeffError, match=r"^x:1: modification .* contains '[|#]' and cannot be written as ProForma"):
+        e.to_proforma()
+    assert e.to_proforma(errors="skip") is None
+
+
+# ---------------------------------------------------------------------------
+# to_proforma output read by a real ProForma parser (peptacular)
+# ---------------------------------------------------------------------------
+
+# Mod names: no square bracket, "|" or "#" (to_proforma refuses them, tested above), no
+# leading/trailing space (a ProForma reader may trim it) and a leading letter, as in every
+# PSI-MOD and Unimod name ("[M:+1]" would be a mass shift). "?" and parens are kept on purpose.
+_MOD_NAME = st.text(string.ascii_letters + string.digits + " -_.,:;()'?+*^", min_size=1, max_size=12).filter(
+    lambda s: s == s.strip() and s[0].isalpha()
+)
+_CV = {"psimod": ("MOD", "M"), "unimod": ("UNIMOD", "U")}
+
+
+def _accession(cv: str) -> st.SearchStrategy[str]:
+    number = st.integers(1, 99999)
+    return st.one_of(
+        number.map(lambda n: f"{cv}:{n:05d}" if cv == "MOD" else f"{cv}:{n}"),
+        number.map(str),  # bare number: to_proforma adds the CV prefix
+        st.just(""),  # no accession: written by name
+    )
+
+
+def _tag_key(tag: object) -> tuple[str, str, str]:
+    """(kind, CV, value) of a peptacular tag, or of a ``"CV:value"`` string (CV case-insensitive)."""
+    if isinstance(tag, str):
+        cv, _, value = tag.partition(":")
+        return ("name", {"M": "MOD", "U": "UNIMOD"}[cv], value) if cv in ("M", "U") else ("acc", cv.upper(), value)
+    kind = "acc" if hasattr(tag, "accession") else "name"
+    return kind, tag.cv.value, tag.accession if kind == "acc" else tag.name  # type: ignore[attr-defined]
+
+
+def _counts(mods: object) -> dict[tuple[str, str, str], int]:
+    out: dict[tuple[str, str, str], int] = {}
+    for m in mods.mods:  # type: ignore[attr-defined]
+        (tag,) = m.value.tags  # one tag per modification: a second would mean a lost "|"
+        key = _tag_key(tag)
+        assert key not in out, f"{key} written twice"  # e.g. MOD:00046 and mod:00046: mass counted twice
+        out[key] = m.count
+    return out
+
+
+@st.composite
+def _proforma_case(draw: st.DrawFn) -> tuple[SequenceEntry, str, tuple[VariantSimple, ...]]:
+    vocab = draw(st.sampled_from(sorted(_CV)))
+    # Mostly A-Z; "*", "-" and lowercase letters cannot be written and must raise when kept.
+    residue = st.sampled_from("ACDEFGHIKLMNPQRSTVWYBJOUXZ") | st.sampled_from("*-acdkmz")
+    seq = draw(st.text(residue, min_size=1, max_size=25))
+    n = len(seq)
+    # Termini on purpose as well as anywhere, and unknown sites.
+    pos = st.sampled_from([1, n]) | st.integers(1, n) | st.just("?")
+    positions = st.lists(pos, min_size=1, max_size=3).map(tuple)
+
+    def mods(cls: type, cv: str) -> st.SearchStrategy:
+        return st.lists(st.builds(cls, positions=positions, accession=_accession(cv), name=_MOD_NAME), max_size=3)
+
+    variants = draw(
+        st.lists(
+            st.builds(VariantSimple, position=st.integers(1, n), new_amino_acid=st.sampled_from([*"ACDKRSTY*"])),
+            max_size=3,
+            unique_by=lambda v: v.position,
+        )
+    )
+    entry = SequenceEntry(
+        prefix="x",
+        db_unique_id="1",
+        sequence=seq,
+        mod_res_psi=tuple(draw(mods(ModResPsi, "MOD"))),
+        mod_res_unimod=tuple(draw(mods(ModResUnimod, "UNIMOD"))),
+        # \ModRes from either vocabulary or another one: only the matching CV is written.
+        mod_res=tuple(
+            draw(
+                st.lists(
+                    st.builds(
+                        ModRes,
+                        positions=positions,
+                        accession=st.builds(
+                            lambda acc, case, before, after: before + case(acc) + after,
+                            _accession("MOD").filter(bool)
+                            | _accession("UNIMOD").filter(lambda a: ":" in a)
+                            | st.just("RESID:AA0037"),
+                            # The CV prefix is matched after .strip().upper().
+                            st.sampled_from([str, str.lower, str.title]),
+                            st.sampled_from(["", " "]),
+                            st.sampled_from(["", " "]),
+                        ),
+                        name=_MOD_NAME,
+                    ),
+                    max_size=3,
+                )
+            )
+        ),
+        variant_simple=tuple(variants),
+    )
+    applied = tuple(draw(st.lists(st.sampled_from(variants), unique=True))) if variants else ()
+    return entry, vocab, applied
+
+
+def _expected(
+    entry: SequenceEntry, vocab: str, variants: tuple[VariantSimple, ...]
+) -> tuple[str, dict[int, dict], dict]:
+    """The residues, per-position tags and unknown-site counts to_proforma should write.
+
+    Tags are keyed by their normalised (kind, CV, value): "MOD:1" and " mod:1" are one
+    modification and must be written once per site.
+    """
+    cv, short = _CV[vocab]
+    seq = list(entry.sequence)
+    stops = [v.position for v in variants if v.new_amino_acid == "*"]
+    end = min(stops, default=len(seq) + 1) - 1
+    subs = {v.position: v.new_amino_acid for v in variants if v.new_amino_acid != "*"}
+    for p, aa in subs.items():
+        seq[p - 1] = aa
+
+    def tag(m: ModRes | ModResPsi | ModResUnimod) -> tuple[str, str, str]:
+        acc = m.accession.strip()
+        if not acc:
+            return ("name", cv, m.name)
+        return _tag_key(acc if ":" in acc else f"{cv}:{acc}")
+
+    own = entry.mod_res_psi if vocab == "psimod" else entry.mod_res_unimod
+    generic = [m for m in entry.mod_res if m.accession.strip().upper().startswith(cv + ":")]
+    at: dict[int, dict] = {}
+    unknown: dict = {}
+    for source in (own, generic):
+        source_unknown: dict = {}
+        for m in source:
+            for p in m.positions:
+                if p == "?":
+                    source_unknown[tag(m)] = source_unknown.get(tag(m), 0) + 1
+                elif p not in subs and p <= end:
+                    at.setdefault(p - 1, {})[tag(m)] = 1
+        for t, c in source_unknown.items():
+            unknown[t] = max(unknown.get(t, 0), c)
+    if end < len(seq):
+        unknown = {}
+    return "".join(seq[:end]), at, unknown
+
+
+@given(case=_proforma_case())
+def test_to_proforma_reads_back_in_peptacular(case: tuple[SequenceEntry, str, tuple[VariantSimple, ...]]) -> None:
+    pt = pytest.importorskip("peptacular")
+    entry, vocab, variants = case
+    expected_seq, expected_at, expected_unknown = _expected(entry, vocab, variants)
+
+    # Raises if and only if a residue outside A-Z survives substitution and truncation.
+    if any(not ("A" <= aa <= "Z") for aa in expected_seq):
+        with pytest.raises(PeffError, match="cannot be written as ProForma"):
+            entry.to_proforma(mods=vocab, variants=variants)  # type: ignore[arg-type]
+        assert entry.to_proforma(mods=vocab, variants=variants, errors="skip") is None  # type: ignore[arg-type]
+        return
+    proforma = entry.to_proforma(mods=vocab, variants=variants)  # type: ignore[arg-type]
+    annotation = pt.parse(proforma)
+    assert annotation.stripped_sequence == expected_seq
+    assert {i: _counts(m) for i, m in annotation.internal_mods.items()} == expected_at
+    assert _counts(annotation.unknown_mods) == expected_unknown
+    # PEFF cannot mark a terminal modification: everything sits on a residue.
+    assert not annotation.has_nterm_mods and not annotation.has_cterm_mods

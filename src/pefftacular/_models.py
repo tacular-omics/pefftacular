@@ -323,7 +323,8 @@ class SequenceEntry:
         listed site is modified at once. Unknown positions (``?``) become a ProForma
         unknown-position prefix (``[MOD:00046]^2?SEQ``); they are dropped when a ``*``
         variant truncates the sequence, since they may lie in the removed part. A site
-        listed in both ``\\ModResPsi``/``\\ModResUnimod`` and ``\\ModRes`` is written once.
+        listed in both ``\\ModResPsi``/``\\ModResUnimod`` and ``\\ModRes`` is written once, even in different case
+        or spacing (``MOD:00046``, `` mod:00046``); the CV prefix is written in upper case.
         PEFF cannot tell a terminal modification from one on the terminal residue, so all
         are written on the residue.
 
@@ -349,8 +350,11 @@ class SequenceEntry:
         Raises:
             PeffError: Unknown ``mods`` or ``errors`` (always). With ``errors="raise"``
                 also a position outside the sequence, a non-numeric position other than
-                ``?``, two different substitutions at one position, or a square bracket
-                in a modification; the message starts with ``prefix:db_unique_id``.
+                ``?``, two different substitutions at one position, a residue ProForma
+                cannot hold (``*``, ``-`` or anything outside ``A``-``Z``) in the written
+                part of the sequence, or a square bracket, ``|`` or ``#`` in a modification
+                accession or name (ProForma has no escape for them); the message
+                starts with ``prefix:db_unique_id``.
         """
         from pefftacular._convert import entry_to_proforma
 

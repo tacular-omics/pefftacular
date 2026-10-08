@@ -796,6 +796,7 @@ dev = [
     { name = "fastatacular" },
     { name = "hypothesis" },
     { name = "pandas" },
+    { name = "peptacular" },
     { name = "polars" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -815,6 +816,7 @@ dev = [
     { name = "fastatacular", specifier = ">=1.0,<2" },
     { name = "hypothesis", specifier = ">=6.100" },
     { name = "pandas", specifier = ">=2.2" },
+    { name = "peptacular", specifier = ">=5.0,<6" },
     { name = "polars", specifier = ">=1.0" },
     { name = "pytest", specifier = ">=9" },
     { name = "pytest-cov", specifier = ">=6.0" },
@@ -825,6 +827,18 @@ docs = [
     { name = "mkdocs", specifier = ">=1.6.0" },
     { name = "mkdocs-material", specifier = ">=9.5.0" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.27.0" },
+]
+
+[[package]]
+name = "peptacular"
+version = "5.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tacular" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/28/b0/811d3c326bac6ed5706d0bc1f637244a4dc60311563f01646cd0937bb5ec/peptacular-5.0.0.tar.gz", hash = "sha256:c7bd59b7dcba7bb716ff8fdfd2b042743932d758f276a2fd63b065ac4d8aedc9", size = 1548280, upload-time = "2026-09-25T00:53:36.702Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dc/45/122e9b02c0532df8e78651fa1cbd3a6e3d9a7d080bd86359995eec25ab5f/peptacular-5.0.0-py3-none-any.whl", hash = "sha256:13bf9b54b4f530cf47217ce2ef6059997268e13aaf05a590af64e502b1491ee9", size = 270925, upload-time = "2026-09-25T00:53:35.258Z" },
 ]
 
 [[package]]
@@ -1051,6 +1065,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88", size = 30594, upload-time = "2021-05-16T22:03:42.897Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0", size = 29575, upload-time = "2021-05-16T22:03:41.177Z" },
+]
+
+[[package]]
+name = "tacular"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0c/30/d5507b6082c8730abb9bc4a3fa5c0ada8118d4d474a7766f92f7348ad922/tacular-2.0.0.tar.gz", hash = "sha256:aeb996a3190fb445d0dd675822b772b4e9a1f3bbdb1d007fb6bea7d8676ade03", size = 1078053, upload-time = "2026-09-25T00:43:45.28Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/11/c7/f052f1d4e9fd9d54ec31d2a9a4d1a44fe0ea6afb7c2e6b2420d5bb9ba0c8/tacular-2.0.0-py3-none-any.whl", hash = "sha256:e307bdf44d4c5983311955b4156840946fc3a120a5ee111197933a86048e7b1d", size = 443284, upload-time = "2026-09-25T00:43:43.436Z" },
 ]
 
 [[package]]
