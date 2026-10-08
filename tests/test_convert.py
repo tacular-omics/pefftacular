@@ -311,25 +311,29 @@ def test_to_proforma_same_variant_twice_is_fine() -> None:
 def test_proforma_round_trip_property(seq: str, data: st.DataObject, mods: str) -> None:
     n = len(seq)
     pos = st.integers(1, n) | st.just("?")
-    acc = st.integers(1, 99999).map(str)
+    # Small ids so equal accessions recur; each spelled with or without zero-padding and a
+    # space after the colon, all of which must be written as one canonical tag.
+    acc = st.tuples(st.integers(1, 12), st.sampled_from(["", "0", "00000"]), st.sampled_from(["", " "]))
     psi = data.draw(st.lists(st.tuples(st.lists(pos, min_size=1, max_size=3), acc), max_size=4))
     uni = data.draw(st.lists(st.tuples(st.lists(pos, min_size=1, max_size=3), acc), max_size=4))
     e = SequenceEntry(
         prefix="x",
         db_unique_id="1",
         sequence=seq,
-        mod_res_psi=tuple(ModResPsi(tuple(p), f"MOD:{a}", "n") for p, a in psi),
-        mod_res_unimod=tuple(ModResUnimod(tuple(p), f"UNIMOD:{a}", "n") for p, a in uni),
+        mod_res_psi=tuple(ModResPsi(tuple(p), f"MOD:{sp}{pad}{a}", "n") for p, (a, pad, sp) in psi),
+        mod_res_unimod=tuple(ModResUnimod(tuple(p), f"UNIMOD:{sp}{pad}{a}", "n") for p, (a, pad, sp) in uni),
     )
-    source, cv = (psi, "MOD") if mods == "psimod" else (uni, "UNIMOD")
+    source, fmt = (psi, "MOD:{:05d}") if mods == "psimod" else (uni, "UNIMOD:{:d}")
     expected_at: dict[int, list[str]] = {}
     expected_unknown: dict[str, int] = {}
-    for positions, a in source:
+    for positions, (a, _, _) in source:
+        tag = fmt.format(a)
+        list_unknown = sum(p == "?" for p in positions)  # within one list, every "?" counts
+        if list_unknown:
+            expected_unknown[tag] = expected_unknown.get(tag, 0) + list_unknown
         for p in positions:
-            if p == "?":
-                expected_unknown[f"{cv}:{a}"] = expected_unknown.get(f"{cv}:{a}", 0) + 1
-            elif f"{cv}:{a}" not in expected_at.setdefault(p, []):
-                expected_at[p].append(f"{cv}:{a}")
+            if p != "?" and tag not in expected_at.setdefault(p, []):
+                expected_at[p].append(tag)
     got_seq, got_at, got_unknown = _parse_proforma(e.to_proforma(mods=mods))  # type: ignore[arg-type]
     assert got_seq == seq
     assert got_at == expected_at
@@ -386,6 +390,81 @@ def test_to_proforma_same_modification_in_two_spellings_is_written_once() -> Non
     assert pt.mass(one) == pytest.approx(pt.mass("PEK") + 79.966331, abs=1e-4)
 
 
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [
+        ("MOD:00046", "MOD:46"),
+        ("MOD:46", "MOD:00046"),
+        ("MOD:00046", "MOD: 00046"),
+        ("MOD: 46", "mod:000046"),
+    ],
+)
+def test_to_proforma_equal_accessions_in_different_spellings_written_once(first: str, second: str) -> None:
+    # Same PSI-MOD id spelled with and without zero-padding or a space after the colon.
+    e = SequenceEntry(
+        prefix="x",
+        db_unique_id="1",
+        sequence="PEPSK",
+        mod_res_psi=(ModResPsi((4, "?"), first, "p"),),
+        mod_res=(ModRes((4, "?"), second, "p"),),
+    )
+    assert e.to_proforma() == "[MOD:00046]?PEPS[MOD:00046]K"
+    both_in_one_list = dataclasses.replace(
+        e, mod_res_psi=(*e.mod_res_psi, ModResPsi((4, "?"), second, "p")), mod_res=()
+    )
+    # One list naming the same id twice with "?" means two unknown sites, as for one spelling.
+    assert both_in_one_list.to_proforma() == "[MOD:00046]^2?PEPS[MOD:00046]K"
+    pt = pytest.importorskip("peptacular")
+    assert pt.mass(e.to_proforma()) == pytest.approx(pt.mass("[MOD:00046]?PEPS[MOD:00046]K"))
+
+
+@pytest.mark.parametrize(
+    ("accession", "expected"),
+    [
+        ("MOD:46", "MOD:00046"),
+        ("MOD: 00046", "MOD:00046"),
+        (" mod : 46 ", "MOD:00046"),
+        ("46", "MOD:00046"),  # bare number in \ModResPsi: PSI-MOD
+        ("MOD:00046", "MOD:00046"),
+        ("MOD:123456", "MOD:123456"),
+    ],
+)
+def test_to_proforma_writes_canonical_psimod_accession(accession: str, expected: str) -> None:
+    e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MSK", mod_res_psi=(ModResPsi((2,), accession, "p"),))
+    assert e.to_proforma() == f"MS[{expected}]K"
+
+
+@pytest.mark.parametrize(
+    ("first", "second"), [("UNIMOD:21", "UNIMOD:021"), ("UNIMOD:21", "UNIMOD: 21"), ("21", "unimod:0021")]
+)
+def test_to_proforma_equal_unimod_accessions_written_once_unpadded(first: str, second: str) -> None:
+    e = SequenceEntry(
+        prefix="x",
+        db_unique_id="1",
+        sequence="PEPSK",
+        mod_res_unimod=(ModResUnimod((4, "?"), first, "Phospho"),),
+        mod_res=(ModRes((4,), second, "Phospho"),),
+    )
+    assert e.to_proforma(mods="unimod") == "[UNIMOD:21]?PEPS[UNIMOD:21]K"
+
+
+def test_to_proforma_does_not_merge_different_cvs_or_names_with_accessions() -> None:
+    e = SequenceEntry(
+        prefix="x",
+        db_unique_id="1",
+        sequence="PEPSK",
+        mod_res_psi=(ModResPsi((4,), "MOD:00021", "p"), ModResPsi((4,), "UNIMOD:21", "p"), ModResPsi((4,), "", "21")),
+        mod_res=(ModRes((4,), "MOD:21", "p"),),
+    )
+    assert e.to_proforma() == "PEPS[MOD:00021][UNIMOD:21][M:21]K"
+
+
+def test_to_proforma_bare_number_in_generic_mod_res_is_not_a_cv_accession() -> None:
+    # \ModRes has no vocabulary of its own: a bare number is not read as PSI-MOD or Unimod.
+    e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MSK", mod_res=(ModRes((2,), "46", "p"),))
+    assert e.to_proforma() == e.to_proforma(mods="unimod") == "MSK"
+
+
 @pytest.mark.parametrize("new", ["k", "\u00e9", "1"])
 def test_to_proforma_variant_outside_a_to_z_names_the_variant(new: str) -> None:
     e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MKV")
@@ -416,19 +495,30 @@ _CV = {"psimod": ("MOD", "M"), "unimod": ("UNIMOD", "U")}
 
 
 def _accession(cv: str) -> st.SearchStrategy[str]:
-    number = st.integers(1, 99999)
+    # Small ids as well, so the same id recurs in different spellings on one site.
+    number = st.integers(1, 99999) | st.integers(1, 3)
+    # Canonical (MOD zero-padded to 5, UNIMOD unpadded), unpadded, over-padded.
+    digits = st.sampled_from(["{:05d}", "{:d}", "{:06d}"])
     return st.one_of(
-        number.map(lambda n: f"{cv}:{n:05d}" if cv == "MOD" else f"{cv}:{n}"),
-        number.map(str),  # bare number: to_proforma adds the CV prefix
+        st.builds(lambda n, d, sep: f"{cv}{sep}{d.format(n)}", number, digits, st.sampled_from([":", ": "])),
+        st.builds(lambda n, d: d.format(n), number, digits),  # bare number: to_proforma adds the CV prefix
         st.just(""),  # no accession: written by name
     )
 
 
 def _tag_key(tag: object) -> tuple[str, str, str]:
-    """(kind, CV, value) of a peptacular tag, or of a ``"CV:value"`` string (CV case-insensitive)."""
+    """(kind, CV, value) of a peptacular tag, or of a ``"CV:value"`` string (CV case-insensitive).
+
+    Numeric MOD/UNIMOD values are compared as numbers: "MOD:1", "MOD: 00001" are one id.
+    """
     if isinstance(tag, str):
         cv, _, value = tag.partition(":")
-        return ("name", {"M": "MOD", "U": "UNIMOD"}[cv], value) if cv in ("M", "U") else ("acc", cv.upper(), value)
+        if cv in ("M", "U"):
+            return ("name", {"M": "MOD", "U": "UNIMOD"}[cv], value)
+        cv, value = cv.strip().upper(), value.strip()
+        if cv in ("MOD", "UNIMOD") and value.isdigit():
+            value = f"{int(value):05d}" if cv == "MOD" else str(int(value))
+        return ("acc", cv, value)
     kind = "acc" if hasattr(tag, "accession") else "name"
     return kind, tag.cv.value, tag.accession if kind == "acc" else tag.name  # type: ignore[attr-defined]
 

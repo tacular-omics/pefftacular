@@ -323,8 +323,10 @@ class SequenceEntry:
         listed site is modified at once. Unknown positions (``?``) become a ProForma
         unknown-position prefix (``[MOD:00046]^2?SEQ``); they are dropped when a ``*``
         variant truncates the sequence, since they may lie in the removed part. A site
-        listed in both ``\\ModResPsi``/``\\ModResUnimod`` and ``\\ModRes`` is written once, even in different case
-        or spacing (``MOD:00046``, `` mod:00046``); the CV prefix is written in upper case.
+        listed in both ``\\ModResPsi``/``\\ModResUnimod`` and ``\\ModRes`` is written once, even in different case,
+        spacing or zero-padding (``MOD:00046``, `` mod:00046``, ``MOD:46``, ``MOD: 00046``). The CV
+        prefix is written in upper case, and numeric accessions in canonical form: PSI-MOD
+        zero-padded to 5 digits (``MOD:00046``), Unimod unpadded (``UNIMOD:21``).
         PEFF cannot tell a terminal modification from one on the terminal residue, so all
         are written on the residue.
 
