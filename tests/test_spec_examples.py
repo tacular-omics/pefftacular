@@ -602,3 +602,44 @@ class TestGlossaryForms:
         # \Key=(Component1|Component2|OptionalTag)(Component1|Component2|OptionalTag)
         entry = _entry(r"\VariantSimple=(5|A|t1)(6|C|t2)")
         assert [(v.position, v.new_amino_acid, v.tag) for v in entry.variant_simple] == [(5, "A", "t1"), (6, "C", "t2")]
+
+
+# ---------------------------------------------------------------------------
+# Every valid example file: reads cleanly, writes with verify, round-trips
+# ---------------------------------------------------------------------------
+
+_FIXTURES = SPEC.parent
+# Not valid PEFF 1.0: the PSI "INValid" examples and the pre-1.0 draft (first line "# PEFF 0.9").
+_NOT_VALID = {"PEFF_Minimal_INValid1.peff", "PEFF_Tiny_INValid1.peff", "SmallTestDB-PEFF0.9.peff"}
+_VALID_FILES = sorted(p for p in _FIXTURES.rglob("*.peff") if p.name not in _NOT_VALID)
+# The 3.3.1 example is a header without its entries, so its NumberOfEntries counts warn.
+_HEADER_ONLY = {"spec_3_3_1_header.peff"}
+
+
+def test_valid_file_list_covers_the_vendored_examples() -> None:
+    names = {p.name for p in _VALID_FILES}
+    assert {"PEFF_Minimal_Valid.peff", "PEFF_Tiny_Valid.peff", "PEFF_AnnotID_Insulin_Valid.peff"} <= names
+    assert {p.name for p in SPEC.glob("*.peff")} <= names
+
+
+@pytest.mark.parametrize("compression", [None, "gzip", "bz2", "xz", "infer"])
+@pytest.mark.parametrize("path", _VALID_FILES, ids=lambda p: p.name)
+def test_valid_file_reads_writes_with_verify_and_round_trips(
+    path: Path, compression: str | None, tmp_path: Path
+) -> None:
+    if path.name in _HEADER_ONLY:
+        with pytest.warns(PeffWarning, match="NumberOfEntries"):
+            header, entries = read_peff(path)
+    else:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PeffWarning)
+            header, entries = read_peff(path)
+
+    out = tmp_path / ("out.peff.xz" if compression == "infer" else "out.peff")
+    write_peff(header, entries, out, verify=True, compression=compression)  # type: ignore[arg-type]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore" if path.name in _HEADER_ONLY else "error", PeffWarning)
+        header2, entries2 = read_peff(out, compression=compression)  # type: ignore[arg-type]
+    assert header2 == header
+    assert entries2 == entries
+    assert _write(header2, entries2) == _write(header, entries)
