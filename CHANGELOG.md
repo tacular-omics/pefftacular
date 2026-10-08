@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- `SequenceEntry.from_fasta()` takes the accession of an NCBI `gi|<number>|<db>|<accession>|` header from the 4th field, with the database (`ref`, `gb`, `emb`, `dbj`, `pdb`, `sp`, `tr`...) as the prefix: `gi|4557757|ref|NP_000240.1|` gives `ref` / `NP_000240.1`, not `gi` / `4557757`. UniProt `sp|`/`tr|` headers are unchanged.
+- `write_peff()` compresses a path ending in `.gz`, `.bz2` or `.xz` in that format, so `write_peff(..., "x.peff.gz")` round-trips through `read_peff()` instead of writing plain text under a `.gz` name.
+
 ### Changed
 
 - The source distribution now contains only the source, tests and the README, changelog, citation and license files: no paper, docs, lockfile or repository tooling.

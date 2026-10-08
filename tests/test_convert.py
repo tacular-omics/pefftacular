@@ -42,7 +42,16 @@ def test_from_fasta_uniprot() -> None:
 @pytest.mark.parametrize(
     ("header", "kwargs", "expected"),
     [
-        ("gi|12345|ref|NP_000001.1| some protein", {}, ("gi", "12345", None, "some protein")),
+        ("gi|12345|ref|NP_000001.1| some protein", {}, ("ref", "NP_000001.1", None, "some protein")),
+        ("gi|4557757|ref|NP_000240.1| desc", {}, ("ref", "NP_000240.1", None, "desc")),
+        ("gi|7|gb|AAA12345.1|", {}, ("gb", "AAA12345.1", None, None)),
+        ("gi|7|emb|CAA12345.1|", {}, ("emb", "CAA12345.1", None, None)),
+        ("gi|7|dbj|BAA12345.1|", {}, ("dbj", "BAA12345.1", None, None)),
+        ("gi|7|pdb|1ABC|A", {}, ("pdb", "1ABC", None, None)),
+        ("gi|136429|sp|P00761.1|TRYP_PIG x", {}, ("sp", "P00761.1", "TRYP_PIG", "x")),
+        ("gi|7|tr|Q12345|", {}, ("tr", "Q12345", None, None)),
+        ("gi|7|ref|NP_1.1| p", {"prefix": "ncbi"}, ("ncbi", "NP_1.1", None, "p")),
+        ("gi|12345 lone gi", {}, ("gi", "12345", None, "lone gi")),
         ("nxp:NX_P01308-1 Insulin", {}, ("nxp", "NX_P01308-1", None, "Insulin")),
         ("ENSP0001\tthing X=1", {"prefix": "ens"}, ("ens", "ENSP0001", None, "thing")),
         ("sp|P1|N_HUMAN", {"prefix": "up"}, ("up", "P1", "N_HUMAN", None)),

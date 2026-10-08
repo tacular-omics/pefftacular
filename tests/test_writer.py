@@ -332,6 +332,28 @@ class TestWritePeffValidation:
         _, entries = read_peff(path)
         assert entries == [self._valid_entry()]
 
+    @pytest.mark.parametrize(
+        ("suffix", "module", "magic"),
+        [(".gz", "gzip", b"\x1f\x8b"), (".bz2", "bz2", b"BZh"), (".xz", "lzma", b"\xfd7zXZ\x00")],
+    )
+    def test_write_compressed_by_suffix_round_trips(self, tmp_path, suffix, module, magic) -> None:
+        from pefftacular import read_peff
+
+        pytest.importorskip(module)
+        path = tmp_path / f"out.peff{suffix}"
+        write_peff(_make_minimal_header(), [self._valid_entry()], path)
+        assert path.read_bytes().startswith(magic)
+        header, entries = read_peff(path)
+        assert entries == [self._valid_entry()]
+        plain = tmp_path / "out.peff"
+        write_peff(_make_minimal_header(), [self._valid_entry()], plain)
+        assert header == read_peff(plain)[0]
+
+    def test_write_plain_suffix_is_not_compressed(self, tmp_path) -> None:
+        path = tmp_path / "out.fasta"
+        write_peff(_make_minimal_header(), [self._valid_entry()], path)
+        assert path.read_text(encoding="utf-8").startswith("# PEFF")
+
     def test_header_error_has_no_index(self) -> None:
         with pytest.raises(PeffWriteError) as exc:
             write_peff(None, [], io.StringIO())  # type: ignore[arg-type]
