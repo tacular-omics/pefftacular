@@ -351,7 +351,8 @@ class SequenceEntry:
                 also a position outside the sequence, a non-numeric position other than
                 ``?``, two different substitutions at one position, a residue ProForma
                 cannot hold (``*``, ``-`` or anything outside ``A``-``Z``) in the written
-                part of the sequence, or a square bracket in a modification; the message
+                part of the sequence, or a square bracket, ``|`` or ``#`` in a modification
+                accession or name (ProForma has no escape for them); the message
                 starts with ``prefix:db_unique_id``.
         """
         from pefftacular._convert import entry_to_proforma

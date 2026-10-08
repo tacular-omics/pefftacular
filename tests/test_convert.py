@@ -363,3 +363,12 @@ def test_to_proforma_residue_outside_a_to_z_raises(seq: str) -> None:
         e.to_proforma()
     assert e.to_proforma(errors="skip") is None
     assert e.to_proforma(variants=[VariantSimple(3, "*")]) == "MK"  # truncated before it: fine
+
+
+@pytest.mark.parametrize(("accession", "name"), [("", "a|b"), ("", "a#b"), ("MOD:00046|INFO:x", "p"), ("MOD:1#g", "p")])
+def test_to_proforma_pipe_or_hash_in_modification_raises(accession: str, name: str) -> None:
+    # No ProForma escape: "|" would start a second tag and "#" a group label.
+    e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MKV", mod_res_psi=(ModResPsi((2,), accession, name),))
+    with pytest.raises(PeffError, match=r"^x:1: modification .* contains '[|#]' and cannot be written as ProForma"):
+        e.to_proforma()
+    assert e.to_proforma(errors="skip") is None

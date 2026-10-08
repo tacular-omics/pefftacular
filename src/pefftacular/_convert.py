@@ -147,10 +147,12 @@ def _mod_tag(mod: ModResPsi | ModResUnimod | ModRes, cv: str, name_prefix: str, 
         tag = acc
     else:
         tag = f"{name_prefix}:{mod.name}"
-    if "[" in tag or "]" in tag:
-        raise PeffError(
-            f"{name}: modification {tag!r} contains a square bracket and cannot be written as ProForma",
-        )
+    # Inside a ProForma tag "[" / "]" end it, "|" starts another tag (an alternative or
+    # INFO:) and "#" a group label (ProForma 2.0 has no escape): [M:a#b] is "a" in group "b".
+    bad = next((c for c in "[]|#" if c in tag), None)
+    if bad is not None:
+        what = "a square bracket" if bad in "[]" else repr(bad)
+        raise PeffError(f"{name}: modification {tag!r} contains {what} and cannot be written as ProForma")
     return tag
 
 
