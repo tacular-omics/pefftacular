@@ -142,10 +142,9 @@ _VOCAB = {"psimod": ("MOD", "M"), "unimod": ("UNIMOD", "U")}
 def _mod_tag(mod: ModResPsi | ModResUnimod | ModRes, cv: str, name_prefix: str, name: str) -> str:
     acc = mod.accession.strip()
     if acc:
-        if acc.isdigit():
+        if acc.isascii() and acc.isdigit():  # bare number in \ModResPsi / \ModResUnimod: that list's CV
             acc = f"{cv}:{acc}"
-        prefix, sep, value = acc.partition(":")
-        tag = prefix.upper() + sep + value  # canonical CV spelling: "mod:00046" -> "MOD:00046"
+        tag = _canonical_accession(acc)
     else:
         tag = f"{name_prefix}:{mod.name}"
     # Inside a ProForma tag "[" / "]" end it, "|" starts another tag (an alternative or
@@ -155,6 +154,25 @@ def _mod_tag(mod: ModResPsi | ModResUnimod | ModRes, cv: str, name_prefix: str, 
         what = "a square bracket" if bad in "[]" else repr(bad)
         raise PeffError(f"{name}: modification {tag!r} contains {what} and cannot be written as ProForma")
     return tag
+
+
+# Numeric CV accessions written in canonical form, so equal accessions in different
+# spellings ("MOD:46", "MOD: 00046", "mod:00046") become one tag: PSI-MOD ids are zero-padded
+# to 5 digits, XL-MOD ids too, Unimod ids are not padded. Value -> zero-padding width;
+# done on the string, not int(), which raises past 4300 digits.
+_NUMERIC_CV_WIDTH = {"MOD": 5, "XLMOD": 5, "UNIMOD": 1}
+
+
+def _canonical_accession(acc: str) -> str:
+    """``"mod: 46"`` -> ``"MOD:00046"``; other CVs keep their value, prefix upper-cased."""
+    prefix, sep, value = acc.partition(":")
+    prefix, value = prefix.strip().upper(), value.strip()
+    if not sep:
+        return acc
+    width = _NUMERIC_CV_WIDTH.get(prefix)
+    if width is not None and value.isascii() and value.isdigit():
+        value = value.lstrip("0").zfill(width)
+    return f"{prefix}:{value}"
 
 
 def _tag_key(tag: str, name_prefix: str) -> str:
@@ -208,14 +226,15 @@ def _to_proforma(entry: SequenceEntry, mods: ModVocabulary, variants: Iterable[V
         seq[pos - 1] = new
 
     own = entry.mod_res_psi if mods == "psimod" else entry.mod_res_unimod
-    generic = tuple(m for m in entry.mod_res if m.accession.strip().upper().startswith(cv + ":"))
+    generic = tuple(m for m in entry.mod_res if _canonical_accession(m.accession.strip()).startswith(cv + ":"))
     at: dict[int, list[str]] = {}  # position -> written tag texts, in first-seen order
     unknown: dict[str, int] = {}
     tag_text: dict[str, str] = {}  # normalised key -> first spelling seen
     for source in (own, generic):
         # The same site may be listed in both \ModResPsi/\ModResUnimod and \ModRes, in any
-        # case ("MOD:00046", "mod:00046"): write it once, or a reader adds its mass twice.
-        # Tags are compared by their normalised key; the first spelling seen is written.
+        # spelling ("MOD:00046", "mod:00046", "MOD:46", "MOD: 00046"): write it once, or a
+        # reader adds its mass twice. Numeric MOD/UNIMOD accessions are written in canonical
+        # form; other tags are compared by their normalised key and the first spelling wins.
         # Unknown sites count per list; the larger count wins.
         source_unknown: dict[str, int] = {}
         for mod in source:
