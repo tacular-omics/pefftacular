@@ -365,6 +365,27 @@ def test_to_proforma_residue_outside_a_to_z_raises(seq: str) -> None:
     assert e.to_proforma(variants=[VariantSimple(3, "*")]) == "MK"  # truncated before it: fine
 
 
+def test_to_proforma_same_modification_in_two_spellings_is_written_once() -> None:
+    # \ModResPsi and \ModRes both list MOD:00046 on K3, in different case and spacing.
+    e = SequenceEntry(
+        prefix="x",
+        db_unique_id="1",
+        sequence="PEK",
+        mod_res_psi=(ModResPsi(positions=(3, "?"), accession="MOD:00046", name="O-phospho-L-serine"),),
+        mod_res=(ModRes(positions=(3, "?"), accession=" mod:00046", name="O-phospho-L-serine"),),
+    )
+    assert e.to_proforma() == "[MOD:00046]?PEK[MOD:00046]"
+    pt = pytest.importorskip("peptacular")
+    site_only = dataclasses.replace(
+        e, mod_res_psi=(ModResPsi(positions=(3,), accession="MOD:00046", name="p"),), mod_res=()
+    )
+    one = site_only.to_proforma()
+    assert one == "PEK[MOD:00046]"
+    two = dataclasses.replace(site_only, mod_res=(ModRes(positions=(3,), accession="mod:00046", name="p"),))
+    assert pt.mass(two.to_proforma()) == pytest.approx(pt.mass(one))
+    assert pt.mass(one) == pytest.approx(pt.mass("PEK") + 79.966331, abs=1e-4)
+
+
 @pytest.mark.parametrize("new", ["k", "\u00e9", "1"])
 def test_to_proforma_variant_outside_a_to_z_names_the_variant(new: str) -> None:
     e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MKV")
@@ -417,7 +438,8 @@ def _counts(mods: object) -> dict[tuple[str, str, str], int]:
     for m in mods.mods:  # type: ignore[attr-defined]
         (tag,) = m.value.tags  # one tag per modification: a second would mean a lost "|"
         key = _tag_key(tag)
-        out[key] = out.get(key, 0) + m.count
+        assert key not in out, f"{key} written twice"  # e.g. MOD:00046 and mod:00046: mass counted twice
+        out[key] = m.count
     return out
 
 
@@ -480,10 +502,10 @@ def _proforma_case(draw: st.DrawFn) -> tuple[SequenceEntry, str, tuple[VariantSi
 def _expected(
     entry: SequenceEntry, vocab: str, variants: tuple[VariantSimple, ...]
 ) -> tuple[str, dict[int, dict], dict]:
-    """The residues, per-position tag counts and unknown-site counts to_proforma should write.
+    """The residues, per-position tags and unknown-site counts to_proforma should write.
 
-    to_proforma writes each distinct tag text once per site, so "MOD:1" and "mod:1" are
-    two tags that peptacular reads as the same modification: counts are summed per key.
+    Tags are keyed by their normalised (kind, CV, value): "MOD:1" and " mod:1" are one
+    modification and must be written once per site.
     """
     cv, short = _CV[vocab]
     seq = list(entry.sequence)
@@ -493,37 +515,29 @@ def _expected(
     for p, aa in subs.items():
         seq[p - 1] = aa
 
-    def tag(m: ModRes | ModResPsi | ModResUnimod) -> str:
+    def tag(m: ModRes | ModResPsi | ModResUnimod) -> tuple[str, str, str]:
         acc = m.accession.strip()
         if not acc:
-            return f"{short}:{m.name}"
-        return acc if ":" in acc else f"{cv}:{acc}"
+            return ("name", cv, m.name)
+        return _tag_key(acc if ":" in acc else f"{cv}:{acc}")
 
     own = entry.mod_res_psi if vocab == "psimod" else entry.mod_res_unimod
     generic = [m for m in entry.mod_res if m.accession.strip().upper().startswith(cv + ":")]
-    at_text: dict[int, set[str]] = {}
-    unknown_text: dict[str, int] = {}
+    at: dict[int, dict] = {}
+    unknown: dict = {}
     for source in (own, generic):
-        source_unknown: dict[str, int] = {}
+        source_unknown: dict = {}
         for m in source:
             for p in m.positions:
                 if p == "?":
                     source_unknown[tag(m)] = source_unknown.get(tag(m), 0) + 1
                 elif p not in subs and p <= end:
-                    at_text.setdefault(p - 1, set()).add(tag(m))
+                    at.setdefault(p - 1, {})[tag(m)] = 1
         for t, c in source_unknown.items():
-            unknown_text[t] = max(unknown_text.get(t, 0), c)
+            unknown[t] = max(unknown.get(t, 0), c)
     if end < len(seq):
-        unknown_text = {}
-
-    def by_key(counts: dict[str, int]) -> dict[tuple[str, str, str], int]:
-        out: dict[tuple[str, str, str], int] = {}
-        for t, c in counts.items():
-            out[_tag_key(t)] = out.get(_tag_key(t), 0) + c
-        return out
-
-    at = {i: by_key(dict.fromkeys(tags, 1)) for i, tags in at_text.items()}
-    return "".join(seq[:end]), at, by_key(unknown_text)
+        unknown = {}
+    return "".join(seq[:end]), at, unknown
 
 
 @given(case=_proforma_case())
