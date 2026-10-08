@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.0] (2026-10-08)
+
 ### Added
 
 - `compression` argument on `read_peff()`, `PeffReader`, `to_records()` and `write_peff()`, typed by the new exported alias `Compression = Literal["infer", "gzip", "bz2", "xz"] | None` (the same argument as fastatacular, after pandas). `"infer"` (the default) keeps today's behaviour: readers detect gzip, bzip2 or xz from the magic bytes, the writer compresses by the `.gz`/`.bz2`/`.xz` suffix (any case), and open handles are plain. An explicit format overrides the suffix or content (a reader raises `PeffParseError` if the bytes are not in that format) and works on binary handles, which are left open; with a text handle it raises `PeffError` with an "open in binary mode" hint. `None` is always plain text. Readers and `write_peff()` also accept binary handles for plain text. An unknown value raises `PeffError` listing the valid ones.
@@ -20,6 +22,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- `SequenceEntry.to_proforma()` now writes PSI-MOD and Unimod accessions in canonical form, whatever spelling the PEFF file used: `MOD:` ids are zero-padded to 5 digits (`MOD:46` is written as `MOD:00046`) and `UNIMOD:` ids are unpadded (`UNIMOD:021` is written as `UNIMOD:21`), with the CV prefix in upper case. Code that compares `to_proforma()` output against the original accession text may need updating.
 - The source distribution now contains only the source, tests and the README, changelog, citation and license files: no paper, docs, lockfile or repository tooling.
 
 ## [1.1.0] (2026-09-24)
