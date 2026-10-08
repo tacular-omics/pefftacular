@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 
 - `SpecificKey` / `SpecificValue` database header lines (spec section 3.3.1) are no longer dropped: they are read into `DatabaseHeader.specific_keys` as `SpecificKeyDef(key_name, description, value)` objects and written back, so they survive a `read_peff()` / `write_peff()` round trip.
 - `SequenceEntry.from_fasta()` takes the accession of an NCBI `gi|<number>|<db>|<accession>|` header from the 4th field, with the database (`ref`, `gb`, `emb`, `dbj`, `pdb`, `sp`, `tr`...) as the prefix: `gi|4557757|ref|NP_000240.1|` gives `ref` / `NP_000240.1`, not `gi` / `4557757`. UniProt `sp|`/`tr|` headers are unchanged.
+- `SequenceEntry.to_proforma()` raises `PeffError` (`None` with `errors="skip"`) for a sequence holding a residue ProForma 2.0 cannot express, such as the PEFF interruption `*` or gap `-`, instead of returning an invalid ProForma string. A `*` removed by a stop `VariantSimple` truncation is still fine.
 - `write_peff()` compresses a path ending in `.gz`, `.bz2` or `.xz` in that format, so `write_peff(..., "x.peff.gz")` round-trips through `read_peff()` instead of writing plain text under a `.gz` name.
 
 ### Changed

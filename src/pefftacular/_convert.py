@@ -223,6 +223,11 @@ def _to_proforma(entry: SequenceEntry, mods: ModVocabulary, variants: Iterable[V
     if end < n:
         unknown = {}  # an unknown site may lie in the truncated part: drop it
 
+    for i, aa in enumerate(seq[:end], 1):
+        if not ("A" <= aa <= "Z"):
+            # PEFF also allows "*" (interruption) and "-" (gap); ProForma 2.0 residues are A-Z only.
+            raise PeffError(f"{name}: residue {aa!r} at position {i} cannot be written as ProForma (A-Z only)")
+
     head = "".join(f"[{tag}]" + (f"^{count}" if count > 1 else "") for tag, count in unknown.items())
     if head:
         head += "?"

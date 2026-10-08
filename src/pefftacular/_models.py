@@ -349,8 +349,10 @@ class SequenceEntry:
         Raises:
             PeffError: Unknown ``mods`` or ``errors`` (always). With ``errors="raise"``
                 also a position outside the sequence, a non-numeric position other than
-                ``?``, two different substitutions at one position, or a square bracket
-                in a modification; the message starts with ``prefix:db_unique_id``.
+                ``?``, two different substitutions at one position, a residue ProForma
+                cannot hold (``*``, ``-`` or anything outside ``A``-``Z``) in the written
+                part of the sequence, or a square bracket in a modification; the message
+                starts with ``prefix:db_unique_id``.
         """
         from pefftacular._convert import entry_to_proforma
 

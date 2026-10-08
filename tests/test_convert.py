@@ -353,3 +353,13 @@ def test_every_valid_fixture_entry_renders(path: Path) -> None:
             except PeffError:
                 continue  # fixtures with out-of-range positions (INValid files)
             assert _parse_proforma(s)[0] == e.sequence
+
+
+@pytest.mark.parametrize("seq", ["MK*V", "MK-V", "MKvV", "MK1V"])
+def test_to_proforma_residue_outside_a_to_z_raises(seq: str) -> None:
+    # PEFF allows "*" (interruption) and "-" (gap); a ProForma residue is one of A-Z.
+    e = SequenceEntry(prefix="x", db_unique_id="1", sequence=seq)
+    with pytest.raises(PeffError, match=r"^x:1: residue .* at position 3 cannot be written as ProForma"):
+        e.to_proforma()
+    assert e.to_proforma(errors="skip") is None
+    assert e.to_proforma(variants=[VariantSimple(3, "*")]) == "MK"  # truncated before it: fine
