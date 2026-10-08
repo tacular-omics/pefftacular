@@ -142,7 +142,7 @@ _VOCAB = {"psimod": ("MOD", "M"), "unimod": ("UNIMOD", "U")}
 def _mod_tag(mod: ModResPsi | ModResUnimod | ModRes, cv: str, name_prefix: str, name: str) -> str:
     acc = mod.accession.strip()
     if acc:
-        if acc.isdigit():  # bare number in \ModResPsi / \ModResUnimod: that list's CV
+        if acc.isascii() and acc.isdigit():  # bare number in \ModResPsi / \ModResUnimod: that list's CV
             acc = f"{cv}:{acc}"
         tag = _canonical_accession(acc)
     else:
@@ -158,8 +158,9 @@ def _mod_tag(mod: ModResPsi | ModResUnimod | ModRes, cv: str, name_prefix: str, 
 
 # Numeric CV accessions written in canonical form, so equal accessions in different
 # spellings ("MOD:46", "MOD: 00046", "mod:00046") become one tag: PSI-MOD ids are zero-padded
-# to 5 digits, Unimod ids are not padded.
-_NUMERIC_CV_FORMAT = {"MOD": "{:05d}", "UNIMOD": "{:d}"}
+# to 5 digits, XL-MOD ids too, Unimod ids are not padded. Value -> zero-padding width;
+# done on the string, not int(), which raises past 4300 digits.
+_NUMERIC_CV_WIDTH = {"MOD": 5, "XLMOD": 5, "UNIMOD": 1}
 
 
 def _canonical_accession(acc: str) -> str:
@@ -168,9 +169,9 @@ def _canonical_accession(acc: str) -> str:
     prefix, value = prefix.strip().upper(), value.strip()
     if not sep:
         return acc
-    fmt = _NUMERIC_CV_FORMAT.get(prefix)
-    if fmt is not None and value.isascii() and value.isdigit():
-        value = fmt.format(int(value))
+    width = _NUMERIC_CV_WIDTH.get(prefix)
+    if width is not None and value.isascii() and value.isdigit():
+        value = value.lstrip("0").zfill(width)
     return f"{prefix}:{value}"
 
 

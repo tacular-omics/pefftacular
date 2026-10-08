@@ -415,7 +415,11 @@ def test_to_proforma_equal_accessions_in_different_spellings_written_once(first:
     # One list naming the same id twice with "?" means two unknown sites, as for one spelling.
     assert both_in_one_list.to_proforma() == "[MOD:00046]^2?PEPS[MOD:00046]K"
     pt = pytest.importorskip("peptacular")
-    assert pt.mass(e.to_proforma()) == pytest.approx(pt.mass("[MOD:00046]?PEPS[MOD:00046]K"))
+    single = SequenceEntry(
+        prefix="x", db_unique_id="1", sequence="PEPSK", mod_res_psi=(ModResPsi((4, "?"), "MOD:00046", "p"),)
+    )
+    assert pt.mass(e.to_proforma()) == pytest.approx(pt.mass(single.to_proforma()))
+    assert pt.mass(single.to_proforma()) == pytest.approx(pt.mass("PEPSK") + 2 * 79.966331, abs=1e-4)
 
 
 @pytest.mark.parametrize(
@@ -427,6 +431,7 @@ def test_to_proforma_equal_accessions_in_different_spellings_written_once(first:
         ("46", "MOD:00046"),  # bare number in \ModResPsi: PSI-MOD
         ("MOD:00046", "MOD:00046"),
         ("MOD:123456", "MOD:123456"),
+        ("MOD:0", "MOD:00000"),
     ],
 )
 def test_to_proforma_writes_canonical_psimod_accession(accession: str, expected: str) -> None:
@@ -457,6 +462,37 @@ def test_to_proforma_does_not_merge_different_cvs_or_names_with_accessions() -> 
         mod_res=(ModRes((4,), "MOD:21", "p"),),
     )
     assert e.to_proforma() == "PEPS[MOD:00021][UNIMOD:21][M:21]K"
+
+
+def test_to_proforma_equal_xlmod_accessions_written_once() -> None:
+    e = SequenceEntry(
+        prefix="x",
+        db_unique_id="1",
+        sequence="PEPSK",
+        mod_res_psi=(ModResPsi((4,), "XLMOD:02001", "p"), ModResPsi((4,), "XLMOD: 2001", "p")),
+    )
+    assert e.to_proforma() == "PEPS[XLMOD:02001]K"
+
+
+@pytest.mark.parametrize("bare", ["\uff14\uff16", "\u00b2"])  # fullwidth "46", superscript two
+def test_to_proforma_non_ascii_digits_are_not_a_bare_id(bare: str) -> None:
+    # str.isdigit() is true for these, but they are not a PSI-MOD id.
+    e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MSK", mod_res_psi=(ModResPsi((2,), bare, "p"),))
+    assert e.to_proforma() == f"MS[{bare}]K"
+
+
+@pytest.mark.parametrize(("cv", "mods"), [("MOD", "psimod"), ("UNIMOD", "unimod")])
+def test_to_proforma_very_long_numeric_id_does_not_overflow_int(cv: str, mods: str) -> None:
+    # int() refuses strings over 4300 digits with a plain ValueError; padding works on text.
+    digits = "1" * 5000
+    e = SequenceEntry(
+        prefix="x",
+        db_unique_id="1",
+        sequence="MSK",
+        mod_res_psi=(ModResPsi((2,), f"MOD:000{digits}", "p"),),
+        mod_res_unimod=(ModResUnimod((2,), f"UNIMOD:000{digits}", "p"),),
+    )
+    assert e.to_proforma(mods=mods) == e.to_proforma(mods=mods, errors="skip") == f"MS[{cv}:{digits}]K"  # type: ignore[arg-type]
 
 
 def test_to_proforma_bare_number_in_generic_mod_res_is_not_a_cv_accession() -> None:
@@ -494,14 +530,27 @@ _MOD_NAME = st.text(string.ascii_letters + string.digits + " -_.,:;()'?+*^", min
 _CV = {"psimod": ("MOD", "M"), "unimod": ("UNIMOD", "U")}
 
 
+# Literal oracle, not a copy of the padding rule: each id's spellings and the canonical
+# accession to_proforma must write for it under PSI-MOD and under Unimod.
+_ID_SPELLINGS: dict[str, tuple[str, str]] = {
+    spelling: canonical
+    for spellings, canonical in [
+        (("1", "00001", "000001"), ("00001", "1")),
+        (("3", "00003", "0003"), ("00003", "3")),
+        (("46", "00046", "000046"), ("00046", "46")),
+        (("2001", "02001", "002001"), ("02001", "2001")),
+        (("99999", "099999"), ("99999", "99999")),
+    ]
+    for spelling in spellings
+}
+
+
 def _accession(cv: str) -> st.SearchStrategy[str]:
-    # Small ids as well, so the same id recurs in different spellings on one site.
-    number = st.integers(1, 99999) | st.integers(1, 3)
-    # Canonical (MOD zero-padded to 5, UNIMOD unpadded), unpadded, over-padded.
-    digits = st.sampled_from(["{:05d}", "{:d}", "{:06d}"])
+    # Few ids, so the same id recurs in different spellings on one site.
+    digits = st.sampled_from(sorted(_ID_SPELLINGS))
     return st.one_of(
-        st.builds(lambda n, d, sep: f"{cv}{sep}{d.format(n)}", number, digits, st.sampled_from([":", ": "])),
-        st.builds(lambda n, d: d.format(n), number, digits),  # bare number: to_proforma adds the CV prefix
+        st.builds(lambda d, sep: f"{cv}{sep}{d}", digits, st.sampled_from([":", ": "])),
+        digits,  # bare number: to_proforma adds the CV prefix
         st.just(""),  # no accession: written by name
     )
 
@@ -509,15 +558,15 @@ def _accession(cv: str) -> st.SearchStrategy[str]:
 def _tag_key(tag: object) -> tuple[str, str, str]:
     """(kind, CV, value) of a peptacular tag, or of a ``"CV:value"`` string (CV case-insensitive).
 
-    Numeric MOD/UNIMOD values are compared as numbers: "MOD:1", "MOD: 00001" are one id.
+    A generated MOD/UNIMOD spelling maps to its canonical value through ``_ID_SPELLINGS``.
     """
     if isinstance(tag, str):
         cv, _, value = tag.partition(":")
         if cv in ("M", "U"):
             return ("name", {"M": "MOD", "U": "UNIMOD"}[cv], value)
         cv, value = cv.strip().upper(), value.strip()
-        if cv in ("MOD", "UNIMOD") and value.isdigit():
-            value = f"{int(value):05d}" if cv == "MOD" else str(int(value))
+        if cv in ("MOD", "UNIMOD"):
+            value = _ID_SPELLINGS[value][cv == "UNIMOD"]
         return ("acc", cv, value)
     kind = "acc" if hasattr(tag, "accession") else "name"
     return kind, tag.cv.value, tag.accession if kind == "acc" else tag.name  # type: ignore[attr-defined]
