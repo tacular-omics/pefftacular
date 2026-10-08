@@ -1059,8 +1059,11 @@ def _open_path(path: Path, compression: str | None = "infer") -> tuple[IO[str], 
         raise
 
 
-def _checked_lines(fh: IO[str], compressed: bool) -> Iterator[str]:
-    """Yield the lines of *fh*; undecodable or corrupt input raises ``PeffParseError``."""
+def _checked_lines(fh: IO[str], compressed: bool, note: str | None = None) -> Iterator[str]:
+    """Yield the lines of *fh*; undecodable or corrupt input raises ``PeffParseError``.
+
+    ``note`` is added to that error as an extra hint.
+    """
     errors = _compressed_errors() if compressed else (UnicodeDecodeError,)
     line_no = 0
     try:
@@ -1068,10 +1071,13 @@ def _checked_lines(fh: IO[str], compressed: bool) -> Iterator[str]:
             line_no += 1
             yield line
     except errors as err:
-        raise PeffParseError(
+        error = PeffParseError(
             f"Cannot read the input after line {line_no}: {err}",
             hint="PEFF input must be UTF-8 text, optionally gzip, bzip2 or xz compressed",
-        ) from err
+        )
+        if note is not None:
+            error.add_note(note)
+        raise error from err
 
 
 class PeffReader:
@@ -1235,11 +1241,16 @@ class PeffReader:
             logger.debug("opening PEFF file: %s", path)
             self._fh, compressed = _open_path(path, self._compression)
             self._owns_fh = True
+            note = None
         else:
             logger.debug("reading PEFF from in-memory stream: %r", type(self._source).__name__)
+            note = None
             self._owns_fh = False
             compressed = False
             if is_binary(self._source):
+                if self._compression == "infer":
+                    # "infer" never decompresses a handle; say how to, if decoding fails.
+                    note = "hint: pass compression='gzip' (or bz2/xz) for a compressed handle"
                 # Our wrapper over the caller's handle: undone in __exit__, the handle stays open.
                 compression = None if self._compression == "infer" else self._compression
                 self._fh, compressed = _decode(
@@ -1254,7 +1265,7 @@ class PeffReader:
                 )
                 err.add_note('hint: open in binary mode, open(path, "rb"), or pass the path itself')
                 raise err
-        self._lines = _checked_lines(self._fh, compressed)
+        self._lines = _checked_lines(self._fh, compressed, note)
         return self
 
     def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object) -> None:

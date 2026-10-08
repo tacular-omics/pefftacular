@@ -287,3 +287,26 @@ def test_write_unknown_compression(tmp_path: Path, plain: Parsed, bad: object) -
     with pytest.raises(PeffError, match="valid values are 'infer', 'gzip', 'bz2', 'xz', None"):
         write_peff(*plain, path, compression=bad)  # ty: ignore[invalid-argument-type]
     assert not path.exists()
+
+
+@pytest.mark.parametrize("compression", [None, "gzip", "bz2", "xz"])
+def test_failed_write_leaves_binary_handle_open_and_untouched(plain: Parsed, compression: Compression) -> None:
+    import dataclasses
+    import gc
+
+    bad = dataclasses.replace(plain[1][0], pname="foo\ud800")
+    buf = io.BytesIO()
+    with pytest.raises(UnicodeEncodeError):
+        write_peff(plain[0], [bad], buf, compression=compression, verify=False)
+    gc.collect()
+    assert not buf.closed
+    assert buf.getvalue() == b""
+    write_peff(*plain, buf, compression=compression)  # still usable
+    assert read_peff(io.BytesIO(buf.getvalue()), compression=compression) == plain
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_infer_on_compressed_binary_handle_hints_explicit(kind: str) -> None:
+    with pytest.raises(PeffParseError) as info:
+        read_peff(io.BytesIO(COMPRESS[kind](DATA)))
+    assert any("compression='gzip' (or bz2/xz)" in note for note in info.value.__notes__)

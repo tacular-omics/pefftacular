@@ -557,19 +557,34 @@ def write_peff(
                 text_dest.write(header_text)
                 shutil.copyfileobj(spool, text_dest)
             else:
-                binary = cast("IO[bytes]", dest)
-                # The compressor (or plain encoder) is closed to flush it; the handle stays open.
-                target = _compressor(kind, binary, str(getattr(dest, "name", "the handle")))
-                text = io.TextIOWrapper(target, encoding="utf-8")
-                text.write(header_text)
-                shutil.copyfileobj(spool, text)
-                text.flush()
-                if kind is None:
-                    text.detach()
-                else:
-                    text.close()  # closes the compressor, which never closes ``binary``
+                _write_binary(header_text, spool, cast("IO[bytes]", dest), kind)
 
     logger.info("write_peff: wrote %d entries across %d database(s)", count, len(header.databases))
+
+
+_CHUNK = 1 << 20
+
+
+def _write_binary(header_text: str, spool: IO[str], binary: IO[bytes], kind: str | None) -> None:
+    """Write UTF-8 bytes to a caller's binary handle, compressed as ``kind``; never close it.
+
+    No text wrapper is put over the handle (one left behind by an error would close it
+    when garbage-collected), and the text is encoded in full before the first byte is
+    written, so an unencodable value (a lone surrogate) raises with the handle untouched
+    instead of leaving a half-written stream or a gzip trailer behind.
+    """
+    header_bytes = header_text.encode("utf-8")
+    for chunk in iter(lambda: spool.read(_CHUNK), ""):
+        chunk.encode("utf-8")
+    spool.seek(0)
+    target = _compressor(kind, binary, str(getattr(binary, "name", "the handle")))
+    try:
+        target.write(header_bytes)
+        for chunk in iter(lambda: spool.read(_CHUNK), ""):
+            target.write(chunk.encode("utf-8"))
+    finally:
+        if target is not binary:
+            target.close()  # flushes the compressor, which never closes ``binary``
 
 
 def _compression_module(kind: str, what: str) -> Any:
