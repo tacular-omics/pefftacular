@@ -192,8 +192,9 @@ def _to_proforma(entry: SequenceEntry, mods: ModVocabulary, variants: Iterable[V
         if new == "*":  # stop codon: the protein ends before this position
             end = min(end, pos - 1)
             continue
-        if len(new) != 1 or not new.isalpha():
-            raise PeffError(f"{name}: VariantSimple at {pos}: new amino acid {new!r} is not a single letter or '*'")
+        if len(new) != 1 or not ("A" <= new <= "Z"):
+            # Checked here, not as a residue below, so the error names the variant.
+            raise PeffError(f"{name}: VariantSimple at {pos}: new amino acid {new!r} is not a single letter A-Z or '*'")
         if substituted.get(pos, new) != new:
             raise PeffError(f"{name}: two different VariantSimple substitutions at position {pos}")
         substituted[pos] = new
