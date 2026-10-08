@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import importlib
 import io
 import logging
 import re
@@ -546,18 +547,20 @@ def _open_for_write(path: Path) -> IO[str]:
     The reader detects the same formats from their magic bytes, so ``x.peff.gz`` round-trips.
     """
     suffix = path.suffix.lower()
+    if suffix not in (".gz", ".bz2", ".xz"):
+        return path.open("w", encoding="utf-8")
+    module = {".gz": "gzip", ".bz2": "bz2", ".xz": "lzma"}[suffix]
+    try:
+        compressor = importlib.import_module(module)
+    except ImportError as err:
+        raise PeffWriteError(
+            f"Cannot write {path}: the {module} module is not available in this Python",
+            hint=f"Write an uncompressed file or use a Python built with {module} support",
+        ) from err
     if suffix == ".gz":
-        import gzip
-
-        return gzip.open(path, "wt", encoding="utf-8")
-    if suffix == ".bz2":
-        import bz2
-
-        return bz2.open(path, "wt", encoding="utf-8")
-    if suffix == ".xz":
-        import lzma
-
-        return lzma.open(path, "wt", encoding="utf-8")
+        # mtime=0 so writing the same entries twice gives byte-identical files.
+        return io.TextIOWrapper(compressor.GzipFile(path, mode="wb", mtime=0), encoding="utf-8")
+    return compressor.open(path, "wt", encoding="utf-8")
     return path.open("w", encoding="utf-8")
 
 
