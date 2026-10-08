@@ -13,8 +13,9 @@ import warnings
 from collections.abc import Iterable
 from datetime import date, time
 from pathlib import Path
-from typing import IO
+from typing import IO, Any, cast
 
+from pefftacular._compression import MODULES, Compression, check_compression, from_suffix, is_binary
 from pefftacular._models import (
     CustomKeyDef,
     CustomKeyValue,
@@ -487,9 +488,10 @@ _SPOOL_BYTES = 32 * 1024 * 1024
 def write_peff(
     header: FileHeader,
     entries: Iterable[SequenceEntry],
-    dest: str | Path | IO[str],
+    dest: str | Path | IO[str] | IO[bytes],
     *,
     verify: bool = True,
+    compression: Compression = "infer",
 ) -> None:
     """Write a complete PEFF file.
 
@@ -506,9 +508,15 @@ def write_peff(
     unchanged, or that you have already written once. The basic checks (empty or
     malformed prefix, id or sequence, line breaks, duplicate keys) always run.
 
-    A path ending in ``.gz``, ``.bz2`` or ``.xz`` is written compressed in that format,
-    which ``read_peff`` / ``PeffReader`` read back directly.
+    ``compression`` works like the pandas argument of that name. With ``"infer"`` (the
+    default) a path ending in ``.gz``, ``.bz2`` or ``.xz`` (any case) is written
+    compressed in that format and any other path or an open handle as plain text.
+    ``"gzip"``, ``"bz2"`` or ``"xz"`` compresses in that format whatever the suffix; an
+    open handle must then be binary (``open(path, "wb")``), and it is left open. ``None``
+    always writes plain text. gzip output has ``mtime=0``, so the same entries give
+    byte-identical files. ``read_peff`` / ``PeffReader`` read all of these back.
     """
+    compression = check_compression(compression)
     if header is None:
         raise PeffWriteError("header must not be None", hint="Pass a FileHeader instance, e.g. from read_peff()")
 
@@ -535,39 +543,112 @@ def write_peff(
         count = _format_entries(entries, defs_by_prefix, spool, verify=verify)
         spool.seek(0)
         if isinstance(dest, (str, Path)):
-            logger.debug("writing PEFF file: %s (%d entries)", dest, count)
-            with _open_for_write(Path(dest)) as f:
+            path = Path(dest)
+            kind = from_suffix(path) if compression == "infer" else compression
+            logger.debug("writing PEFF file: %s (%d entries, compression=%s)", dest, count, kind)
+            with _open_for_write(path, kind) as f:
                 f.write(header_text)
                 shutil.copyfileobj(spool, f)
         else:
             logger.debug("writing PEFF to in-memory stream: %s (%d entries)", type(dest).__name__, count)
-            dest.write(header_text)
-            shutil.copyfileobj(spool, dest)
+            kind = None if compression == "infer" else compression
+            if not is_binary(dest):
+                if kind is not None:
+                    err = PeffError(
+                        f"compression={kind!r} needs a binary handle, got a text handle ({type(dest).__name__})"
+                    )
+                    err.add_note('hint: open in binary mode, open(path, "wb"), or pass the path itself')
+                    raise err
+                text_dest = cast("IO[str]", dest)
+                text_dest.write(header_text)
+                shutil.copyfileobj(spool, text_dest)
+            else:
+                _write_binary(header_text, spool, cast("IO[bytes]", dest), kind)
 
     logger.info("write_peff: wrote %d entries across %d database(s)", count, len(header.databases))
 
 
-def _open_for_write(path: Path) -> IO[str]:
-    """Open *path* for text writing, compressed by suffix (``.gz``, ``.bz2``, ``.xz``).
+_CHUNK = 1 << 20
+
+
+def _write_binary(header_text: str, spool: IO[str], binary: IO[bytes], kind: str | None) -> None:
+    """Write UTF-8 bytes to a caller's binary handle, compressed as ``kind``; never close it.
+
+    No text wrapper is put over the handle (one left behind by an error would close it
+    when garbage-collected), and the text is encoded in full before the first byte is
+    written, so an unencodable value (a lone surrogate) raises with the handle untouched
+    instead of leaving a half-written stream or a gzip trailer behind.
+    """
+    header_bytes = header_text.encode("utf-8")
+    for chunk in iter(lambda: spool.read(_CHUNK), ""):
+        chunk.encode("utf-8")
+    spool.seek(0)
+    target = _compressor(kind, binary, str(getattr(binary, "name", "the handle")))
+    try:
+        target.write(header_bytes)
+        for chunk in iter(lambda: spool.read(_CHUNK), ""):
+            target.write(chunk.encode("utf-8"))
+    finally:
+        if target is not binary:
+            target.close()  # flushes the compressor, which never closes ``binary``
+
+
+def _compression_module(kind: str, what: str) -> Any:
+    """Import the stdlib module for ``kind``; ``PeffWriteError`` if this Python lacks it."""
+    module = MODULES[kind]
+    try:
+        return importlib.import_module(module)
+    except ImportError as err:
+        raise PeffWriteError(
+            f"Cannot write {what}: the {module} module is not available in this Python",
+            hint=f"Write an uncompressed file or use a Python built with {module} support",
+        ) from err
+
+
+def _compressor(kind: str | None, raw: IO[bytes], what: str) -> IO[bytes]:
+    """Wrap binary ``raw`` in a ``kind`` compressor (``raw`` itself for ``None``).
+
+    Closing the compressor flushes it but never closes ``raw``.
+    """
+    if kind is None:
+        return raw
+    compressor = _compression_module(kind, what)
+    if kind == "gzip":
+        # mtime=0 so writing the same entries twice gives byte-identical files.
+        return compressor.GzipFile(fileobj=raw, mode="wb", mtime=0)
+    if kind == "bz2":
+        return compressor.BZ2File(raw, mode="wb")
+    return compressor.LZMAFile(raw, mode="wb")
+
+
+class _ClosingText(io.TextIOWrapper):
+    """Text over a compressor; closing it also closes the file under the compressor."""
+
+    def __init__(self, buffer: IO[bytes], raw: IO[bytes]) -> None:
+        super().__init__(buffer, encoding="utf-8")
+        self._raw_file = raw
+
+    def close(self) -> None:
+        try:
+            super().close()
+        finally:
+            self._raw_file.close()
+
+
+def _open_for_write(path: Path, kind: str | None) -> IO[str]:
+    """Open *path* for UTF-8 text writing, compressed as ``kind`` (``None``: plain).
 
     The reader detects the same formats from their magic bytes, so ``x.peff.gz`` round-trips.
     """
-    suffix = path.suffix.lower()
-    if suffix not in (".gz", ".bz2", ".xz"):
+    if kind is None:
         return path.open("w", encoding="utf-8")
-    module = {".gz": "gzip", ".bz2": "bz2", ".xz": "lzma"}[suffix]
+    _compression_module(kind, str(path))  # fail before the file is created or truncated
+    raw = path.open("wb")  # noqa: SIM115 - closed by the returned handle
     try:
-        compressor = importlib.import_module(module)
-    except ImportError as err:
-        raise PeffWriteError(
-            f"Cannot write {path}: the {module} module is not available in this Python",
-            hint=f"Write an uncompressed file or use a Python built with {module} support",
-        ) from err
-    if suffix == ".gz":
-        # mtime=0 so writing the same entries twice gives byte-identical files.
-        return io.TextIOWrapper(compressor.GzipFile(path, mode="wb", mtime=0), encoding="utf-8")
-    return compressor.open(path, "wt", encoding="utf-8")
-    return path.open("w", encoding="utf-8")
+        return _ClosingText(_compressor(kind, raw, str(path)), raw)
+    except BaseException:
+        raw.close()
+        raise
 
 
 def _format_entries(

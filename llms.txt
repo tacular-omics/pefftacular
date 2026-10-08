@@ -6,7 +6,7 @@
 
 Read a whole file with `read_peff(path)` → `(FileHeader, list[SequenceEntry])`, or stream
 with `with PeffReader(path) as r: r.header; for entry in r: ...`. Paths may be gzip/bzip2/xz
-compressed. Write with `write_peff(header, entries, dest, *, verify=True)`
+compressed (`compression="infer"|"gzip"|"bz2"|"xz"|None`, pandas-style). Write with `write_peff(header, entries, dest, *, verify=True, compression="infer")`
 (`verify=False` skips the read-back check for unchanged entries).
 `SequenceEntry.from_fasta(header, sequence)` / `entry.to_fasta()` convert to and from plain
 FASTA (UniProt-style header strings), and `entry.to_proforma(mods="psimod"|"unimod",

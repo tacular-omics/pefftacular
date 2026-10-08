@@ -58,7 +58,11 @@ with PeffReader("proteins.peff") as reader:
         process(entry)
 ```
 
-Both accept gzip, bzip2 and xz compressed files (`proteins.peff.gz`) directly.
+Both accept gzip, bzip2 and xz compressed files (`proteins.peff.gz`) directly, detected
+from the magic bytes. `read_peff`, `PeffReader`, `to_records` and `write_peff` take a
+pandas-style `compression` argument: `"infer"` (the default: magic bytes when reading, the
+`.gz`/`.bz2`/`.xz` suffix when writing), `"gzip"`, `"bz2"` or `"xz"` to force a format
+(an open handle must then be binary), or `None` for plain text.
 
 ## Data model
 

@@ -79,12 +79,12 @@ shadows the builtin name; it is kept for API stability.
 ### read_peff
 
 ```
-read_peff(source: str | Path | IO[str]) -> tuple[FileHeader, list[SequenceEntry]]
+read_peff(source: str | Path | IO[str] | IO[bytes], *, compression: Compression = "infer") -> tuple[FileHeader, list[SequenceEntry]]
 ```
 
 Parse an entire PEFF file (path or text-mode stream) into its header and a list of
 entries. Opens paths as UTF-8 (a leading BOM is skipped); gzip, bzip2 and xz files are
-decompressed transparently (detected from the magic bytes, not the file name). Pipes, FIFOs and `/dev/stdin`
+decompressed transparently (detected from the magic bytes, not the file name; see Compression below). Pipes, FIFOs and `/dev/stdin`
 work. A Python built without `bz2`/`lzma` imports pefftacular and raises `PeffError`
 only on such a file. Input that is not UTF-8, or a corrupt compressed file, raises `PeffParseError`
 chained to the original error. Logs an INFO summary on `pefftacular.parser`.
@@ -101,7 +101,7 @@ for entry in entries:
 ### PeffReader
 
 ```
-PeffReader(source: str | Path | IO[str])
+PeffReader(source: str | Path | IO[str] | IO[bytes], *, compression: Compression = "infer")
     .header -> FileHeader          # property; parses the header on first access, cached
     __iter__() -> Iterator[SequenceEntry]
     __enter__() -> Self                            # opens a path here, not in __init__
@@ -158,10 +158,37 @@ print(entry.variant_simple)    # (VariantSimple(position=3, new_amino_acid='W', 
 
 ## Writing
 
+### Compression
+
+```
+Compression = Literal["infer", "gzip", "bz2", "xz"] | None   # exported from pefftacular
+```
+
+`read_peff`, `PeffReader`, `to_records` and `write_peff` take `compression: Compression = "infer"`,
+like the pandas argument of that name (fastatacular has the same argument):
+
+| value | reading | writing |
+|---|---|---|
+| `"infer"` (default) | path: gzip/bzip2/xz detected from the magic bytes, not the name; open handle: read as it is | path: by suffix `.gz`/`.bz2`/`.xz` (any case), else plain; open handle: plain |
+| `"gzip"`, `"bz2"`, `"xz"` | that format; `PeffParseError` if the bytes are not in it | that format, whatever the suffix |
+| `None` | plain text, even if the bytes look compressed | plain text, even for `x.peff.gz` |
+
+An explicit format with an open handle needs a binary handle (`open(p, "rb")` / `open(p, "wb")`);
+a text handle raises `PeffError` with an "open in binary mode" hint note. A binary
+handle is never closed. gzip output has `mtime=0`, so the same entries give byte-identical
+bytes. Any other value raises `PeffError` listing the valid values.
+
+```python
+write_peff(header, entries, "out.peff", compression="gzip")   # gzip despite the name
+header, entries = read_peff("out.peff")                        # "infer" sniffs it back
+with open("out.peff", "rb") as fh:
+    header, entries = read_peff(fh, compression="gzip")
+```
+
 ### write_peff
 
 ```
-write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str | Path | IO[str], *, verify: bool = True) -> None
+write_peff(header: FileHeader, entries: Iterable[SequenceEntry], dest: str | Path | IO[str] | IO[bytes], *, verify: bool = True, compression: Compression = "infer") -> None
 ```
 
 `entries` is consumed once, as a stream (formatted text spools to a temporary file past
@@ -433,7 +460,7 @@ entry.to_proforma(*, mods: "psimod" | "unimod" = "psimod",
 
 ## Tables (pandas, polars)
 
-    to_records(source: str | Path | IO[str] | Iterable[SequenceEntry]) -> list[dict]
+    to_records(source: str | Path | IO[str] | IO[bytes] | Iterable[SequenceEntry], *, compression: Compression = "infer") -> list[dict]
     PeffReader.to_records() -> list[dict]    # remaining entries; uses the header's CustomKeyDefs
     SequenceEntry.to_record() -> dict
 

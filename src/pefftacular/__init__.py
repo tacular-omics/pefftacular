@@ -2,6 +2,7 @@
 
 import logging
 
+from pefftacular._compression import Compression
 from pefftacular._models import (
     CustomKeyDef,
     CustomKeyValue,
@@ -42,6 +43,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 __version__ = "1.1.0"
 
 __all__ = [
+    "Compression",
     "CustomKeyDef",
     "CustomKeyValue",
     "DatabaseHeader",

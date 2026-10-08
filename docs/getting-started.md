@@ -70,9 +70,9 @@ with PeffReader("proteins.peff") as reader:
 
 ### Paths, file objects and strings
 
-Both readers accept a path (`str` or `pathlib.Path`) or any text-mode file object. A `str` is
+Both readers accept a path (`str` or `pathlib.Path`), any text-mode file object, or a binary file object (`open(path, "rb")`, `io.BytesIO`, read as UTF-8). A `str` is
 always treated as a **path**. A path may be gzip, bzip2 or xz compressed (`proteins.peff.gz`);
-the format is detected from the file's first bytes, not its name. Pipes and FIFOs work too. To parse PEFF text you already hold in memory, wrap it in
+the format is detected from the file's first bytes, not its name. Pass `compression="gzip"`, `"bz2"` or `"xz"` to require that format (an open handle must then be binary, `open(path, "rb")`), or `compression=None` to read plain text even if it looks compressed. Pipes and FIFOs work too. To parse PEFF text you already hold in memory, wrap it in
 `io.StringIO`:
 
 ```python
@@ -215,9 +215,11 @@ print(alpha.gname, renamed.gname)
 
 ## Writing
 
-`write_peff(header, entries, dest)` writes a complete file. `dest` is a path or a text-mode file
-object; `entries` can be any iterable, including a generator. It is consumed once, as a stream,
-and nothing is written until every entry has been checked.
+`write_peff(header, entries, dest)` writes a complete file. `dest` is a path, a text-mode file
+object or a binary one (`open(path, "wb")`, `io.BytesIO`; written as UTF-8 and left open); `entries` can be any iterable, including a generator. It is consumed once, as a stream,
+and nothing is written until every entry has been checked. A path ending in `.gz`, `.bz2` or `.xz`
+is compressed in that format; `compression="gzip"`, `"bz2"` or `"xz"` forces a format whatever the
+name (with a binary handle, `open(path, "wb")`), and `compression=None` always writes plain text.
 
 ```python
 from pefftacular import DatabaseHeader, FileHeader, SequenceEntry, write_peff
