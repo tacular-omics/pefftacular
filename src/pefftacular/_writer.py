@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import importlib
 import io
 import logging
 import re
@@ -498,6 +499,9 @@ def write_peff(
     time); use it for entries that came from ``read_peff`` / ``PeffReader``
     unchanged, or that you have already written once. The basic checks (empty or
     malformed prefix, id or sequence, line breaks, duplicate keys) always run.
+
+    A path ending in ``.gz``, ``.bz2`` or ``.xz`` is written compressed in that format,
+    which ``read_peff`` / ``PeffReader`` read back directly.
     """
     if header is None:
         raise PeffWriteError("header must not be None", hint="Pass a FileHeader instance, e.g. from read_peff()")
@@ -526,7 +530,7 @@ def write_peff(
         spool.seek(0)
         if isinstance(dest, (str, Path)):
             logger.debug("writing PEFF file: %s (%d entries)", dest, count)
-            with Path(dest).open("w", encoding="utf-8") as f:
+            with _open_for_write(Path(dest)) as f:
                 f.write(header_text)
                 shutil.copyfileobj(spool, f)
         else:
@@ -535,6 +539,29 @@ def write_peff(
             shutil.copyfileobj(spool, dest)
 
     logger.info("write_peff: wrote %d entries across %d database(s)", count, len(header.databases))
+
+
+def _open_for_write(path: Path) -> IO[str]:
+    """Open *path* for text writing, compressed by suffix (``.gz``, ``.bz2``, ``.xz``).
+
+    The reader detects the same formats from their magic bytes, so ``x.peff.gz`` round-trips.
+    """
+    suffix = path.suffix.lower()
+    if suffix not in (".gz", ".bz2", ".xz"):
+        return path.open("w", encoding="utf-8")
+    module = {".gz": "gzip", ".bz2": "bz2", ".xz": "lzma"}[suffix]
+    try:
+        compressor = importlib.import_module(module)
+    except ImportError as err:
+        raise PeffWriteError(
+            f"Cannot write {path}: the {module} module is not available in this Python",
+            hint=f"Write an uncompressed file or use a Python built with {module} support",
+        ) from err
+    if suffix == ".gz":
+        # mtime=0 so writing the same entries twice gives byte-identical files.
+        return io.TextIOWrapper(compressor.GzipFile(path, mode="wb", mtime=0), encoding="utf-8")
+    return compressor.open(path, "wt", encoding="utf-8")
+    return path.open("w", encoding="utf-8")
 
 
 def _format_entries(

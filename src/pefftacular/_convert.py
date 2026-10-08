@@ -20,6 +20,16 @@ if TYPE_CHECKING:
 # Same rules as fastatacular: KEY=value pairs, the value running to the next " KEY=".
 _KV_PATTERN = re.compile(r"(?:^|(?<=\s))(?P<key>[A-Za-z_][A-Za-z0-9_]*)=(?P<val>.*?)(?=\s+[A-Za-z_][A-Za-z0-9_]*=|$)")
 _UNIPROT_ID = re.compile(r"^(?P<prefix>[^|\s]+)\|(?P<accession>[^|]+)\|(?P<entry_name>[^|\s]+)$")
+# NCBI ``gi|<number>|<db>|<accession>|[<chain or name>|...]``: the accession is the 4th field,
+# not the gi number. ``gi`` may carry a decoy/contaminant tag (``DECOY_gi``, ``rev_gi``,
+# ``REV-2-gi``; same rule as fastatacular), kept on the db prefix as for other header styles
+# (``DECOY_sp|...`` gives prefix ``DECOY_sp``).
+_NCBI_GI_ID = re.compile(
+    r"^(?P<tag>(?i:(?:DECOY|REVERSE|REV|CONTAM|CON)(?:_|-[0-9]+-)))?gi"
+    r"\|[0-9]+\|(?P<prefix>[A-Za-z]+)\|(?P<accession>[^|\s]+)"
+    r"(?:\|(?P<entry_name>[^|\s]*)(?:\|.*)?)?$"
+)
+_UNIPROT_DBS = frozenset({"sp", "tr"})
 _PIPE_ID = re.compile(r"^(?P<prefix>[^|\s]+)\|(?P<accession>[^|\s]+)(?:\|.*)?$")
 _KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _INT_KEYS = frozenset({"OX", "PE", "SV"})
@@ -43,6 +53,12 @@ def entry_from_fasta(
     peff_db, colon, peff_acc = identifier.partition(":")
     if colon and peff_db and peff_acc and "|" not in peff_db:  # PEFF style, e.g. nxp:NX_P01308-1
         db, accession = peff_db, peff_acc
+    elif m := _NCBI_GI_ID.match(identifier):
+        db, accession = (m["tag"] or "") + m["prefix"], m["accession"]
+        if m["prefix"] in _UNIPROT_DBS:
+            entry_name = m["entry_name"] or None
+        elif m["prefix"].lower() == "pdb" and m["entry_name"]:  # NCBI writes PDB chains as pdb|1MBA|A -> 1MBA_A
+            accession = f"{accession}_{m['entry_name']}"
     elif m := _UNIPROT_ID.match(identifier):
         db, accession, entry_name = m["prefix"], m["accession"], m["entry_name"]
     elif m := _PIPE_ID.match(identifier):

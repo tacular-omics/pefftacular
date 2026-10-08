@@ -1,6 +1,7 @@
 """Tests for PEFF writer."""
 
 import io
+import sys
 from io import StringIO
 
 import pytest
@@ -331,6 +332,45 @@ class TestWritePeffValidation:
         write_peff(_make_minimal_header(), [self._valid_entry()], path)
         _, entries = read_peff(path)
         assert entries == [self._valid_entry()]
+
+    @pytest.mark.parametrize(
+        ("suffix", "module", "magic"),
+        [(".gz", "gzip", b"\x1f\x8b"), (".bz2", "bz2", b"BZh"), (".xz", "lzma", b"\xfd7zXZ\x00")],
+    )
+    def test_write_compressed_by_suffix_round_trips(self, tmp_path, suffix, module, magic) -> None:
+        from pefftacular import read_peff
+
+        pytest.importorskip(module)
+        path = tmp_path / f"out.peff{suffix}"
+        write_peff(_make_minimal_header(), [self._valid_entry()], path)
+        assert path.read_bytes().startswith(magic)
+        header, entries = read_peff(path)
+        assert entries == [self._valid_entry()]
+        plain = tmp_path / "out.peff"
+        write_peff(_make_minimal_header(), [self._valid_entry()], plain)
+        assert header == read_peff(plain)[0]
+
+    def test_write_gz_is_byte_reproducible(self, tmp_path, monkeypatch) -> None:
+        import time
+
+        path = tmp_path / "out.peff.gz"
+        write_peff(_make_minimal_header(), [self._valid_entry()], path)
+        first = path.read_bytes()
+        monkeypatch.setattr(time, "time", lambda: 2_000_000_000.0)
+        write_peff(_make_minimal_header(), [self._valid_entry()], path)
+        assert path.read_bytes() == first
+        assert first[4:8] == b"\x00\x00\x00\x00"  # gzip MTIME field is zero
+
+    @pytest.mark.parametrize(("suffix", "module"), [(".gz", "gzip"), (".bz2", "bz2"), (".xz", "lzma")])
+    def test_write_compressed_missing_module_raises_write_error(self, tmp_path, monkeypatch, suffix, module) -> None:
+        monkeypatch.setitem(sys.modules, module, None)  # makes ``import module`` raise ImportError
+        with pytest.raises(PeffWriteError, match=module):
+            write_peff(_make_minimal_header(), [self._valid_entry()], tmp_path / f"out.peff{suffix}")
+
+    def test_write_plain_suffix_is_not_compressed(self, tmp_path) -> None:
+        path = tmp_path / "out.fasta"
+        write_peff(_make_minimal_header(), [self._valid_entry()], path)
+        assert path.read_text(encoding="utf-8").startswith("# PEFF")
 
     def test_header_error_has_no_index(self) -> None:
         with pytest.raises(PeffWriteError) as exc:
