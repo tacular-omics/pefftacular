@@ -305,6 +305,11 @@ def _format_header(header: FileHeader) -> str:
             out.write("# HasAnnotationIdentifiers=true\n")
         if db.proteoform_db:
             out.write("# ProteoformDb=true\n")
+        for skd in db.specific_keys:
+            if skd.description is not None:
+                out.write(f"# SpecificKey={skd.key_name}:{skd.description}\n")
+            if skd.value is not None:
+                out.write(f"# SpecificValue={skd.key_name}:{skd.value}\n")
         for otd in db.optional_tag_defs:
             out.write(f"# OptionalTagDef={otd.tag}:{otd.description}\n")
         for ckd in db.custom_key_defs:
@@ -435,7 +440,8 @@ def _check_header_reads_back(header: FileHeader, text: str) -> None:
         raise PeffWriteError(
             "header does not read back as written",
             hint="A DatabaseHeader.extra key must not contain '=' or repeat a known header key (e.g. Prefix, "
-            "DbSource); OptionalTagDef.tag must be non-empty without ':'",
+            "DbSource); OptionalTagDef.tag must be non-empty without ':'; SpecificKeyDef.key_name must not "
+            "contain ':' and needs a description or value",
         )
 
 

@@ -33,6 +33,22 @@ class OptionalTagDef:
 
 
 @dataclass(frozen=True, slots=True)
+class SpecificKeyDef:
+    """A database-specific key declared in the header (PEFF 1.0 section 3.3.1).
+
+    ``# SpecificKey=name:description`` declares the key and
+    ``# SpecificValue=name:values`` gives its allowed values (for example
+    ``(available|unsure|not available)``). Entries then use it as ``\\name=value``;
+    those values are kept in ``SequenceEntry.extra``. ``description`` or ``value`` is
+    None when the header has no ``SpecificKey`` or ``SpecificValue`` line for the key.
+    """
+
+    key_name: str
+    description: str | None = None
+    value: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class DatabaseHeader:
     """Metadata block for a single database within a PEFF file."""
 
@@ -54,6 +70,7 @@ class DatabaseHeader:
     proteoform_db: bool = False
     custom_key_defs: tuple[CustomKeyDef, ...] = ()
     optional_tag_defs: tuple[OptionalTagDef, ...] = ()
+    specific_keys: tuple[SpecificKeyDef, ...] = ()
     extra: dict[str, str] = field(default_factory=dict)
 
 

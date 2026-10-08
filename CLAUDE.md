@@ -153,9 +153,10 @@ Full signatures and examples: `llms-full.txt`.
   writer re-parses `raw` with the key's `CustomKeyDef`; if that gives the current `fields`
   it emits `raw` verbatim, otherwise it rebuilds the item from `fields`. With no def,
   `raw` is trusted as is.
-- **Header keys `SpecificKey` / `SpecificValue`** are parsed and then dropped; they do
-  not survive a round trip. Unknown single-valued header keys go to
-  `DatabaseHeader.extra`.
+- **Header keys `SpecificKey` / `SpecificValue`** are paired by key name into
+  `DatabaseHeader.specific_keys` (`SpecificKeyDef`) and written back as Key then Value
+  lines; entry values for them stay in `SequenceEntry.extra`. Unknown single-valued
+  header keys go to `DatabaseHeader.extra`.
 - **Lexer fast paths (1.1).** `split_description_keys`, `split_items` and
   `_split_fields_escaped` take a regex/`str.split` path when the text has no escape or
   nested parens; the scanning path handles the rest. `tests/test_lexer_fast_paths.py`

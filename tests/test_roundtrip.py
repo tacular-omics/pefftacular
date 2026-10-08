@@ -8,6 +8,7 @@ import pytest
 
 from pefftacular._parser import read_peff
 from pefftacular._writer import write_peff
+from pefftacular.errors import PeffWarning
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -267,3 +268,80 @@ class TestFreeTextEscapingRoundtrip:
         write_peff(header, [entry], buf)
         # Spec section 3.3.3 example.
         assert r"\PName=Abcg2\|meta\\x10" in buf.getvalue()
+
+
+_SPECIFIC_KEY_PEFF = """\
+# PEFF 1.0
+# //
+# DbName=Test
+# Prefix=sp
+# DbVersion=1
+# DbSource=test
+# NumberOfEntries=1
+# SequenceType=AA
+# SpecificKey=isoform:description of a specific isoform
+# SpecificValue=isoform:(xsd:type=string)
+# SpecificKey=3D-Status:status of a 3-D structure
+# SpecificValue=3D-Status:(available|unsure|not available)
+# //
+>sp:Q9Y2X3 \\ID=NOP5_HUMAN \\Length=4 \\3D-Status=available \\isoform=Iso 2
+MLVL
+"""
+
+
+class TestRoundtripSpecificKey:
+    """``SpecificKey`` / ``SpecificValue`` header lines (spec 3.3.1) and entry values for them."""
+
+    def _read(self, text: str):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PeffWarning)
+            return read_peff(StringIO(text))
+
+    def test_parsed_into_header(self):
+        from pefftacular import SpecificKeyDef
+
+        header, _ = self._read(_SPECIFIC_KEY_PEFF)
+        db = header.databases[0]
+        assert db.specific_keys == (
+            SpecificKeyDef("isoform", "description of a specific isoform", "(xsd:type=string)"),
+            SpecificKeyDef("3D-Status", "status of a 3-D structure", "(available|unsure|not available)"),
+        )
+        assert db.extra == {}
+
+    def test_written_back_byte_identical(self):
+        header, entries = self._read(_SPECIFIC_KEY_PEFF)
+        buf = StringIO()
+        write_peff(header, entries, buf)
+        assert buf.getvalue() == _SPECIFIC_KEY_PEFF
+
+    def test_entry_values_preserved(self):
+        header, entries = self._read(_SPECIFIC_KEY_PEFF)
+        assert entries[0].extra == {"3D-Status": "available", "isoform": "Iso 2"}
+        buf = StringIO()
+        write_peff(header, entries, buf)
+        buf.seek(0)
+        header2, entries2 = self._read(buf.getvalue())
+        assert header2 == header
+        assert entries2 == entries
+
+    @pytest.mark.parametrize("name", ["SmallTestDB-PEFF1.0.peff", "PEFF_Tiny_Valid.peff"])
+    def test_fixtures(self, name):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", PeffWarning)
+            h1, e1, h2, e2 = _roundtrip(FIXTURES / name)
+        assert h1.databases[0].specific_keys
+        assert h2 == h1
+        assert e2 == e1
+
+    def test_value_without_key_line(self):
+        from pefftacular import DatabaseHeader, FileHeader, SpecificKeyDef
+
+        db = DatabaseHeader(prefix="t", specific_keys=(SpecificKeyDef("k", value="(a|b)"),))
+        header = FileHeader(peff_version="1.0", databases=(db,))
+        buf = StringIO()
+        write_peff(header, [], buf)
+        assert "# SpecificKey=" not in buf.getvalue()
+        assert "# SpecificValue=k:(a|b)\n" in buf.getvalue()
+        buf.seek(0)
+        h2, _ = read_peff(buf)
+        assert h2.databases[0].specific_keys == db.specific_keys
