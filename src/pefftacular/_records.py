@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
+    from pefftacular._compression import Compression
     from pefftacular._models import CustomKeyDef, SequenceEntry
 
 Record = dict[str, str | int | bool | None]
@@ -85,11 +86,14 @@ def entry_to_record(entry: SequenceEntry, defs: Mapping[str, CustomKeyDef] | Non
     }
 
 
-def to_records(source: str | Path | IO[str] | Iterable[SequenceEntry]) -> list[Record]:
+def to_records(
+    source: str | Path | IO[str] | IO[bytes] | Iterable[SequenceEntry], *, compression: Compression = "infer"
+) -> list[Record]:
     """Return one flat ``dict`` per PEFF entry, ready for ``pandas.DataFrame(records)``.
 
     ``source`` is a path (``str`` or ``Path``, may be compressed), an open text handle,
     or an iterable of :class:`SequenceEntry` (e.g. the list from :func:`read_peff`).
+    ``compression`` applies to a path or handle and is described on :class:`PeffReader`.
     The file header is not included. Every record has the same keys, in this order
     (``RECORD_KEYS``); a key whose value is absent is ``None``:
 
@@ -108,9 +112,11 @@ def to_records(source: str | Path | IO[str] | Iterable[SequenceEntry]) -> list[R
 
     The package does not use or require pandas or polars; the records are plain dicts.
     """
+    from pefftacular._compression import check_compression
     from pefftacular._parser import PeffReader
 
+    check_compression(compression)
     if isinstance(source, (str, Path)) or hasattr(source, "read"):
-        with PeffReader(cast("str | Path | IO[str]", source)) as reader:
+        with PeffReader(cast("str | Path | IO[str] | IO[bytes]", source), compression=compression) as reader:
             return reader.to_records()
     return [entry_to_record(e) for e in cast("Iterable[SequenceEntry]", source)]

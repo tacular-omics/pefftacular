@@ -10,8 +10,9 @@ import warnings
 from collections.abc import Iterable, Iterator, Mapping
 from datetime import date, time
 from pathlib import Path
-from typing import IO, Any, Self
+from typing import IO, Any, Self, cast
 
+from pefftacular._compression import MAGIC, MODULES, Compression, check_compression, is_binary, sniff
 from pefftacular._lexer import _unescape_component, split_description_keys, split_fields, split_items
 from pefftacular._models import (
     CustomFieldValue,
@@ -914,12 +915,6 @@ def _parse_entry(
 # ---------------------------------------------------------------------------
 
 
-# Leading bytes of the compressed formats read transparently. The magic bytes alone
-# decide: a plain-text file named ``x.peff.gz`` is read as plain text.
-_MAGIC = ((b"\x1f\x8b", "gz"), (b"BZh", "bz2"), (b"\xfd7zXZ\x00", "xz"))
-_MODULES = {"gz": "gzip", "bz2": "bz2", "xz": "lzma"}
-
-
 def _compressed_errors() -> tuple[type[Exception], ...]:
     """What a corrupt or truncated compressed stream raises while it is read.
 
@@ -941,7 +936,7 @@ class _TextOverRaw(io.TextIOWrapper):
     ``gzip``/``bz2``/``lzma`` never close a file object they were given.
     """
 
-    def __init__(self, buffer: io.BufferedIOBase, raw: io.BufferedReader) -> None:
+    def __init__(self, buffer: io.BufferedIOBase, raw: IO[bytes] | None) -> None:
         super().__init__(buffer, encoding="utf-8-sig")  # ty: ignore[invalid-argument-type]
         self._raw_file = raw
 
@@ -949,12 +944,13 @@ class _TextOverRaw(io.TextIOWrapper):
         try:
             super().close()
         finally:
-            self._raw_file.close()
+            if self._raw_file is not None:
+                self._raw_file.close()
 
 
-def _decompressor(kind: str, raw: io.BufferedReader) -> io.BufferedIOBase:
+def _decompressor(kind: str, raw: IO[bytes]) -> io.BufferedIOBase:
     try:
-        if kind == "gz":
+        if kind == "gzip":
             import gzip
 
             return gzip.GzipFile(fileobj=raw, mode="rb")
@@ -966,18 +962,22 @@ def _decompressor(kind: str, raw: io.BufferedReader) -> io.BufferedIOBase:
 
         return lzma.LZMAFile(raw, mode="rb")
     except ImportError as e:
-        err = PeffError(f"Cannot read {kind}-compressed input: this Python has no {_MODULES[kind]} module")
-        err.add_note(f"hint: decompress the file first, or use a Python built with {_MODULES[kind]} support")
+        err = PeffError(f"Cannot read {kind}-compressed input: this Python has no {MODULES[kind]} module")
+        err.add_note(f"hint: decompress the file first, or use a Python built with {MODULES[kind]} support")
         raise err from e
 
 
 class _Prefixed(io.RawIOBase):
-    """Bytes already read from ``raw`` (``head``), then the rest of ``raw``."""
+    """Bytes already read from ``raw`` (``head``), then the rest of ``raw``.
 
-    def __init__(self, head: bytes, raw: io.BufferedReader) -> None:
+    Closing it closes ``raw`` only if ``owns``: a caller's handle stays open.
+    """
+
+    def __init__(self, head: bytes, raw: IO[bytes], *, owns: bool = True) -> None:
         super().__init__()
         self._head = head
         self._raw = raw
+        self._owns = owns
 
     def readable(self) -> bool:
         return True
@@ -988,43 +988,72 @@ class _Prefixed(io.RawIOBase):
             buffer[:n] = self._head[:n]
             self._head = self._head[n:]
             return n
-        return self._raw.readinto(buffer)
+        return self._raw.readinto(buffer)  # ty: ignore[unresolved-attribute]
 
     def close(self) -> None:
         try:
-            self._raw.close()
+            if self._owns:
+                self._raw.close()
         finally:
             super().close()
 
 
-def _with_head(raw: io.BufferedReader, n: int = 6) -> tuple[io.BufferedReader, bytes]:
+def _with_head(raw: IO[bytes], n: int = 6, *, owns: bool = True) -> tuple[IO[bytes], bytes]:
     """Return a reader positioned at the start of ``raw`` and its first ``n`` bytes.
 
     ``peek`` returns only what one read delivered, which on a pipe can be shorter than
     ``n`` (a writer that sends one byte first). Then read until ``n`` bytes or the end
-    of input and put them back in front of the stream.
+    of input and put them back in front of the stream. A handle without ``peek`` is
+    read the same way.
     """
-    head = raw.peek(n)[:n]
-    if len(head) >= n:
-        return raw, head
+    peek = getattr(raw, "peek", None)
+    if peek is not None:
+        head = peek(n)[:n]
+        if len(head) >= n:
+            return raw, head
     head = raw.read(n)  # blocks until n bytes or EOF
-    return io.BufferedReader(_Prefixed(head, raw)), head
+    return io.BufferedReader(_Prefixed(head, raw, owns=owns)), head
 
 
-def _open_path(path: Path) -> tuple[IO[str], bool]:
+def _decode(raw: IO[bytes], compression: str | None, *, owns: bool, what: str) -> tuple[IO[str], bool]:
+    """Wrap binary ``raw`` as UTF-8 text, decompressed as ``compression`` says.
+
+    ``"infer"`` peeks the first bytes and lets the magic bytes decide (a plain-text
+    file named ``x.peff.gz`` is read as plain text). An explicit format checks the
+    magic bytes and raises ``PeffParseError`` if they do not match; ``None`` reads the
+    bytes as plain text. Closing a decompressed handle closes ``raw`` only if ``owns``;
+    a plain one over a handle the caller owns must be ``detach``-ed instead.
+    Returns the handle and whether it is compressed.
+    """
+    raw, head = _with_head(raw, owns=owns)
+    if compression == "infer":
+        kind = sniff(head)
+    elif compression is None:
+        kind = None
+    else:
+        kind = compression
+        if not head.startswith(MAGIC[kind]):
+            raise PeffParseError(
+                f"{what} is not {kind}-compressed (compression={kind!r})",
+                context=repr(head),
+                hint=f'Pass compression="infer" to detect the format, or None for plain text; '
+                f"a {kind} stream starts with {MAGIC[kind]!r}",
+            )
+    if kind is None:
+        return io.TextIOWrapper(raw, encoding="utf-8-sig"), False
+    return _TextOverRaw(_decompressor(kind, raw), raw if owns else None), True
+
+
+def _open_path(path: Path, compression: str | None = "infer") -> tuple[IO[str], bool]:
     """Open a PEFF path as UTF-8 text, decompressing gzip/bzip2/xz input.
 
     The file is opened once and its first bytes are peeked, not read, so pipes,
-    FIFOs, ``/dev/stdin`` and process substitution work. The magic bytes decide the
-    format. Returns the handle and whether it is compressed.
+    FIFOs, ``/dev/stdin`` and process substitution work. With ``"infer"`` the magic
+    bytes decide the format. Returns the handle and whether it is compressed.
     """
     raw = path.open("rb")  # noqa: SIM115 - closed by the returned handle
     try:
-        raw, head = _with_head(raw)
-        kind = next((k for magic, k in _MAGIC if head.startswith(magic)), None)
-        if kind is None:
-            return io.TextIOWrapper(raw, encoding="utf-8-sig"), False
-        return _TextOverRaw(_decompressor(kind, raw), raw), True
+        return _decode(raw, compression, owns=True, what=str(path))
     except BaseException:
         raw.close()
         raise
@@ -1049,9 +1078,15 @@ class PeffReader:
     """Lazy reader for PEFF files.
 
     Use it as a context manager, like ``fastatacular.FastaReader``: a path is opened
-    in ``__enter__`` (UTF-8, a leading BOM is skipped; gzip, bzip2 and xz files are
-    decompressed, detected from the magic bytes or the suffix) and closed in ``__exit__``; a
-    stream you pass in is read but never closed. Accessing ``header`` or iterating
+    in ``__enter__`` (UTF-8, a leading BOM is skipped) and closed in ``__exit__``; a
+    stream you pass in is read but never closed.
+
+    ``compression`` works like the pandas argument of that name. ``"infer"`` (the
+    default) decompresses a gzip, bzip2 or xz path detected from its magic bytes, not
+    its suffix, and reads an open handle as it is. ``"gzip"``, ``"bz2"`` or ``"xz"``
+    forces that format (``PeffParseError`` if the bytes are not in it); an open handle
+    must then be binary (``open(path, "rb")``). ``None`` reads plain text even if the
+    bytes look compressed. Any other value raises ``PeffError``. Accessing ``header`` or iterating
     outside the ``with`` block raises :class:`RuntimeError`. Entries can be
     iterated once; a second iteration over the same reader yields nothing.
 
@@ -1063,8 +1098,9 @@ class PeffReader:
                 ...
     """
 
-    def __init__(self, source: str | Path | IO[str]) -> None:
+    def __init__(self, source: str | Path | IO[str] | IO[bytes], *, compression: Compression = "infer") -> None:
         self._source = source
+        self._compression = check_compression(compression)
         self._fh: IO[str] | None = None
         self._owns_fh = False
         self._lines: Iterator[str] | None = None
@@ -1197,30 +1233,53 @@ class PeffReader:
             self._defs_by_prefix = {}
             path = Path(self._source)
             logger.debug("opening PEFF file: %s", path)
-            self._fh, compressed = _open_path(path)
+            self._fh, compressed = _open_path(path, self._compression)
             self._owns_fh = True
         else:
             logger.debug("reading PEFF from in-memory stream: %r", type(self._source).__name__)
-            self._fh = self._source
             self._owns_fh = False
             compressed = False
+            if is_binary(self._source):
+                # Our wrapper over the caller's handle: undone in __exit__, the handle stays open.
+                compression = None if self._compression == "infer" else self._compression
+                self._fh, compressed = _decode(
+                    cast("IO[bytes]", self._source), compression, owns=False, what="the input handle"
+                )
+            elif self._compression in ("infer", None):
+                self._fh = cast("IO[str]", self._source)
+            else:
+                err = PeffError(
+                    f"compression={self._compression!r} needs a binary handle, got a text handle "
+                    f"({type(self._source).__name__})"
+                )
+                err.add_note('hint: open the file with open(path, "rb"), or pass the path itself')
+                raise err
         self._lines = _checked_lines(self._fh, compressed)
         return self
 
     def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object) -> None:
         if self._owns_fh and self._fh is not None:
             self._fh.close()
+        elif self._fh is not None and self._fh is not self._source:
+            # Wrapper over a caller's binary handle: release it without closing the handle.
+            if isinstance(self._fh, _TextOverRaw):
+                self._fh.close()  # closes the decompressor only
+            elif isinstance(self._fh, io.TextIOWrapper):
+                self._fh.detach()
         self._fh = None
         self._lines = None
 
 
-def read_peff(source: str | Path | IO[str]) -> tuple[FileHeader, list[SequenceEntry]]:
+def read_peff(
+    source: str | Path | IO[str] | IO[bytes], *, compression: Compression = "infer"
+) -> tuple[FileHeader, list[SequenceEntry]]:
     """Convenience: parse an entire PEFF file into header + list of entries.
 
-    A path may be plain or gzip/bzip2/xz compressed. Undecodable (non-UTF-8) or
-    corrupt compressed input raises ``PeffParseError`` chained to the cause.
+    A path may be plain or gzip/bzip2/xz compressed; ``compression`` is described on
+    :class:`PeffReader` (``"infer"`` sniffs the magic bytes). Undecodable (non-UTF-8)
+    or corrupt compressed input raises ``PeffParseError`` chained to the cause.
     """
-    with PeffReader(source) as reader:
+    with PeffReader(source, compression=compression) as reader:
         header = reader.header
         entries = list(reader)
     logger.info("read_peff: parsed %d entries across %d database(s)", len(entries), len(header.databases))
