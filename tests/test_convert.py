@@ -365,6 +365,13 @@ def test_to_proforma_residue_outside_a_to_z_raises(seq: str) -> None:
     assert e.to_proforma(variants=[VariantSimple(3, "*")]) == "MK"  # truncated before it: fine
 
 
+@pytest.mark.parametrize("new", ["k", "\u00e9", "1"])
+def test_to_proforma_variant_outside_a_to_z_names_the_variant(new: str) -> None:
+    e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MKV")
+    with pytest.raises(PeffError, match=r"^x:1: VariantSimple at 2: new amino acid .* is not a single letter A-Z"):
+        e.to_proforma(variants=[VariantSimple(2, new)])
+
+
 @pytest.mark.parametrize(("accession", "name"), [("", "a|b"), ("", "a#b"), ("MOD:00046|INFO:x", "p"), ("MOD:1#g", "p")])
 def test_to_proforma_pipe_or_hash_in_modification_raises(accession: str, name: str) -> None:
     # No ProForma escape: "|" would start a second tag and "#" a group label.
@@ -397,10 +404,10 @@ def _accession(cv: str) -> st.SearchStrategy[str]:
 
 
 def _tag_key(tag: object) -> tuple[str, str, str]:
-    """(kind, CV, value) of a peptacular tag, or of a ``"CV:value"`` string."""
+    """(kind, CV, value) of a peptacular tag, or of a ``"CV:value"`` string (CV case-insensitive)."""
     if isinstance(tag, str):
         cv, _, value = tag.partition(":")
-        return ("name", {"M": "MOD", "U": "UNIMOD"}[cv], value) if cv in ("M", "U") else ("acc", cv, value)
+        return ("name", {"M": "MOD", "U": "UNIMOD"}[cv], value) if cv in ("M", "U") else ("acc", cv.upper(), value)
     kind = "acc" if hasattr(tag, "accession") else "name"
     return kind, tag.cv.value, tag.accession if kind == "acc" else tag.name  # type: ignore[attr-defined]
 
@@ -409,14 +416,17 @@ def _counts(mods: object) -> dict[tuple[str, str, str], int]:
     out: dict[tuple[str, str, str], int] = {}
     for m in mods.mods:  # type: ignore[attr-defined]
         (tag,) = m.value.tags  # one tag per modification: a second would mean a lost "|"
-        out[_tag_key(tag)] = m.count
+        key = _tag_key(tag)
+        out[key] = out.get(key, 0) + m.count
     return out
 
 
 @st.composite
 def _proforma_case(draw: st.DrawFn) -> tuple[SequenceEntry, str, tuple[VariantSimple, ...]]:
     vocab = draw(st.sampled_from(sorted(_CV)))
-    seq = draw(st.text("ACDEFGHIKLMNPQRSTVWYBJOUXZ", min_size=1, max_size=25))
+    # Mostly A-Z; "*", "-" and lowercase letters cannot be written and must raise when kept.
+    residue = st.sampled_from("ACDEFGHIKLMNPQRSTVWYBJOUXZ") | st.sampled_from("*-acdkmz")
+    seq = draw(st.text(residue, min_size=1, max_size=25))
     n = len(seq)
     # Termini on purpose as well as anywhere, and unknown sites.
     pos = st.sampled_from([1, n]) | st.integers(1, n) | st.just("?")
@@ -445,9 +455,16 @@ def _proforma_case(draw: st.DrawFn) -> tuple[SequenceEntry, str, tuple[VariantSi
                     st.builds(
                         ModRes,
                         positions=positions,
-                        accession=_accession("MOD").filter(bool)
-                        | _accession("UNIMOD").filter(lambda a: ":" in a)
-                        | st.just("RESID:AA0037"),
+                        accession=st.builds(
+                            lambda acc, case, before, after: before + case(acc) + after,
+                            _accession("MOD").filter(bool)
+                            | _accession("UNIMOD").filter(lambda a: ":" in a)
+                            | st.just("RESID:AA0037"),
+                            # The CV prefix is matched after .strip().upper().
+                            st.sampled_from([str, str.lower, str.title]),
+                            st.sampled_from(["", " "]),
+                            st.sampled_from(["", " "]),
+                        ),
                         name=_MOD_NAME,
                     ),
                     max_size=3,
@@ -463,7 +480,11 @@ def _proforma_case(draw: st.DrawFn) -> tuple[SequenceEntry, str, tuple[VariantSi
 def _expected(
     entry: SequenceEntry, vocab: str, variants: tuple[VariantSimple, ...]
 ) -> tuple[str, dict[int, dict], dict]:
-    """The residues, per-position tags and unknown-site counts to_proforma should write."""
+    """The residues, per-position tag counts and unknown-site counts to_proforma should write.
+
+    to_proforma writes each distinct tag text once per site, so "MOD:1" and "mod:1" are
+    two tags that peptacular reads as the same modification: counts are summed per key.
+    """
     cv, short = _CV[vocab]
     seq = list(entry.sequence)
     stops = [v.position for v in variants if v.new_amino_acid == "*"]
@@ -472,28 +493,37 @@ def _expected(
     for p, aa in subs.items():
         seq[p - 1] = aa
 
-    def tag(m: ModRes | ModResPsi | ModResUnimod) -> tuple[str, str, str]:
-        if not m.accession:
-            return ("name", cv, m.name)
-        return _tag_key(m.accession if ":" in m.accession else f"{cv}:{m.accession}")
+    def tag(m: ModRes | ModResPsi | ModResUnimod) -> str:
+        acc = m.accession.strip()
+        if not acc:
+            return f"{short}:{m.name}"
+        return acc if ":" in acc else f"{cv}:{acc}"
 
     own = entry.mod_res_psi if vocab == "psimod" else entry.mod_res_unimod
-    generic = [m for m in entry.mod_res if m.accession.startswith(cv + ":")]
-    at: dict[int, dict] = {}
-    unknown: dict = {}
+    generic = [m for m in entry.mod_res if m.accession.strip().upper().startswith(cv + ":")]
+    at_text: dict[int, set[str]] = {}
+    unknown_text: dict[str, int] = {}
     for source in (own, generic):
-        source_unknown: dict = {}
+        source_unknown: dict[str, int] = {}
         for m in source:
             for p in m.positions:
                 if p == "?":
                     source_unknown[tag(m)] = source_unknown.get(tag(m), 0) + 1
                 elif p not in subs and p <= end:
-                    at.setdefault(p - 1, {})[tag(m)] = 1
+                    at_text.setdefault(p - 1, set()).add(tag(m))
         for t, c in source_unknown.items():
-            unknown[t] = max(unknown.get(t, 0), c)
+            unknown_text[t] = max(unknown_text.get(t, 0), c)
     if end < len(seq):
-        unknown = {}
-    return "".join(seq[:end]), at, unknown
+        unknown_text = {}
+
+    def by_key(counts: dict[str, int]) -> dict[tuple[str, str, str], int]:
+        out: dict[tuple[str, str, str], int] = {}
+        for t, c in counts.items():
+            out[_tag_key(t)] = out.get(_tag_key(t), 0) + c
+        return out
+
+    at = {i: by_key(dict.fromkeys(tags, 1)) for i, tags in at_text.items()}
+    return "".join(seq[:end]), at, by_key(unknown_text)
 
 
 @given(case=_proforma_case())
@@ -502,6 +532,12 @@ def test_to_proforma_reads_back_in_peptacular(case: tuple[SequenceEntry, str, tu
     entry, vocab, variants = case
     expected_seq, expected_at, expected_unknown = _expected(entry, vocab, variants)
 
+    # Raises if and only if a residue outside A-Z survives substitution and truncation.
+    if any(not ("A" <= aa <= "Z") for aa in expected_seq):
+        with pytest.raises(PeffError, match="cannot be written as ProForma"):
+            entry.to_proforma(mods=vocab, variants=variants)  # type: ignore[arg-type]
+        assert entry.to_proforma(mods=vocab, variants=variants, errors="skip") is None  # type: ignore[arg-type]
+        return
     proforma = entry.to_proforma(mods=vocab, variants=variants)  # type: ignore[arg-type]
     annotation = pt.parse(proforma)
     assert annotation.stripped_sequence == expected_seq
