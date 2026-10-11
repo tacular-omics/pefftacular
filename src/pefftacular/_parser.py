@@ -467,6 +467,9 @@ def _parse_file_header(lines: Iterable[str]) -> tuple[FileHeader, Iterator[str],
         first_line = raw_line.rstrip("\n\r")
         if line_no == 1:
             first_line = first_line.removeprefix("\ufeff")  # UTF-8 BOM from a stream
+        # Leading whitespace is ignored on every line (as fastatacular does), so an
+        # indented '# ' header line or '>' entry line is still read as one.
+        first_line = first_line.lstrip()
         if first_line.strip():
             break
     else:
@@ -502,9 +505,9 @@ def _parse_file_header(lines: Iterable[str]) -> tuple[FileHeader, Iterator[str],
 
     for raw_line in line_iter:
         line_no += 1
-        line = raw_line.rstrip("\n\r")
+        line = raw_line.rstrip("\n\r").lstrip()  # an indented '# ' line is still a header line
 
-        if not line.strip():
+        if not line:
             # Spec §3.3.1: every header line starts with "# ". A blank line is only an
             # error if more header lines follow it (checked below); blank lines between
             # the header and the first entry are ignored like those between entries.
@@ -1182,7 +1185,9 @@ class PeffReader:
 
         for raw_line in self._remaining:
             line_no += 1
-            line = raw_line.rstrip("\n\r")
+            # Leading whitespace is ignored before checking for '>', '#' and ';', so an
+            # indented entry line ("  >sp:B") starts an entry instead of joining the sequence.
+            line = raw_line.rstrip("\n\r").lstrip()
 
             if line.startswith(";"):
                 # FASTA comment line (NCBI / legacy convention): skipped like fastatacular does.
@@ -1211,7 +1216,7 @@ class PeffReader:
                 current_desc = line
                 current_desc_line = line_no
                 seq_lines = []
-            elif line.strip():
+            elif line:
                 if current_desc is None:
                     raise PeffParseError(
                         "Sequence text before the first '>' entry line",
