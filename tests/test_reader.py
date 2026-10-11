@@ -150,3 +150,63 @@ class TestHeaderModelsHash:
         assert obj == obj
         with pytest.raises(TypeError):
             hash(obj)
+
+
+class TestIndentedLines:
+    """Leading whitespace is ignored before checking for '>', '#' and ';' (as in fastatacular)."""
+
+    TEXT = "# PEFF 1.0\n# //\n>sp:A \\PName=a\nMK\n  >sp:B \\PName=b\nPE\n"
+
+    def test_indented_entry_line_path(self, tmp_path: Path) -> None:
+        path = tmp_path / "indented.peff"
+        path.write_text(self.TEXT)
+        _, entries = read_peff(path)
+        assert [(e.db_unique_id, e.sequence, e.pname) for e in entries] == [("A", "MK", "a"), ("B", "PE", "b")]
+
+    def test_indented_entry_line_stream_and_reader(self) -> None:
+        with PeffReader(StringIO(self.TEXT.replace("  >", "\t >"))) as reader:
+            entries = list(reader)
+        assert [e.sequence for e in entries] == ["MK", "PE"]
+
+    def test_indented_entry_line_binary_gzip(self, tmp_path: Path) -> None:
+        import gzip
+
+        path = tmp_path / "indented.peff.gz"
+        path.write_bytes(gzip.compress(self.TEXT.encode()))
+        _, entries = read_peff(path)
+        assert [e.sequence for e in entries] == ["MK", "PE"]
+
+    def test_first_entry_indented(self) -> None:
+        _, entries = read_peff(StringIO("# PEFF 1.0\n# //\n   >sp:A\nMK\n"))
+        assert [(e.db_unique_id, e.sequence) for e in entries] == [("A", "MK")]
+
+    def test_sequence_lines_still_stripped(self) -> None:
+        _, entries = read_peff(StringIO("# PEFF 1.0\n# //\n>sp:A\n  MK  \n\tPE \n"))
+        assert entries[0].sequence == "MKPE"
+
+    def test_indented_comment_line_skipped(self) -> None:
+        _, entries = read_peff(StringIO("# PEFF 1.0\n# //\n>sp:A\nMK\n  ;note\nPE\n"))
+        assert entries[0].sequence == "MKPE"
+
+    def test_indented_hash_line_inside_entry_warns(self) -> None:
+        with pytest.warns(PeffWarning, match="'#' line inside entry"):
+            _, entries = read_peff(StringIO("# PEFF 1.0\n# //\n>sp:A\nMK\n  # stray\nPE\n"))
+        assert entries[0].sequence == "MKPE"
+
+    def test_indented_file_header_lines(self) -> None:
+        text = (
+            "  # PEFF 1.0\n"
+            "\t# GeneralComment=hello\n"
+            " # //\n"
+            "  # DbName=Test\n"
+            "  # Prefix=sp\n"
+            "  # NumberOfEntries=1\n"
+            "  # //\n"
+            "  >sp:A\n"
+            "MK\n"
+        )
+        header, entries = read_peff(StringIO(text))
+        assert header.peff_version == "1.0"
+        assert header.general_comments == ("hello",)
+        assert [(db.db_name, db.prefix, db.number_of_entries) for db in header.databases] == [("Test", "sp", 1)]
+        assert [e.sequence for e in entries] == ["MK"]
