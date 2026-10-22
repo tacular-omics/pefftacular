@@ -44,9 +44,12 @@ just clean           # remove caches
 just check-version   # fail if __version__ / CITATION.cff disagree
 ```
 
-`just check` must pass before any commit (197 tests, well under a second).
-`just docs` / `just docs-deploy` exist but are dead: there is no `mkdocs.yml` and mkdocs
-is not a dependency. Do not rely on them.
+`just check` must pass before any commit (745 tests collected, 743 run plus 2 skips,
+about 20 seconds end to end).
+`just docs` / `just docs-deploy` build the mkdocs-material site from `mkdocs.yml` and
+`docs/`. Their dependencies (mkdocs, mkdocs-material, mkdocstrings[python]) are in the
+`docs` dependency group, which the bare `uv sync` behind `just install` does not install:
+run `uv sync --group docs` first.
 
 ## Architecture
 
@@ -62,6 +65,7 @@ src/pefftacular/
   _writer.py    # write_peff: serializes models back to canonical PEFF text
   _convert.py   # SequenceEntry.from_fasta / to_fasta / to_proforma logic (models delegate here)
   _records.py   # to_records / RECORD_KEYS: flat dicts for data frames (no pandas/polars dependency)
+  _compression.py  # Compression alias; gzip/bzip2/xz detection by magic bytes
   errors.py     # PeffError base, PeffParseError, PeffWriteError, PeffWarning
 scripts/release_version.py   # version sync/check used by the release recipes
 tests/                       # one file per area; fixtures in tests/fixtures/*.peff
