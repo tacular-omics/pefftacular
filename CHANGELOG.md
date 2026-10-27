@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.1] (2026-10-26)
+
 ### Fixed
 
 - An entry line with leading whitespace (`  >sp:B ...`) starts a new entry instead of being appended to the previous entry's sequence. Leading whitespace is now ignored before checking for `>`, `#` and `;` on every line, as fastatacular does, in `read_peff()`, `PeffReader`, streams and compressed input. Indented `# ` file header lines (including `# PEFF 1.0`) are read as header lines instead of raising `PeffParseError`. Sequence lines still lose all whitespace.
