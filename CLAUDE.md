@@ -168,7 +168,12 @@ Full signatures and examples: `llms-full.txt`.
 - **`write_peff` streams.** It formats into a `SpooledTemporaryFile` and copies to `dest`
   only after every entry passed, so nothing is written on error. Do not reintroduce
   `list(entries)`.
-- **Duplicate description keys:** the last `\Key=` on a line wins silently.
+- **Duplicate keys go opposite ways in the two formats.** On a PEFF description line the
+  last `\Key=` wins silently. In a FASTA header read by `from_fasta` the **first**
+  `KEY=value` wins and later occurrences are dropped, matching fastatacular; they are not
+  moved to `extra`, or the entry would report two values for one key and `to_fasta` would
+  write it twice. `to_fasta` also writes a key held by both a typed field and `extra`
+  once, from the typed field.
 - **`PeffReader` iterates once and needs `with`.** It opens a path in `__enter__`
   (matching `fastatacular.FastaReader`); `.header` or iteration outside `with` raises
   `RuntimeError`. It wraps a single line iterator; a second `for` yields nothing.

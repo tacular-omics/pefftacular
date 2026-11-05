@@ -260,6 +260,8 @@ class SequenceEntry:
         sapiens OX=9606 GN=ABC PE=1 SV=2`` gives ``prefix="sp"``, ``db_unique_id="P12345"``,
         ``id="NAME_HUMAN"``, ``pname``, ``tax_name``, ``ncbi_tax_id``, ``gname``, ``pe``,
         ``sv``; other ``KEY=value`` pairs go to ``extra``. ``length`` is set from the sequence.
+        A repeated key keeps its first value, as in fastatacular, and the later occurrences
+        are dropped.
 
         Args:
             header: The header line, with or without the leading ``>``.

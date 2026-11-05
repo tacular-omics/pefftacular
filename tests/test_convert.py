@@ -79,7 +79,28 @@ def test_from_fasta_identifier_shapes(header: str, kwargs: dict, expected: tuple
 def test_from_fasta_extra_and_bad_ints() -> None:
     e = SequenceEntry.from_fasta("sp|P1|N_HUMAN Name OX=abc PE=1 PE=2 XY=z w", "MK")
     assert e.ncbi_tax_id is None and e.pe == 1
-    assert e.extra == {"OX": "abc", "PE": "2", "XY": "z w"}
+    assert e.extra == {"OX": "abc", "XY": "z w"}  # the repeated PE=2 is dropped, not kept in extra
+
+
+def test_from_fasta_duplicate_key_first_wins_everywhere() -> None:
+    # A repeated key used to keep its first value in the typed field and its last in
+    # ``extra``, so one entry reported both, to_fasta() wrote the key twice, and reading
+    # that header back could pick the other value.
+    header = "sp|P1|N_HUMAN Name OS=Homo sapiens OX=9606 GN=a PE=1 SV=1 GN=b OS=Mus musculus"
+    e = SequenceEntry.from_fasta(header, "MK")
+    assert (e.gname, e.tax_name) == ("a", "Homo sapiens")
+    assert e.extra == {}
+    out, seq = e.to_fasta()
+    assert out.count("GN=") == 1 and out.count("OS=") == 1
+    assert SequenceEntry.from_fasta(out, seq) == e
+
+
+def test_to_fasta_writes_a_typed_key_once_when_extra_repeats_it() -> None:
+    # from_fasta can no longer build this, but a hand-made entry can: the typed field wins.
+    e = SequenceEntry(prefix="sp", db_unique_id="P1", sequence="MK", gname="a", extra={"GN": "b"})
+    header, seq = e.to_fasta()
+    assert header == "sp|P1 GN=a"
+    assert SequenceEntry.from_fasta(header, seq).gname == "a"
 
 
 @pytest.mark.parametrize("header", ["", ">", "   "])
