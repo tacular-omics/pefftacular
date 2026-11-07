@@ -436,7 +436,8 @@ entry.to_proforma(*, mods: "psimod" | "unimod" = "psimod",
   `(r.raw_header, r.sequence)` for a fastatacular record). Identifiers: `db:ACC` (PEFF style,
   checked first), `db|ACC|NAME`, `db|ACC|...`; otherwise pass `prefix=` or get `PeffError`.
   `OS`/`OX`/`GN`/`PE`/`SV` map to tax_name/ncbi_tax_id/gname/pe/sv, other `KEY=value` to
-  extra, and length is set to len(sequence).
+  extra, and length is set to len(sequence). A repeated key keeps its first value, as in
+  fastatacular; the later occurrences are dropped.
 - to_fasta writes `prefix|db_unique_id[|id] pname OS= OX= GN= PE= SV= extra...`
   (`prefix:db_unique_id` if the id contains `|`). Annotations, comment, ev and decoy are
   dropped. `from_fasta(*e.to_fasta())` restores those fields.

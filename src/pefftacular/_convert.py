@@ -75,11 +75,18 @@ def entry_from_fasta(
     first = _KV_PATTERN.search(description)
     pname = (description[: first.start()] if first else description).strip() or None
     if first:
+        seen: set[str] = set()
         for kv in _KV_PATTERN.finditer(description, first.start()):
             key, val = kv["key"], kv["val"].strip()
-            if key in _STR_KEYS and key not in strs:
+            # A repeated key keeps its first value (``OS=Human OS=Mouse`` gives ``Human``),
+            # as in fastatacular. Later occurrences are dropped rather than moved to
+            # ``extra``, so one key is never reported twice with two different values.
+            if key in seen:
+                continue
+            seen.add(key)
+            if key in _STR_KEYS:
                 strs[key] = val
-            elif key in _INT_KEYS and key not in ints and _is_int(val):
+            elif key in _INT_KEYS and _is_int(val):
                 ints[key] = int(val)
             else:
                 extra[key] = val
@@ -122,6 +129,7 @@ def entry_to_fasta(entry: SequenceEntry) -> tuple[str, str]:
         parts = [f"{entry.prefix}|{entry.db_unique_id}" + (f"|{entry.id}" if entry.id else "")]
     if entry.pname:
         parts.append(entry.pname)
+    typed: set[str] = set()
     for key, value in (
         ("OS", entry.tax_name),
         ("OX", entry.ncbi_tax_id),
@@ -131,7 +139,14 @@ def entry_to_fasta(entry: SequenceEntry) -> tuple[str, str]:
     ):
         if value is not None:
             parts.append(f"{key}={value}")
-    parts.extend(f"{key}={value}" for key, value in entry.extra.items() if _KEY.fullmatch(key) and "\n" not in value)
+            typed.add(key)
+    # A hand-built entry may hold a typed key in ``extra`` as well; the typed field wins,
+    # so the key is written once and reading the header back gives the same entry.
+    parts.extend(
+        f"{key}={value}"
+        for key, value in entry.extra.items()
+        if key not in typed and _KEY.fullmatch(key) and "\n" not in value
+    )
     return " ".join(parts), entry.sequence
 
 
