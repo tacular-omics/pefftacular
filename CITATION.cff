@@ -26,8 +26,8 @@ authors:
 repository-code: https://github.com/tacular-omics/pefftacular
 url: https://pypi.org/project/pefftacular/
 license: MIT
-version: "1.2.1"
-date-released: "2026-10-26"
+version: "1.2.2"
+date-released: "2026-11-06"
 keywords:
   - Python
   - Proteomics
