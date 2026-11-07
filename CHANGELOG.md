@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.2] (2026-11-06)
+
 ### Fixed
 
 - A FASTA header that repeats a key no longer reports two values for it. `SequenceEntry.from_fasta()` kept the first value in the typed field and the last in `extra`, so `sp|P1 GN=a GN=b` gave `gname="a"` with `extra["GN"]="b"`, `to_fasta()` wrote `GN` twice, and reading that header back could keep the other value. A repeated key now keeps its first value and the later occurrences are dropped, matching the typed fields and fastatacular, and `to_fasta()` writes a key held by both a typed field and `extra` once, from the typed field.
