@@ -85,10 +85,10 @@ declarations. Each entry becomes a frozen `SequenceEntry`. The standard keys are
 fields: `PName`, `GName`, `NcbiTaxId`, `Length`, `SV`, `EV` and `PE`. Annotation keys become
 tuples of frozen dataclasses:
 
-- `VariantSimple` and `VariantComplex` for substitutions and multi-residue changes;
+- `VariantSimple` and `VariantComplex` for substitutions and multi-residue changes.
 - `ModResUnimod`, `ModResPsi` and `ModRes` for modification sites, referring to Unimod
-  [@creasy-2004], PSI-MOD [@montecchi-palazzi-2008] or other vocabularies;
-- `Processed` for chains, signal peptides and other processed forms;
+  [@creasy-2004], PSI-MOD [@montecchi-palazzi-2008] or other vocabularies.
+- `Processed` for chains, signal peptides and other processed forms.
 - `DisulfideBond` and `Proteoform`, which refer to other annotations by `AnnotId`.
 
 Values of a key declared by a `CustomKeyDef` are split with its regular expression and
