@@ -45,17 +45,29 @@ optional parts of the suite are test-only cross-checks against `fastatacular`,
 `peptacular`, `pandas` and `polars` that live in the `dev` dependency group, which a bare
 `uv sync` installs. The `docs` group is separate and no test needs it.
 
-If you run the tests in some other environment, the number to watch is a subtraction
-rather than either count on its own. Add up `passed`, `failed`, `skipped`, `xfailed`,
-`xpassed` and `errors` from the summary line, leave out any subtest count, and subtract
-the collected total: the difference is how many files were skipped at collection, and it
-is zero when everything the suite can use is installed. The skip count alone cannot tell
-you that, because both kinds of guard move it. A `pytest.importorskip` inside a test
-function leaves the test collected and turns that one test into a skip. One at module
-import reports a single skip standing for the whole file, whose tests are never collected
-at all, and that is the case the subtraction catches. Every guard in this suite is inside
-a test function today, so the difference should be zero. `uv pip list` tells you which of
-the four packages you actually have.
+If you run the tests in some other environment, `uv run pytest tests` prints the answer
+in its own header: `collected N items / M skipped` means M files were skipped at
+collection, and a header with no `skipped` clause means none were. Under `-q` that clause
+is not printed, so fall back to a subtraction: sum `passed`, `failed`, `skipped`,
+`xfailed`, `xpassed` and `errors` from the summary line, leave out any subtest count, and
+subtract the collected total. Do not read the skip count on its own, because both kinds of
+guard move it: a `pytest.importorskip` inside a test function turns that one test into a
+skip and leaves the collected total alone, while one at module import reports a single
+skip standing for the whole file, whose tests are never collected at all.
+
+Neither the header nor the subtraction sees a file dropped by a collect-time filter such
+as `collect_ignore` or `--ignore`. For that, compare the test files on disk against the
+files that produced test ids:
+
+```bash
+comm -23 <(ls tests/test_*.py | sort) \
+  <(uv run pytest tests --co -q | grep '::' | sed 's/::.*//' | sort -u)
+```
+
+Anything it prints collected nothing, which is either a module skipped at import or a file
+with no test functions in it. Every guard in this suite is inside a test function today, so
+all three checks should come back clean. `uv pip list` tells you which of the four packages
+you actually have.
 
 If you change the documentation, build it the way CI does:
 
