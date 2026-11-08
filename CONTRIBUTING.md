@@ -39,6 +39,17 @@ python scripts/release_version.py check
 seconds. CI runs `HYPOTHESIS_PROFILE=ci` (100 examples, more for the lexer checks);
 `HYPOTHESIS_PROFILE=thorough` (5000) is for changes to the lexer, parser or writer.
 
+`just install` installs the whole test suite. pefftacular declares **no optional extras**
+(its runtime dependencies are empty, so there is nothing to add to `uv sync`), and the
+optional parts of the suite are test-only cross-checks against `fastatacular`,
+`peptacular`, `pandas` and `polars` that live in the `dev` dependency group, which a bare
+`uv sync` installs. The `docs` group is separate and no test needs it.
+
+If you run the tests in some other environment, read the `N passed, M skipped` line rather
+than the collected count. With those four packages missing, every test is still collected
+and the total is unchanged: the tests that cannot run move from passed to skipped and the
+run still exits zero. `uv pip list` tells you which of them you actually have.
+
 If you change the documentation, build it the way CI does:
 
 ```bash
