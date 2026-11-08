@@ -45,10 +45,14 @@ optional parts of the suite are test-only cross-checks against `fastatacular`,
 `peptacular`, `pandas` and `polars` that live in the `dev` dependency group, which a bare
 `uv sync` installs. The `docs` group is separate and no test needs it.
 
-If you run the tests in some other environment, read the `N passed, M skipped` line rather
-than the collected count. With those four packages missing, every test is still collected
-and the total is unchanged: the tests that cannot run move from passed to skipped and the
-run still exits zero. `uv pip list` tells you which of them you actually have.
+If you run the tests in some other environment, read **both** the collected total and the
+`N passed, M skipped` line, because which of the two moves depends on where the guard
+sits and neither one alone can see the other case. A `pytest.importorskip` inside a test
+function leaves the test collected and turns it into a skip, so the total is unchanged and
+only the pass count drops. One at module import would drop that module's tests from the
+total altogether and report no skips at all. Every guard in this suite is inside a test
+function today, so expect the skip count to move and the total to stay put, and check both
+anyway. `uv pip list` tells you which of the four packages you actually have.
 
 If you change the documentation, build it the way CI does:
 
