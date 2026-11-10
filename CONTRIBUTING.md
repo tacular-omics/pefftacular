@@ -5,6 +5,16 @@ Bug reports, fixes and new features are welcome. Use the
 questions, with a minimal example and the pefftacular and Python versions. Report
 security problems privately as described in [SECURITY.md](SECURITY.md).
 
+## Claiming an issue
+
+Comment on the issue to say you are taking it before you start, and check that nobody has
+already done so. One issue, one contributor: when two pull requests arrive for the same issue,
+the first one that was claimed is reviewed and the other is closed, however good it is. If a
+claim has had no pull request or update for 14 days, comment to take it over.
+
+Issues labelled `good first issue` need no knowledge of the codebase. Issues labelled
+`help wanted` do: each one names the files to read first and the test that shows it is done.
+
 ## Development setup
 
 You need Python 3.12 or newer, [uv](https://docs.astral.sh/uv/) and
