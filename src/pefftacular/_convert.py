@@ -44,7 +44,9 @@ def entry_from_fasta(
     if header.startswith(">"):
         header = header[1:].lstrip()
     if not header:
-        raise PeffError("Empty FASTA header")
+        err = PeffError("Empty FASTA header")
+        err.add_note("hint: header string must not be empty")
+        raise err
     identifier, *rest = header.split(None, 1)
     description = rest[0].strip() if rest else ""
 
@@ -167,7 +169,9 @@ def _mod_tag(mod: ModResPsi | ModResUnimod | ModRes, cv: str, name_prefix: str, 
     bad = next((c for c in "[]|#" if c in tag), None)
     if bad is not None:
         what = "a square bracket" if bad in "[]" else repr(bad)
-        raise PeffError(f"{name}: modification {tag!r} contains {what} and cannot be written as ProForma")
+        err = PeffError(f"{name}: modification {tag!r} contains {what} and cannot be written as ProForma")
+        err.add_note("hint: remove or replace '[', ']', '|', and '#' characters in the modification tag")
+        raise err
     return tag
 
 
@@ -206,9 +210,13 @@ def entry_to_proforma(
     errors: ProformaErrors = "raise",
 ) -> str | None:
     if mods not in _VOCAB:
-        raise PeffError(f"mods must be 'psimod' or 'unimod', not {mods!r}")
+        err = PeffError(f"mods must be 'psimod' or 'unimod', not {mods!r}")
+        err.add_note("hint: choose mods='psimod' (PSI-MOD) or mods='unimod' (UNIMOD)")
+        raise err
     if errors not in ("raise", "skip"):
-        raise PeffError(f"errors must be 'raise' or 'skip', not {errors!r}")
+        err = PeffError(f"errors must be 'raise' or 'skip', not {errors!r}")
+        err.add_note("hint: choose errors='raise' to fail on errors or errors='skip' to return None")
+        raise err
     try:
         return _to_proforma(entry, mods, variants)
     except PeffError:
@@ -233,9 +241,13 @@ def _to_proforma(entry: SequenceEntry, mods: ModVocabulary, variants: Iterable[V
             continue
         if len(new) != 1 or not ("A" <= new <= "Z"):
             # Checked here, not as a residue below, so the error names the variant.
-            raise PeffError(f"{name}: VariantSimple at {pos}: new amino acid {new!r} is not a single letter A-Z or '*'")
+            err = PeffError(f"{name}: VariantSimple at {pos}: new amino acid {new!r} is not a single letter A-Z or '*'")
+            err.add_note("hint: new amino acid must be an uppercase letter A-Z, or '*' for a stop codon")
+            raise err
         if substituted.get(pos, new) != new:
-            raise PeffError(f"{name}: two different VariantSimple substitutions at position {pos}")
+            err = PeffError(f"{name}: two different VariantSimple substitutions at position {pos}")
+            err.add_note("hint: provide at most one substitution per position")
+            raise err
         substituted[pos] = new
     for pos, new in substituted.items():
         seq[pos - 1] = new
@@ -273,7 +285,9 @@ def _to_proforma(entry: SequenceEntry, mods: ModVocabulary, variants: Iterable[V
     for i, aa in enumerate(seq[:end], 1):
         if not ("A" <= aa <= "Z"):
             # PEFF also allows "*" (interruption) and "-" (gap); ProForma 2.0 residues are A-Z only.
-            raise PeffError(f"{name}: residue {aa!r} at position {i} cannot be written as ProForma (A-Z only)")
+            err = PeffError(f"{name}: residue {aa!r} at position {i} cannot be written as ProForma (A-Z only)")
+            err.add_note("hint: remove non-standard residues like '-' or '*' before converting to ProForma")
+            raise err
 
     head = "".join(f"[{tag}]" + (f"^{count}" if count > 1 else "") for tag, count in unknown.items())
     if head:
@@ -284,5 +298,7 @@ def _to_proforma(entry: SequenceEntry, mods: ModVocabulary, variants: Iterable[V
 
 def _check_position(pos: int | str, n: int, what: str, name: str) -> int:
     if not isinstance(pos, int) or not 1 <= pos <= n:
-        raise PeffError(f"{name}: {what} position {pos!r} is not a residue position (1..{n})")
+        err = PeffError(f"{name}: {what} position {pos!r} is not a residue position (1..{n})")
+        err.add_note(f"hint: position must be an integer between 1 and {n}")
+        raise err
     return pos

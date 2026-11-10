@@ -105,8 +105,9 @@ def test_to_fasta_writes_a_typed_key_once_when_extra_repeats_it() -> None:
 
 @pytest.mark.parametrize("header", ["", ">", "   "])
 def test_from_fasta_empty_header(header: str) -> None:
-    with pytest.raises(PeffError, match="Empty"):
+    with pytest.raises(PeffError, match="Empty") as info:
         SequenceEntry.from_fasta(header, "MK")
+    assert any(n.startswith("hint:") for n in info.value.__notes__)
 
 
 def test_from_fasta_needs_prefix() -> None:
@@ -267,6 +268,7 @@ def test_to_proforma_errors(kwargs: dict, entry_kwargs: dict, match: str) -> Non
     e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MKV", **entry_kwargs)
     with pytest.raises(PeffError, match=match) as info:
         e.to_proforma(**kwargs)
+    assert any(n.startswith("hint:") for n in info.value.__notes__)
     if "mods" not in kwargs:
         assert str(info.value).startswith("x:1: ")  # names the entry
         assert e.to_proforma(**kwargs, errors="skip") is None
@@ -280,14 +282,17 @@ def test_to_proforma_site_past_the_end_names_accession_and_position() -> None:
     e = SequenceEntry(
         prefix="nxp", db_unique_id="NX_P1-2", sequence="MKV", mod_res_psi=(ModResPsi((2, 7), "MOD:00046", "p"),)
     )
-    with pytest.raises(PeffError, match=r"^nxp:NX_P1-2: ModResPsi position 7 is not a residue position \(1\.\.3\)"):
+    match_pos = r"^nxp:NX_P1-2: ModResPsi position 7 is not a residue position \(1\.\.3\)"
+    with pytest.raises(PeffError, match=match_pos) as info:
         e.to_proforma()
+    assert any(n.startswith("hint:") for n in info.value.__notes__)
     ok = SequenceEntry(prefix="nxp", db_unique_id="NX_P2", sequence="MKV")
     forms = [p for x in (e, ok) if (p := x.to_proforma(errors="skip")) is not None]
     assert forms == ["MKV"]
     assert ok.to_proforma(errors="skip") == ok.to_proforma() == "MKV"
-    with pytest.raises(PeffError, match="errors must be"):
+    with pytest.raises(PeffError, match="errors must be") as info2:
         ok.to_proforma(errors="ignore")  # type: ignore[call-overload]
+    assert any(n.startswith("hint:") for n in info2.value.__notes__)
 
 
 def test_to_proforma_same_site_in_psi_and_generic_written_once() -> None:
@@ -384,8 +389,9 @@ def test_every_valid_fixture_entry_renders(path: Path) -> None:
 def test_to_proforma_residue_outside_a_to_z_raises(seq: str) -> None:
     # PEFF allows "*" (interruption) and "-" (gap); a ProForma residue is one of A-Z.
     e = SequenceEntry(prefix="x", db_unique_id="1", sequence=seq)
-    with pytest.raises(PeffError, match=r"^x:1: residue .* at position 3 cannot be written as ProForma"):
+    with pytest.raises(PeffError, match=r"^x:1: residue .* at position 3 cannot be written as ProForma") as info:
         e.to_proforma()
+    assert any(n.startswith("hint:") for n in info.value.__notes__)
     assert e.to_proforma(errors="skip") is None
     assert e.to_proforma(variants=[VariantSimple(3, "*")]) == "MK"  # truncated before it: fine
 
@@ -525,16 +531,27 @@ def test_to_proforma_bare_number_in_generic_mod_res_is_not_a_cv_accession() -> N
 @pytest.mark.parametrize("new", ["k", "\u00e9", "1"])
 def test_to_proforma_variant_outside_a_to_z_names_the_variant(new: str) -> None:
     e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MKV")
-    with pytest.raises(PeffError, match=r"^x:1: VariantSimple at 2: new amino acid .* is not a single letter A-Z"):
+    match_var = r"^x:1: VariantSimple at 2: new amino acid .* is not a single letter A-Z"
+    with pytest.raises(PeffError, match=match_var) as info:
         e.to_proforma(variants=[VariantSimple(2, new)])
+    assert any(n.startswith("hint:") for n in info.value.__notes__)
+
+
+def test_to_proforma_conflicting_variants_raises_with_hint() -> None:
+    e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MKV")
+    with pytest.raises(PeffError, match="two different VariantSimple substitutions") as info:
+        e.to_proforma(variants=[VariantSimple(2, "A"), VariantSimple(2, "L")])
+    assert any(n.startswith("hint:") for n in info.value.__notes__)
 
 
 @pytest.mark.parametrize(("accession", "name"), [("", "a|b"), ("", "a#b"), ("MOD:00046|INFO:x", "p"), ("MOD:1#g", "p")])
 def test_to_proforma_pipe_or_hash_in_modification_raises(accession: str, name: str) -> None:
     # No ProForma escape: "|" would start a second tag and "#" a group label.
     e = SequenceEntry(prefix="x", db_unique_id="1", sequence="MKV", mod_res_psi=(ModResPsi((2,), accession, name),))
-    with pytest.raises(PeffError, match=r"^x:1: modification .* contains '[|#]' and cannot be written as ProForma"):
+    match_mod = r"^x:1: modification .* contains '[|#]' and cannot be written as ProForma"
+    with pytest.raises(PeffError, match=match_mod) as info:
         e.to_proforma()
+    assert any(n.startswith("hint:") for n in info.value.__notes__)
     assert e.to_proforma(errors="skip") is None
 
 
