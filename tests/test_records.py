@@ -157,12 +157,13 @@ def test_polars() -> None:
     assert df.filter(pl.col("variant_simple").is_not_null()).height == 9
 
 
-def _readme_block() -> str:
-    section = README.read_text(encoding="utf-8").split("## Tables with pandas or polars", 1)[1]
+def _tables_block(page: Path) -> str:
+    section = page.read_text(encoding="utf-8").split("Tables with pandas or polars", 1)[1]
     return re.search(r"```python\n(.*?)```", section, re.S).group(1)  # type: ignore[union-attr]
 
 
-def test_readme_example(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("page", [README, README.parent / "docs" / "tables.md"], ids=["readme", "tables-guide"])
+def test_tables_example(page: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     pytest.importorskip("pandas")
     pytest.importorskip("polars")
     (tmp_path / "proteins.peff").write_bytes((FIXTURES / "SmallTestDB-PEFF1.0.peff").read_bytes())
@@ -170,5 +171,5 @@ def test_readme_example(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     ns: dict[str, object] = {}
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        exec(_readme_block(), ns)
+        exec(_tables_block(page), ns)
     assert len(ns["with_variants"]) == 9  # type: ignore[arg-type]

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Documentation
+
+- Add a tables guide with the record-export API reference and executable pandas/polars examples.
+
 ## [1.2.2] (2026-11-06)
 
 ### Fixed
