@@ -210,8 +210,8 @@ human = pl.DataFrame(records).filter(pl.col("ncbi_tax_id") == 9606)
 ```
 
 `PeffReader.to_records()` and `SequenceEntry.to_record()` give the same dicts. The file
-header is not included. Every record has these keys, in this order
-(`pefftacular.RECORD_KEYS`); an absent value is `None`:
+header is not included. Every record has these keys, grouped by type below; the record's
+own key order is `pefftacular.RECORD_KEYS`. An absent value is `None`:
 
 | key | type | from |
 |---|---|---|
