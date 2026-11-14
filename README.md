@@ -224,6 +224,11 @@ own key order is `pefftacular.RECORD_KEYS`. An absent value is `None`:
 | `custom_values`, `extra` | str | header-declared custom keys / unknown keys as `\Key=value` text |
 | `sequence` | str | the residues |
 
+`from_records(records, header)` is the inverse: it turns records back into entries for
+`write_peff`, and it raises rather than quietly dropping a column, so a frame that has
+lost one does not become a PEFF file that has lost it too. Pass the header the records
+came from, because only a key its `CustomKeyDef`s declare is read back as a custom value.
+
 The same fields in [fastatacular](https://github.com/tacular-omics/fastatacular) records have
 other names where each package follows its own model. Rename these to put both in one
 frame:
