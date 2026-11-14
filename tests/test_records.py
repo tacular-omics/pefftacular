@@ -1,3 +1,4 @@
+import dataclasses
 import io
 import re
 import warnings
@@ -5,7 +6,16 @@ from pathlib import Path
 
 import pytest
 
-from pefftacular import RECORD_KEYS, PeffReader, SequenceEntry, read_peff, to_records
+from pefftacular import (
+    RECORD_KEYS,
+    PeffParseError,
+    PeffReader,
+    PeffWriteError,
+    SequenceEntry,
+    from_records,
+    read_peff,
+    to_records,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 README = Path(__file__).resolve().parents[1] / "README.md"
@@ -172,3 +182,164 @@ def test_readme_example(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
         warnings.simplefilter("ignore")
         exec(_readme_block(), ns)
     assert len(ns["with_variants"]) == 9  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# from_records: records back to entries
+# ---------------------------------------------------------------------------
+
+# The PSI "INValid" tiny example and the pre-1.0 draft are not readable PEFF 1.0 at all,
+# so there is nothing to round-trip; test_excluded_fixtures_are_unreadable proves it.
+_UNREADABLE = {"PEFF_Tiny_INValid1.peff", "SmallTestDB-PEFF0.9.peff"}
+_ROUND_TRIP = sorted(p for p in FIXTURES.rglob("*.peff") if p.name not in _UNREADABLE)
+
+
+def _entry_record(**overrides: object) -> dict:
+    """One record for a minimal entry, with *overrides* applied."""
+    entry = SequenceEntry(prefix="sp", db_unique_id="P1", sequence="ACDEFGHIKL", pname="Alpha")
+    record = to_records([entry])[0]
+    record.update(overrides)  # type: ignore[arg-type]
+    return record
+
+
+class TestFromRecordsRoundTrip:
+    @pytest.mark.parametrize("path", _ROUND_TRIP, ids=lambda p: p.name)
+    def test_fixture_round_trips(self, path: Path) -> None:
+        header, entries = _read(path)
+        assert from_records(to_records(entries), header) == entries
+
+    def test_excluded_fixtures_are_unreadable(self) -> None:
+        # The exclusion list above must stay honest: each name is unreadable, not just awkward.
+        for name in _UNREADABLE:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                with pytest.raises(PeffParseError):
+                    read_peff(FIXTURES / name)
+
+    def test_the_sweep_actually_covers_custom_values(self) -> None:
+        # Without this the headline case could drop out of the sweep unnoticed.
+        carriers = {
+            path.name: sum(len(e.custom_values) for e in _read(path)[1])
+            for path in _ROUND_TRIP
+            if any(e.custom_values for e in _read(path)[1])
+        }
+        assert carriers == {"custom_keys.peff": 2}
+
+    def test_custom_values_survive_both_directions(self) -> None:
+        header, entries = _read(FIXTURES / "custom_keys.peff")
+        records = to_records(entries)
+        assert records[0]["custom_values"] is not None
+        back = from_records(records, header)
+        assert [e.custom_values for e in back] == [e.custom_values for e in entries]
+        assert all(not e.extra for e in back)  # nothing fell through to the unknown-key bucket
+
+    def test_entries_can_be_written_again(self) -> None:
+        from pefftacular import write_peff
+
+        header, entries = _read(FIXTURES / "custom_keys.peff")
+        buf = io.StringIO()
+        write_peff(header, from_records(to_records(entries), header), buf)
+        buf.seek(0)
+        assert _read(buf)[1] == entries
+
+
+class TestFromRecordsRejects:
+    def test_missing_key(self) -> None:
+        record = _entry_record()
+        del record["custom_values"]
+        with pytest.raises(PeffWriteError, match=r"missing key\(s\) 'custom_values'") as err:
+            from_records([record])
+        assert err.value.index == 0
+
+    def test_unknown_key(self) -> None:
+        with pytest.raises(PeffWriteError, match=r"unknown key\(s\) 'oops'"):
+            from_records([_entry_record(oops="x")])
+
+    def test_custom_values_without_a_header(self) -> None:
+        records = to_records(_read(FIXTURES / "custom_keys.peff")[1])
+        with pytest.raises(PeffWriteError, match=r"no CustomKeyDef declares"):
+            from_records(records)
+
+    def test_custom_values_with_a_header_that_lacks_the_key(self) -> None:
+        header, entries = _read(FIXTURES / "custom_keys.peff")
+        stripped = tuple(dataclasses.replace(db, custom_key_defs=()) for db in header.databases)
+        bare = dataclasses.replace(header, databases=stripped)
+        with pytest.raises(PeffWriteError, match=r"no CustomKeyDef declares"):
+            from_records(to_records(entries), bare)
+
+    def test_a_key_set_twice(self) -> None:
+        with pytest.raises(PeffWriteError, match=r"extra repeats \\PName="):
+            from_records([_entry_record(extra=r"\PName=other")])
+
+    @pytest.mark.parametrize("value", [9606.5, "nine", True, [9606]])
+    def test_a_bad_int(self, value: object) -> None:
+        with pytest.raises(PeffWriteError, match=r"ncbi_tax_id="):
+            from_records([_entry_record(ncbi_tax_id=value)])
+
+    @pytest.mark.parametrize("value", ["yes", 2, 1.5])
+    def test_a_bad_bool(self, value: object) -> None:
+        with pytest.raises(PeffWriteError, match=r"decoy="):
+            from_records([_entry_record(decoy=value)])
+
+    @pytest.mark.parametrize("key", ["prefix", "db_unique_id", "sequence"])
+    def test_a_missing_identity_value(self, key: str) -> None:
+        with pytest.raises(PeffWriteError, match=rf"{key} is missing"):
+            from_records([_entry_record(**{key: None})])
+
+    @pytest.mark.parametrize("key", ["prefix", "db_unique_id", "sequence", "variant_simple", "extra"])
+    def test_an_empty_text_value(self, key: str) -> None:
+        with pytest.raises(PeffWriteError, match=rf"{key} (is empty|holds no)"):
+            from_records([_entry_record(**{key: ""})])
+
+    def test_text_that_is_not_what_the_writer_emits(self) -> None:
+        # PEFF tolerates a space between items, the writer never writes one, and a silent
+        # rewrite is the thing this function exists to prevent.
+        with pytest.raises(PeffWriteError, match=r"reads back as '\(3\|A\)\(10\|G\)'"):
+            from_records([_entry_record(variant_simple="(3|A) (10|G)")])
+
+    def test_not_a_mapping(self) -> None:
+        with pytest.raises(PeffWriteError, match=r"is not a mapping"):
+            from_records([["prefix", "sp"]])  # type: ignore[list-item]
+
+
+class TestFromRecordsValues:
+    def test_an_empty_string_is_a_value_not_an_absence(self) -> None:
+        kept = from_records([_entry_record(pname="")])[0]
+        gone = from_records([_entry_record(pname=None)])[0]
+        assert (kept.pname, gone.pname) == ("", None)
+
+    @pytest.mark.parametrize("missing", [None, float("nan")])
+    def test_frame_missing_markers_are_absences(self, missing: object) -> None:
+        assert from_records([_entry_record(pname=missing)])[0].pname is None
+
+    @pytest.mark.parametrize("value", [9606, 9606.0, "9606", " 9606 "])
+    def test_int_columns_accept_frame_values(self, value: object) -> None:
+        assert from_records([_entry_record(ncbi_tax_id=value)])[0].ncbi_tax_id == 9606
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [(True, True), (False, False), (1, True), (0, False), ("true", True), ("false", False)],
+    )
+    def test_decoy_accepts_frame_values(self, value: object, expected: bool) -> None:
+        assert from_records([_entry_record(decoy=value)])[0].decoy is expected
+
+    def test_every_record_key_is_handled(self) -> None:
+        # A column added to RECORD_KEYS without a home in from_records would be ignored,
+        # which is the silent data loss this function exists to prevent.
+        from pefftacular._records import _IDENTITY_KEYS, _SINGLE_KEYS, _VERBATIM_KEYS
+
+        handled = {column for column, _ in _SINGLE_KEYS} | set(_IDENTITY_KEYS) | set(_VERBATIM_KEYS)
+        assert handled == set(RECORD_KEYS)
+
+    def test_the_peff_key_names_match_the_library(self) -> None:
+        # _PEFF_KEYS above is this module's own copy; it must not drift from the library's.
+        from pefftacular._records import _SINGLE_KEYS
+
+        assert dict(_SINGLE_KEYS) == _PEFF_KEYS
+
+
+def test_from_records_after_a_pandas_round_trip() -> None:
+    pd = pytest.importorskip("pandas")
+    header, entries = _read(FIXTURES / "custom_keys.peff")
+    frame = pd.DataFrame(to_records(entries))
+    assert from_records(frame.to_dict("records"), header) == entries

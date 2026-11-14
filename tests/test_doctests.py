@@ -15,15 +15,15 @@ from types import ModuleType
 
 import pefftacular
 
-# Measured 2026-11-08 on Python 3.13.7: the walk finds 9 modules and they hold 0
-# ``>>>`` examples between them. Raise these when you add modules or examples; never
+# Measured 2026-11-14 on Python 3.13.7: the walk finds 9 modules and they hold 5
+# ``>>>`` examples between them, all in ``_records.from_records``. Raise these when you add modules or examples; never
 # lower them without saying why in the commit message.
 #
-# MIN_EXAMPLES is 0 and that assert is inert on purpose - it arms itself the moment
-# the first example lands. MIN_MODULES is the floor doing the work today: a walk that
+# MIN_EXAMPLES is now armed: ``from_records`` brought the package's first five examples,
+# so a docstring that loses them fails here. MIN_MODULES is the other floor: a walk that
 # silently collects nothing also reports zero failures, and only this count notices.
 MIN_MODULES = 9
-MIN_EXAMPLES = 0
+MIN_EXAMPLES = 5
 
 
 def _all_modules() -> list[ModuleType]:
