@@ -206,7 +206,12 @@ class TestFromRecordsRoundTrip:
     @pytest.mark.parametrize("path", _ROUND_TRIP, ids=lambda p: p.name)
     def test_fixture_round_trips(self, path: Path) -> None:
         header, entries = _read(path)
-        assert from_records(to_records(entries), header) == entries
+        with warnings.catch_warnings():
+            # One fixture's \Length disagrees with its sequence, so reading it warns and
+            # rebuilding it warns again. The round trip is what is under test here.
+            warnings.simplefilter("ignore")
+            rebuilt = from_records(to_records(entries), header)
+        assert rebuilt == entries
 
     def test_excluded_fixtures_are_unreadable(self) -> None:
         # The exclusion list above must stay honest: each name is unreadable, not just awkward.
@@ -297,6 +302,22 @@ class TestFromRecordsRejects:
         with pytest.raises(PeffWriteError, match=r"reads back as '\(3\|A\)\(10\|G\)'"):
             from_records([_entry_record(variant_simple="(3|A) (10|G)")])
 
+    def test_a_non_string_text_value(self) -> None:
+        with pytest.raises(PeffWriteError, match=r"pname=123 is not a string"):
+            from_records([_entry_record(pname=123)])
+
+    @pytest.mark.parametrize("column", ["custom_values", "extra"])
+    def test_text_with_no_key_at_all(self, column: str) -> None:
+        with pytest.raises(PeffWriteError, match=rf"{column}='junk' holds no"):
+            from_records([_entry_record(**{column: "junk"})])
+
+    def test_a_value_the_reader_would_not_accept(self) -> None:
+        # A space in the prefix makes the description line unparseable; the parse error is
+        # wrapped so the record's index comes with it.
+        with pytest.raises(PeffWriteError, match=r"would not read back: Invalid description line") as err:
+            from_records([_entry_record(prefix="x y")])
+        assert err.value.index == 0
+
     def test_not_a_mapping(self) -> None:
         with pytest.raises(PeffWriteError, match=r"is not a mapping"):
             from_records([["prefix", "sp"]])  # type: ignore[list-item]
@@ -311,6 +332,13 @@ class TestFromRecordsValues:
     @pytest.mark.parametrize("missing", [None, float("nan")])
     def test_frame_missing_markers_are_absences(self, missing: object) -> None:
         assert from_records([_entry_record(pname=missing)])[0].pname is None
+
+    def test_pandas_missing_markers_are_absences(self) -> None:
+        # pandas.NA is the one marker that cannot be compared: NA != NA is NA, whose truth
+        # value raises, so it takes its own branch.
+        pd = pytest.importorskip("pandas")
+        entry = from_records([_entry_record(pname=pd.NA, ncbi_tax_id=pd.NaT)])[0]
+        assert (entry.pname, entry.ncbi_tax_id) == (None, None)
 
     @pytest.mark.parametrize("value", [9606, 9606.0, "9606", " 9606 "])
     def test_int_columns_accept_frame_values(self, value: object) -> None:
