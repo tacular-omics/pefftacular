@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- `write_peff()` no longer doubles the backslashes in a quoted `CustomKeyDef` value, so a
+  header that declares a `RegExp` is written the way the spec writes it (§3.3.2 gives
+  `RegExp="([0-9]+)\|([0-9]+)\|..."`, one backslash before each pipe). Reading the spec's
+  own example and writing it back produced `RegExp="([0-9]+)\\|..."`, which another reader
+  taking the quoted value literally compiles as an alternation around a literal backslash
+  instead of a pipe. pefftacular's own reader undid its own doubling, so the models
+  round-tripped and only the text was wrong. A file written by 1.3.0 or earlier still reads
+  back to the same regex and is now rewritten in the spec's form. A value the literal form
+  cannot hold, one with two consecutive backslashes or ending in one, still has every
+  backslash escaped, since that is what reads back.
+
 ## [1.3.0] (2026-11-14)
 
 ### Added

@@ -166,18 +166,39 @@ def _serialize_proteoform(items: tuple[Proteoform, ...]) -> str:
     return "".join(parts)
 
 
-def _quote_keydef_value(value: str) -> str:
-    """Escape ``"`` and ``\\`` inside a quoted CustomKeyDef value."""
+def _quote_keydef_value(value: str, *, field: str) -> str:
+    r"""Quote a CustomKeyDef value, keeping backslashes literal where that reads back.
+
+    A backslash is literal in a quoted header value: the spec's own example (§3.3.2) writes
+    ``RegExp="([0-9]+)\|([0-9]+)\|..."`` with one backslash before each pipe, so doubling
+    them hands another reader a regex that matches a literal backslash instead of a pipe.
+    Only ``"`` is escaped, therefore, and the reader is the oracle for whether that survives:
+    the quoted text is parsed back with :func:`_parse_keydef_field`.
+
+    A few values cannot be written that way, because the reader also reads ``\\`` as one
+    backslash and would stop at a backslash before the closing quote: a value holding two
+    consecutive backslashes, or ending in one. Those fall back to escaping every backslash,
+    which always reads back, so no value is refused and none is written as something else.
+    """
+    from pefftacular._parser import _parse_keydef_field
+
+    def reads_back(quoted: str) -> bool:
+        parsed = _parse_keydef_field(f'{field}="{quoted}"')
+        return parsed is not None and parsed[1] == value
+
+    literal = value.replace('"', '\\"')
+    if reads_back(literal):
+        return literal
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def _serialize_custom_key_def(ckd: CustomKeyDef) -> str:
     """Serialize a single CustomKeyDef to its parenthesized form."""
-    parts = [f"KeyName={ckd.key_name}", f'Description="{_quote_keydef_value(ckd.description)}"']
+    parts = [f"KeyName={ckd.key_name}", f'Description="{_quote_keydef_value(ckd.description, field="Description")}"']
     if ckd.concept_curie is not None:
         parts.append(f"ConceptCURIE={ckd.concept_curie}")
     if ckd.regexp is not None:
-        parts.append(f'RegExp="{_quote_keydef_value(ckd.regexp)}"')
+        parts.append(f'RegExp="{_quote_keydef_value(ckd.regexp, field="RegExp")}"')
     if ckd.field_names:
         parts.append(f"FieldNames={','.join(ckd.field_names)}")
     if ckd.field_types:

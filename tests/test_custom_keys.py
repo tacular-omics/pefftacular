@@ -324,3 +324,79 @@ class TestCustomKeysRoundTrip:
             _, entries = read_peff(buf)
         assert entries[0].custom_values["Note"][0].fields == {"A": "x", "B": hostile}
         assert entries[0].id is None
+
+
+# ---------------------------------------------------------------------------
+# A quoted CustomKeyDef value keeps its backslashes (spec 3.3.2)
+# ---------------------------------------------------------------------------
+
+_RX_HEADER = (
+    "# PEFF 1.0\n"
+    "# //\n"
+    "# DbName=test\n"
+    "# Prefix=cu\n"
+    "# DbVersion=1\n"
+    "# DbSource=regexp-escaping\n"
+    "# SequenceType=AA\n"
+    "# NumberOfEntries=1\n"
+)
+# The spec writes one backslash before each pipe inside the quoted value.
+_RX_KEYDEF = '# CustomKeyDef=(KeyName=Score|Description="a score"|RegExp="([a-z]+\\|[0-9.]+)")\n'
+_RX_ENTRY = ">cu:P1 \\Score=(blast|0.99)\nACDEF\n"
+
+
+def _keydef_line(text: str) -> str:
+    return next(line for line in text.splitlines() if line.startswith("# CustomKeyDef="))
+
+
+def _written(text: str) -> str:
+    header, entries = read_peff(StringIO(text))
+    buf = StringIO()
+    write_peff(header, entries, buf)
+    return buf.getvalue()
+
+
+class TestQuotedKeyDefBackslashes:
+    def test_spec_form_round_trips_byte_identical(self) -> None:
+        text = _RX_HEADER + _RX_KEYDEF + "# //\n" + _RX_ENTRY
+        assert _keydef_line(_written(text)) + "\n" == _RX_KEYDEF
+
+    def test_the_written_regexp_still_means_what_it_said(self) -> None:
+        # The point of the single backslash: another tool reads the quoted value literally.
+        # Doubled, `([a-z]+\\|[0-9.]+)` is an alternation of `[a-z]+\` and `[0-9.]+`, and
+        # matches neither the whole value nor the pipe.
+        import re
+
+        text = _RX_HEADER + _RX_KEYDEF + "# //\n" + _RX_ENTRY
+        line = _keydef_line(_written(text))
+        regexp = line.split('RegExp="', 1)[1].rsplit('"', 1)[0]
+        assert re.compile(regexp).fullmatch("blast|0.99") is not None
+
+    def test_a_doubled_value_is_rewritten_in_spec_form(self) -> None:
+        # What pefftacular wrote up to 1.3.0. It still reads back as the same regex, and is
+        # now written the way the spec writes it.
+        doubled = _RX_KEYDEF.replace("\\|", "\\\\|")
+        assert doubled != _RX_KEYDEF
+        text = _RX_HEADER + doubled + "# //\n" + _RX_ENTRY
+        written = _written(text)
+        assert _keydef_line(written) + "\n" == _RX_KEYDEF
+        assert read_peff(StringIO(written))[0].databases[0].custom_key_defs[0].regexp == r"([a-z]+\|[0-9.]+)"
+
+    @pytest.mark.parametrize(
+        "value",
+        [r"([a-z]+\|[0-9.]+)", "a\\\\b", "a\\", 'a"b', r"\d+", "plain"],
+        ids=["spec-pipe", "two-backslashes", "trailing-backslash", "quote", "digit-class", "plain"],
+    )
+    def test_every_backslash_shape_survives_a_round_trip(self, value: str) -> None:
+        # Values the quoted form cannot hold literally fall back to escaping every
+        # backslash, so none is refused and none is written as something else.
+        text = _RX_HEADER + _RX_KEYDEF + "# //\n>cu:P1\nACDEF\n"
+        header, entries = read_peff(StringIO(text))
+        db = header.databases[0]
+        ckd = dataclasses.replace(db.custom_key_defs[0], regexp=value, description=value)
+        edited = dataclasses.replace(header, databases=(dataclasses.replace(db, custom_key_defs=(ckd,)),))
+        buf = StringIO()
+        write_peff(edited, entries, buf)
+        buf.seek(0)
+        back = read_peff(buf)[0].databases[0].custom_key_defs[0]
+        assert (back.regexp, back.description) == (value, value)
