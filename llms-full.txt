@@ -55,7 +55,7 @@ from pefftacular import (
     # header models
     FileHeader, DatabaseHeader, CustomKeyDef, OptionalTagDef,
     # entry model
-    SequenceEntry,
+    SequenceEntry, VariantForm,
     # annotation models
     VariantSimple, VariantComplex, ModResUnimod, ModResPsi, ModRes,
     Processed, DisulfideBond, Proteoform, SequenceRange, CustomKeyValue,
@@ -458,6 +458,64 @@ entry.to_proforma(*, mods: "psimod" | "unimod" = "psimod",
     'MS[MOD:00046]TK'
     >>> e.to_fasta()
     ('sp|P1', 'MSTK')
+
+#### Variants (methods on SequenceEntry)
+
+```
+entry.apply_variants(variants: Iterable[VariantSimple | VariantComplex] = (),
+                     *, errors: "raise" | "skip" = "raise") -> VariantForm   # None with errors="skip"
+entry.variant_forms(*, max_combination: int = 1, proteoforms: bool = False,
+                    mandatory: bool = False, include_reference: bool = True,
+                    limit: int = 10_000) -> Iterator[VariantForm]
+```
+
+The sequence line holds the reference sequence; `\VariantSimple` (§3.3.8) and
+`\VariantComplex` (§3.3.9) describe sequences it does not contain. `apply_variants` builds one.
+
+`VariantForm` is a frozen model (not hashable) with:
+
+| field | meaning |
+|---|---|
+| `entry` | the derived `SequenceEntry`: variant sequence, applied variants removed, every other annotation remapped |
+| `applied` | the variants applied, in the order given |
+| `position_map` | 1-based original position -> 1-based new position, `None` where the residue is gone; index 0 unused |
+| `truncated_at` | 1-based position of a `*` (nonsense) substitution, before which the sequence ends, else `None` |
+| `is_reference` | True for the entry as written |
+| `sequence` | shorthand for `entry.sequence` |
+
+- A `VariantSimple` substitutes one residue and never changes the length; `*` truncates.
+  A `VariantComplex` replaces `start_pos..end_pos` inclusive, so an empty `new_sequence` is a
+  deletion and a longer one an insertion after that residue (§3.3.9). A single-residue
+  `VariantComplex` is illegal in the spec: it is applied with a `PeffWarning`.
+- Annotations are carried onto the new coordinates. A modification site that was removed, or
+  that sits on a residue a `VariantSimple` substituted (§3.3.10), is dropped; a `?` position is
+  kept as written. `Processed`, un-applied `VariantComplex` and `Proteoform` ranges are remapped
+  by both endpoints and dropped, not clipped, when an endpoint is gone. `DisulfideBond` and
+  `Proteoform` hold annotation ids, not positions (§3.4.2), so they are copied, and the
+  annotation is dropped when a reference no longer resolves. `length` is recomputed when the
+  entry had one. Every drop emits a `PeffWarning`.
+- A non-numeric position, a position outside the sequence, a new residue that is not one letter
+  or `*`, and two variants that change the same position all raise `PeffError`: the spec does not
+  define how overlapping variants combine, so one per form.
+- `variant_forms` yields the reference form and then one form per variant, because a variant is
+  optional by default ("MAY be substituted", §3.3.8). `max_combination=k` applies up to k at
+  once and skips overlapping combinations with a warning; `limit` is checked before any sequence
+  is built; `proteoforms=True` applies the variants each `\Proteoform` references by id (§3.4.2);
+  `mandatory=True` gives the single form with everything applied, for a database whose header has
+  `ProteoformDb=true` (§3.4.1, read it from `DatabaseHeader.proteoform_db`). The iterator is
+  lazy. On the spec's insulin example with 70 `VariantSimple`: 71 forms by default, 2,486 for
+  every pair, 2**70 for the power set, 11 proteoforms declared.
+
+    >>> from pefftacular import SequenceEntry, VariantSimple, VariantComplex
+    >>> e = SequenceEntry(prefix="sp", db_unique_id="P1", sequence="MSTKW",
+    ...                   variant_simple=(VariantSimple(2, "C"),),
+    ...                   variant_complex=(VariantComplex(4, 5, ""),))
+    >>> e.apply_variants(e.variant_simple).sequence
+    'MCTKW'
+    >>> tuple(f.sequence for f in e.variant_forms())
+    ('MSTKW', 'MCTKW', 'MST')
+    >>> e.apply_variants(e.variant_complex).position_map
+    (None, 1, 2, 3, None, None)
 
 ## Tables (pandas, polars)
 

@@ -1,6 +1,6 @@
 """Frozen dataclass models for PEFF file structures."""
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import date, time
 from typing import Literal, overload
@@ -373,3 +373,170 @@ class SequenceEntry:
         from pefftacular._records import entry_to_record
 
         return entry_to_record(self)
+
+    # -- variants (logic in _variants.py; models stay plain data) -----------------------
+
+    @overload
+    def apply_variants(
+        self,
+        variants: Iterable["VariantSimple | VariantComplex"] = ...,
+        *,
+        errors: Literal["raise"] = ...,
+    ) -> "VariantForm": ...
+
+    @overload
+    def apply_variants(
+        self,
+        variants: Iterable["VariantSimple | VariantComplex"] = ...,
+        *,
+        errors: Literal["skip"],
+    ) -> "VariantForm | None": ...
+
+    def apply_variants(
+        self,
+        variants: Iterable["VariantSimple | VariantComplex"] = (),
+        *,
+        errors: Literal["raise", "skip"] = "raise",
+    ) -> "VariantForm | None":
+        r"""Apply *variants* to the sequence and return the resulting :class:`VariantForm`.
+
+        A PEFF entry's sequence line holds the reference sequence; ``\VariantSimple``
+        (spec §3.3.8) and ``\VariantComplex`` (§3.3.9) describe sequences it does not
+        contain. This builds one of them: the form's ``entry`` is an ordinary
+        :class:`SequenceEntry`, so ``to_proforma``, ``to_record`` and ``write_peff`` work
+        on it unchanged.
+
+        Every other annotation is carried onto the new coordinates through
+        ``VariantForm.position_map``:
+
+        - A modification site the variant removed is dropped, as is one on a residue a
+          ``VariantSimple`` substituted (§3.3.10: a modified variant needs its own entry).
+          A ``?`` position is kept as written. A modification left with no site is dropped.
+        - ``Processed``, un-applied ``VariantComplex`` and ``Proteoform`` ranges are
+          remapped by both endpoints, and dropped rather than clipped when either endpoint
+          was removed.
+        - ``DisulfideBond`` and ``Proteoform`` references are annotation ids, not positions
+          (§3.4.2), so they are copied; the annotation holding them is dropped when a
+          reference no longer resolves, including a reference to a variant this form
+          applied. A reference that was already dangling is left alone.
+        - ``length`` is recomputed when the entry had one; the applied variants are
+          removed from ``variant_simple`` / ``variant_complex``.
+
+        Each drop emits a :class:`PeffWarning`; nothing is silent.
+
+        Args:
+            variants: The variants to apply, usually a subset of ``self.variant_simple``
+                and ``self.variant_complex``. Empty gives the reference form.
+            errors: ``"raise"`` (default) raises :class:`PeffError`; ``"skip"`` returns
+                ``None`` instead.
+
+        Returns:
+            The :class:`VariantForm`, or ``None`` with ``errors="skip"``.
+
+        Raises:
+            PeffError: Unknown ``errors`` (always). With ``errors="raise"`` also a position
+                that is not a number, a position outside the sequence, a ``VariantSimple``
+                whose new residue is not a single letter or ``*``, or two variants that
+                change the same position: the spec does not define how overlapping
+                variants combine, so one per form.
+
+        Example:
+            >>> from pefftacular import SequenceEntry, VariantComplex, VariantSimple
+            >>> entry = SequenceEntry(prefix="sp", db_unique_id="P1", sequence="MSTKW",
+            ...                       variant_simple=(VariantSimple(2, "C"),),
+            ...                       variant_complex=(VariantComplex(4, 5, ""),))
+            >>> entry.apply_variants(entry.variant_simple).sequence
+            'MCTKW'
+            >>> entry.apply_variants(entry.variant_complex).position_map
+            (None, 1, 2, 3, None, None)
+            >>> tuple(form.sequence for form in entry.variant_forms())
+            ('MSTKW', 'MCTKW', 'MST')
+        """
+        from pefftacular._variants import entry_apply_variants
+
+        return entry_apply_variants(self, variants, errors=errors)
+
+    def variant_forms(
+        self,
+        *,
+        max_combination: int = 1,
+        proteoforms: bool = False,
+        mandatory: bool = False,
+        include_reference: bool = True,
+        limit: int = 10_000,
+    ) -> "Iterator[VariantForm]":
+        r"""Iterate over the sequence forms this entry describes.
+
+        A variant is optional by default ("MAY be substituted", spec §3.3.8), so the
+        default yields the reference form and then one form per variant - the linear
+        reading, and the only one that stays bounded on real files. The spec's insulin
+        example (§3.4.2, shipped as ``tests/fixtures/PEFF_AnnotID_Insulin_Valid.peff``)
+        carries 70 ``VariantSimple`` annotations: 71 forms by default, 2,486 for every
+        pair, and 2**70 for the full power set, against the 11 proteoforms the file
+        itself declares.
+
+        Args:
+            max_combination: How many variants one form may apply. Combinations whose
+                variants overlap are skipped with a :class:`PeffWarning`.
+            proteoforms: Yield one form per ``\Proteoform`` definition instead, applying
+                the variants it references by annotation id (§3.4.2). The reference form
+                is not added.
+            mandatory: Yield exactly one form with every variant applied, for an entry
+                from a database whose header has ``ProteoformDb=true``, where annotations
+                MUST all be applied (§3.4.1). Read the flag from
+                ``DatabaseHeader.proteoform_db``.
+            include_reference: Whether to yield the entry as written first.
+            limit: Ceiling on the number of forms. The count is computed before any
+                sequence is built, so an impossible request fails at once.
+
+        Yields:
+            One :class:`VariantForm` at a time; the iterator is lazy, so ``limit`` bounds
+            work rather than memory.
+
+        Raises:
+            PeffError: ``max_combination`` is negative, or the requested number of forms
+                is over ``limit``.
+        """
+        from pefftacular._variants import entry_variant_forms
+
+        return entry_variant_forms(
+            self,
+            max_combination=max_combination,
+            proteoforms=proteoforms,
+            mandatory=mandatory,
+            include_reference=include_reference,
+            limit=limit,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class VariantForm:
+    """One sequence form of an entry, with its variants applied.
+
+    Returned by :meth:`SequenceEntry.apply_variants` and
+    :meth:`SequenceEntry.variant_forms`.
+
+    Attributes:
+        entry: The derived entry: the variant ``sequence``, the applied variants removed,
+            every other annotation remapped. An ordinary :class:`SequenceEntry`.
+        applied: The variants that were applied, in the order given.
+        position_map: 1-based original position to 1-based position in
+            ``entry.sequence``, ``None`` where the variant removed the residue. Index 0 is
+            unused, so ``position_map[p]`` reads naturally.
+        truncated_at: The 1-based position of a ``*`` (nonsense) substitution, before
+            which the sequence ends (spec §3.3.8), or ``None``.
+        is_reference: True for the entry as written, with no variant applied.
+    """
+
+    __hash__ = None  # type: ignore[assignment]
+
+    entry: SequenceEntry
+    applied: tuple[VariantSimple | VariantComplex, ...]
+    position_map: tuple[int | None, ...]
+    truncated_at: int | None = None
+    is_reference: bool = False
+
+    @property
+    def sequence(self) -> str:
+        """Shorthand for ``self.entry.sequence``."""
+        return self.entry.sequence

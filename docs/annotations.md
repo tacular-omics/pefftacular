@@ -83,17 +83,16 @@ for v in insulin.variant_simple:
 # A12V dbSNP
 ```
 
-To build the variant sequence, replace one residue:
+`apply_variants` builds the variant sequence:
 
 ```python
-def apply_simple(sequence: str, variant) -> str:
-    i = variant.position - 1
-    return sequence[:i] + variant.new_amino_acid + sequence[i + 1 :]
-
-mutant = apply_simple(insulin.sequence, insulin.variant_simple[1])
-print(mutant[:15])
-# MALWMRLLPLLVLLA
+form = insulin.apply_variants([insulin.variant_simple[1]])
+print(form.sequence[:15], len(form.sequence))
+# MALWMRLLPLLVLLA 110
 ```
+
+A `VariantSimple` never changes the length (spec §3.3.8). A `*` is a nonsense mutation: the
+sequence ends before that position and `form.truncated_at` holds it.
 
 ### `VariantComplex`: a stretch changes
 
@@ -106,10 +105,70 @@ vc = insulin.variant_complex[0]
 print(vc.start_pos, vc.end_pos, repr(vc.new_sequence))
 # 1 3 'M'
 
-variant = insulin.sequence[: vc.start_pos - 1] + vc.new_sequence + insulin.sequence[vc.end_pos :]
-print(variant[:10], len(variant))
+form = insulin.apply_variants([vc])
+print(form.sequence[:10], len(form.sequence))
 # MWMRLLPLLA 108
 ```
+
+### Applying variants
+
+`apply_variants` returns a `VariantForm`. Its `entry` is an ordinary `SequenceEntry`, so
+`to_proforma`, `to_record` and `write_peff` work on it unchanged, and `position_map` says where
+every original residue went: 1-based on both sides, `None` where the variant removed it.
+
+```python
+print(form.position_map[1], form.position_map[3], form.position_map[4])
+# None None 2
+```
+
+Every other annotation is carried onto the new coordinates, and each one that cannot be is
+dropped with a `PeffWarning` rather than left pointing at the wrong residue:
+
+```python
+print([(p.name, p.start_pos, p.end_pos) for p in form.entry.processed])
+# [('mature protein', 23, 52)]
+print([(m.positions, m.name) for m in form.entry.mod_res_psi])
+# [((29,), 'half cystine'), ((94,), 'half cystine')]
+print(form.entry.length)
+# 108
+```
+
+The signal peptide (1-24) and the `preproinsulin` proteoform (1-110) are gone: both start at
+position 1, which this variant replaced, and a range that lost a bound is dropped rather than
+quietly clipped. A modification on a residue a `VariantSimple` substituted is dropped too, because
+the spec says such a proteoform needs its own entry (§3.3.10).
+
+### Enumerating the forms
+
+A variant is optional unless the database says otherwise ("MAY be substituted", §3.3.8), so
+`variant_forms` yields the entry as written and then one form per variant:
+
+```python
+forms = list(insulin.variant_forms())
+print(len(forms), forms[0].is_reference)
+# 4 True
+print([len(f.applied) for f in forms])
+# [0, 1, 1, 1]
+```
+
+Combinations grow fast, so they are opt-in and bounded. `max_combination=k` applies up to `k`
+variants at once, `limit` (10,000 by default) caps the count and is checked before a single
+sequence is built, and overlapping variants are skipped with a warning, since the spec does not
+define how they combine. For the forms the file itself means, pass `proteoforms=True`, which
+applies the variants each `\Proteoform` references by annotation id (§3.4.2):
+
+```python
+print(len(list(insulin.variant_forms(max_combination=3))))
+# 8
+print(len(list(insulin.variant_forms(proteoforms=True))))
+# 2
+```
+
+The difference matters on real files. The spec's own insulin example
+(`tests/fixtures/PEFF_AnnotID_Insulin_Valid.peff`) carries 70 `VariantSimple` annotations: 71
+forms by default, 2,486 for every pair, 2\*\*70 for the full power set, and 11 proteoforms it
+declares itself. For a database whose header has `ProteoformDb=true`, where every annotation MUST
+be applied (§3.4.1), pass `mandatory=True` to get that one sequence.
 
 ## Modifications
 
