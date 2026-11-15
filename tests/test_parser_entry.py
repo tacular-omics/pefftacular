@@ -167,3 +167,107 @@ class TestPositionHelpers:
 
         assert parse_position is _parse_position
         assert parse_position("?") == "?"
+
+
+class TestRepeatedDescriptionKeys:
+    """Spec 3.3.3 forbids repeating a key, but real files do it.
+
+    A key whose value is a list of items keeps every occurrence's items; any
+    other repeated key keeps the last value and warns about the one it drops.
+    """
+
+    HEADER = (
+        "# PEFF 1.0\n# //\n# DbName=t\n# Prefix=t\n# DbVersion=1\n# DbSource=x\n"
+        "# NumberOfEntries=1\n# SequenceType=AA\n"
+    )
+    CUSTOM = '# CustomKeyDef=(KeyName=Foo|Description="d"|FieldNames=f)\n'
+
+    def _read(self, description, *, header_extra=""):
+        from pefftacular import read_peff
+
+        data = f"{self.HEADER}{header_extra}# //\n>t:X1 {description}\nMKTLL\n"
+        return read_peff(StringIO(data))[1][0]
+
+    def _read_quietly(self, description, *, header_extra=""):
+        """Read and fail if anything warns."""
+        import warnings
+
+        from pefftacular import PeffWarning
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PeffWarning)
+            return self._read(description, header_extra=header_extra)
+
+    def test_repeated_annotation_key_keeps_every_item(self):
+        e = self._read_quietly(r"\VariantSimple=(1|A) \VariantSimple=(2|C)")
+        assert [(v.position, v.new_amino_acid) for v in e.variant_simple] == [(1, "A"), (2, "C")]
+
+    def test_items_keep_file_order_across_three_occurrences(self):
+        e = self._read_quietly(r"\ModRes=(1||a) \ModRes=(2||b) \ModRes=(3||c)")
+        assert [m.name for m in e.mod_res] == ["a", "b", "c"]
+
+    def test_repeat_with_an_escape_uses_the_scanning_path(self):
+        e = self._read_quietly(r"\ModRes=(1||a\|b) \ModRes=(2||c)")
+        assert [(m.positions, m.name) for m in e.mod_res] == [((1,), "a|b"), ((2,), "c")]
+
+    def test_repeated_custom_key_keeps_every_item(self):
+        e = self._read_quietly(r"\Foo=(a) \Foo=(b)", header_extra=self.CUSTOM)
+        assert [v.fields["f"] for v in e.custom_values["Foo"]] == ["a", "b"]
+        # Same result as writing the two items under one key.
+        one = self._read_quietly(r"\Foo=(a)(b)", header_extra=self.CUSTOM)
+        assert e.custom_values == one.custom_values
+
+    def test_repeated_scalar_key_warns_and_keeps_the_last(self):
+        import pytest
+
+        from pefftacular import PeffWarning
+
+        with pytest.warns(PeffWarning, match=r"key 'PName' appears more than once.*'first' is dropped"):
+            e = self._read(r"\PName=first \PName=second")
+        assert e.pname == "second"
+        assert "PName" not in e.extra
+
+    def test_repeated_undeclared_key_warns_and_keeps_the_last(self):
+        import pytest
+
+        from pefftacular import PeffWarning
+
+        with pytest.warns(PeffWarning, match="key 'Bar' appears more than once"):
+            e = self._read(r"\Bar=(a) \Bar=(b)")
+        assert e.extra["Bar"] == "(b)"
+
+    def test_bare_custom_value_is_not_glued_together(self):
+        """A value that is not a list of items cannot be concatenated."""
+        import pytest
+
+        from pefftacular import PeffWarning
+
+        with pytest.warns(PeffWarning, match="key 'Foo' appears more than once"):
+            e = self._read(r"\Foo=a \Foo=b", header_extra=self.CUSTOM)
+        assert [v.fields["f"] for v in e.custom_values["Foo"]] == ["b"]
+
+    def test_warning_names_the_entry(self):
+        import pytest
+
+        from pefftacular import PeffWarning
+
+        with pytest.warns(PeffWarning, match="Entry t:X1"):
+            self._read(r"\PName=first \PName=second")
+
+    def test_psi_valid_example_keeps_both_modification_sites(self):
+        """``PEFF_Tiny_Valid.peff`` repeats ``\\ModResUnimod`` (spec 3.3.3)."""
+        import io
+        import warnings
+
+        from pefftacular import PeffWarning, read_peff, write_peff
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PeffWarning)
+            header, entries = read_peff(FIXTURES / "PEFF_Tiny_Valid.peff")
+        entry = next(e for e in entries if e.db_unique_id.startswith("gi"))
+        assert [m.positions for m in entry.mod_res_unimod] == [(15,), ("?",)]
+
+        buf = io.StringIO()
+        write_peff(header, entries, buf)
+        line = next(line for line in buf.getvalue().splitlines() if line.startswith(">nr:gi"))
+        assert r"\ModResUnimod=(15|UNIMOD:4|Carbamidomethyl)(?|UNIMOD:4|Carbamidomethyl)" in line

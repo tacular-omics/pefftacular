@@ -175,8 +175,13 @@ Full signatures and examples: `llms-full.txt`.
 - **`write_peff` streams.** It formats into a `SpooledTemporaryFile` and copies to `dest`
   only after every entry passed, so nothing is written on error. Do not reintroduce
   `list(entries)`.
-- **Duplicate keys go opposite ways in the two formats.** On a PEFF description line the
-  last `\Key=` wins silently. In a FASTA header read by `from_fasta` the **first**
+- **Duplicate keys go opposite ways in the two formats.** On a PEFF description line a
+  repeated `\Key=` whose value is a list of items (an annotation key or a declared custom
+  key) keeps the items of every occurrence, in file order; `split_description_keys` still
+  returns last-wins and reports the dropped values through its `repeats` out-parameter,
+  which is what keeps `tests/test_lexer_fast_paths.py` comparing equal to the 1.0
+  reference. `_merge_repeated_keys` in `_parser.py` applies the rule, and warns for any
+  other repeated key. In a FASTA header read by `from_fasta` the **first**
   `KEY=value` wins and later occurrences are dropped, matching fastatacular; they are not
   moved to `extra`, or the entry would report two values for one key and `to_fasta` would
   write it twice. `to_fasta` also writes a key held by both a typed field and `extra`

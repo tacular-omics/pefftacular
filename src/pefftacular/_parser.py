@@ -833,6 +833,60 @@ def _warn_on_invalid_annotations(entry: SequenceEntry) -> None:
             )
 
 
+# Keys whose value is a list of parenthesized items (spec sections 3.3.8-3.3.13). A key
+# must not repeat on a description line, but when one does, concatenating the items of
+# every occurrence keeps the data; for any other key there is nothing to concatenate.
+_LIST_VALUED_KEYS = frozenset(
+    {
+        "VariantSimple",
+        "VariantComplex",
+        "ModResUnimod",
+        "ModResPsi",
+        "ModRes",
+        "Processed",
+        "DisulfideBond",
+        "Proteoform",
+    }
+)
+
+
+def _ends_with_item(value: str) -> bool:
+    """True when *value* ends with an unescaped ``)``, so it is a list of items."""
+    if not value.endswith(")"):
+        return False
+    backslashes = len(value[:-1]) - len(value[:-1].rstrip("\\"))
+    return backslashes % 2 == 0
+
+
+def _merge_repeated_keys(
+    raw_keys: dict[str, str],
+    repeats: list[tuple[str, str]],
+    uid: str,
+    custom_key_defs: Mapping[str, CustomKeyDef] | None,
+) -> None:
+    """Keep the items of a repeated list-valued key instead of only the last one.
+
+    Spec section 3.3.3 says the same key must not appear twice in a description
+    line, but files do it, including the PSI's own ``PEFF_Tiny_Valid`` example, and
+    the same section lets a value hold "one item or a list of items". So for a key
+    whose value is such a list - the annotation keys and any header-declared custom
+    key - the occurrences are concatenated and nothing is lost. Any other repeat
+    keeps the last value, as before, and warns about the value it drops.
+    """
+    for name, earlier in reversed(repeats):
+        kept = raw_keys[name]
+        earlier = earlier.rstrip()
+        list_valued = name in _LIST_VALUED_KEYS or (custom_key_defs is not None and name in custom_key_defs)
+        if list_valued and _ends_with_item(earlier) and kept.startswith("("):
+            raw_keys[name] = earlier + kept
+            continue
+        warnings.warn(
+            f"Entry {uid}: key {name!r} appears more than once; the last value is used and {earlier!r} is dropped",
+            PeffWarning,
+            stacklevel=3,
+        )
+
+
 def _parse_entry(
     description: str,
     seq_lines: list[str],
@@ -854,7 +908,10 @@ def _parse_entry(
     db_unique_id = m.group(2)
     rest = m.group(3)
 
-    raw_keys = split_description_keys(rest)
+    repeats: list[tuple[str, str]] = []
+    raw_keys = split_description_keys(rest, repeats)
+    if repeats:
+        _merge_repeated_keys(raw_keys, repeats, f"{prefix}:{db_unique_id}", custom_key_defs)
     # Drop all whitespace, not just line ends: the writer rejects it, so keeping it
     # would make a read -> write round trip fail.
     sequence = "".join("".join(sl.split()) for sl in seq_lines)
