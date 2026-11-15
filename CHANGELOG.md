@@ -4,9 +4,42 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- The annotation validation pass now checks `\Proteoform` sequence ranges against the
+  entry's sequence bounds, warns on reversed sequence ranges (`start > end`) across
+  `VariantComplex`, `Processed`, and `Proteoform`, and warns on dangling annotation ID
+  references in `DisulfideBond` and `Proteoform`. Data parsing remains permissive while
+  emitting `PeffWarning` naming the entry and the offending values.
+- `write_peff()` no longer doubles the backslashes in a quoted `CustomKeyDef` value, so a
+  header that declares a `RegExp` is written the way the spec writes it (§3.3.2 gives
+  `RegExp="([0-9]+)\|([0-9]+)\|..."`, one backslash before each pipe). Reading the spec's
+  own example and writing it back produced `RegExp="([0-9]+)\\|..."`, which another reader
+  taking the quoted value literally compiles as an alternation around a literal backslash
+  instead of a pipe. pefftacular's own reader undid its own doubling, so the models
+  round-tripped and only the text was wrong. A file written by 1.3.0 or earlier still reads
+  back to the same regex and is now rewritten in the spec's form. A value the literal form
+  cannot hold, one with two consecutive backslashes or ending in one, still has every
+  backslash escaped, since that is what reads back.
+
 ### Documentation
 
 - Add a tables guide with the record-export API reference and executable pandas/polars examples.
+
+## [1.3.0] (2026-11-14)
+
+### Added
+
+- `from_records()`, the inverse of `to_records()`: it turns flat records (a data frame's
+  rows) back into `SequenceEntry` objects for `write_peff()`. Each record must carry every
+  key in `RECORD_KEYS`, and a missing key, an unknown key, a key set twice, a bad value or
+  a value that would not read back as itself raises `PeffWriteError` with the record's
+  `index`, because a dropped column is how a caller loses data without noticing. `None`,
+  float `NaN` and the pandas/polars missing markers mean the entry has no value for that
+  key, while `""` is an empty value and is kept, since a PEFF file can hold one. The
+  optional second argument is the file header, read only for its `CustomKeyDef`
+  declarations: without it a record's `custom_values` raises instead of being read back as
+  unknown keys, so those values cannot be silently dropped.
 
 ## [1.2.2] (2026-11-06)
 

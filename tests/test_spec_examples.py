@@ -557,7 +557,11 @@ class TestInsulinExample:
 
     def test_short_disulfide_example(self) -> None:
         # "\DisulfideBond=(15:1,2|between chains)"
-        (bond,) = _entry(r"\DisulfideBond=(15:1,2|between chains)").disulfide_bond
+        desc = (
+            r"\ModResPsi=(1:31|MOD:00798|half cystine)(2:96|MOD:00798|half cystine)"
+            r" \DisulfideBond=(15:1,2|between chains)"
+        )
+        (bond,) = _entry(desc).disulfide_bond
         assert (bond.annot_id, bond.annot_id_refs, bond.description) == (15, (1, 2), "between chains")
 
     def test_writes_back(self) -> None:

@@ -210,8 +210,8 @@ human = pl.DataFrame(records).filter(pl.col("ncbi_tax_id") == 9606)
 ```
 
 `PeffReader.to_records()` and `SequenceEntry.to_record()` give the same dicts. The file
-header is not included. Every record has these keys, grouped by type
-(`pefftacular.RECORD_KEYS`); an absent value is `None`:
+header is not included. Every record has these keys, grouped by type below; the record's
+own key order is `pefftacular.RECORD_KEYS`. An absent value is `None`:
 
 | key | type | from |
 |---|---|---|
@@ -223,6 +223,11 @@ header is not included. Every record has these keys, grouped by type
 | `variant_simple`, `variant_complex`, `mod_res_unimod`, `mod_res_psi`, `mod_res`, `processed`, `disulfide_bond`, `proteoform` | str | the annotation's PEFF value text, e.g. `(12\|L)(30\|*)` |
 | `custom_values`, `extra` | str | header-declared custom keys / unknown keys as `\Key=value` text |
 | `sequence` | str | the residues |
+
+`from_records(records, header)` is the inverse: it turns records back into entries for
+`write_peff`, and it raises rather than quietly dropping a column, so a frame that has
+lost one does not become a PEFF file that has lost it too. Pass the header the records
+came from, because only a key its `CustomKeyDef`s declare is read back as a custom value.
 
 The same fields in [fastatacular](https://github.com/tacular-omics/fastatacular) records have
 other names where each package follows its own model. Rename these to put both in one

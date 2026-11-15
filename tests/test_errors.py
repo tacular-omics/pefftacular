@@ -182,7 +182,47 @@ class TestAnnotationValidationWarnings:
     def test_disulfide_refs_not_range_checked(self) -> None:
         # DisulfideBond values are annotation-ID references, not residue
         # positions, so high values must NOT trigger a range warning.
-        data = _HEADER + ">t:X1 \\DisulfideBond=(100,200|refs)\nMKTLL\n"
+        data = (
+            _HEADER
+            + ">t:X1 \\ModResPsi=(100:1|MOD:00798|half cystine)(200:2|MOD:00798|half cystine)"
+            + " \\DisulfideBond=(100,200|refs)\nMKTLL\n"
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            read_peff(StringIO(data))
+
+    def test_proteoform_range_out_of_bounds_warns(self) -> None:
+        data = _HEADER + ">t:P1 \\Proteoform=(pf1|1-999||whole)\nACDEFGHIKL\n"
+        with pytest.warns(PeffWarning, match="Proteoform position 999 is out of range 1..10"):
+            read_peff(StringIO(data))
+
+    def test_variant_complex_reversed_range_warns(self) -> None:
+        data = _HEADER + ">t:P1 \\VariantComplex=(8|3|AC)\nACDEFGHIKL\n"
+        with pytest.warns(PeffWarning, match="VariantComplex range start 8 is greater than end 3"):
+            read_peff(StringIO(data))
+
+    def test_processed_reversed_range_warns(self) -> None:
+        data = _HEADER + ">t:P1 \\Processed=(9|2|PEFF:0001020|mature protein)\nACDEFGHIKL\n"
+        with pytest.warns(PeffWarning, match="Processed range start 9 is greater than end 2"):
+            read_peff(StringIO(data))
+
+    def test_proteoform_reversed_range_warns(self) -> None:
+        data = _HEADER + ">t:P1 \\Proteoform=(pf1|8-3||x)\nACDEFGHIKL\n"
+        with pytest.warns(PeffWarning, match="Proteoform range start 8 is greater than end 3"):
+            read_peff(StringIO(data))
+
+    def test_disulfide_dangling_annot_id_ref_warns(self) -> None:
+        data = _HEADER + ">t:P1 \\DisulfideBond=(1:7,8|between chains)\nACDEFGHIKL\n"
+        with pytest.warns(PeffWarning, match="DisulfideBond references unknown annotation ID 7"):
+            read_peff(StringIO(data))
+
+    def test_proteoform_dangling_annot_id_ref_warns(self) -> None:
+        data = _HEADER + ">t:P1 \\Proteoform=(pf1|1-5|7,8|x)\nACDEFGHIKL\n"
+        with pytest.warns(PeffWarning, match="Proteoform references unknown annotation ID 7"):
+            read_peff(StringIO(data))
+
+    def test_unknown_position_does_not_warn(self) -> None:
+        data = _HEADER + ">t:P1 \\ModResPsi=(?|MOD:00046|x)\nACDEFGHIKL\n"
         with warnings.catch_warnings():
             warnings.simplefilter("error", UserWarning)
             read_peff(StringIO(data))

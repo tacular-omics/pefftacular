@@ -22,7 +22,7 @@ from pefftacular._models import (
     VariantSimple,
 )
 from pefftacular._parser import PeffReader, read_peff
-from pefftacular._records import RECORD_KEYS, to_records
+from pefftacular._records import RECORD_KEYS, from_records, to_records
 from pefftacular._writer import write_peff
 from pefftacular.errors import (
     PeffError,
@@ -40,7 +40,7 @@ from pefftacular.errors import (
 #     logging.getLogger("pefftacular").setLevel(logging.DEBUG)
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-__version__ = "1.2.2"
+__version__ = "1.3.0"
 
 __all__ = [
     "Compression",
@@ -66,6 +66,7 @@ __all__ = [
     "SpecificKeyDef",
     "VariantComplex",
     "VariantSimple",
+    "from_records",
     "read_peff",
     "to_records",
     "write_peff",
