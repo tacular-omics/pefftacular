@@ -10,7 +10,9 @@ compressed (`compression="infer"|"gzip"|"bz2"|"xz"|None`, pandas-style). Write w
 (`verify=False` skips the read-back check for unchanged entries).
 `SequenceEntry.from_fasta(header, sequence)` / `entry.to_fasta()` convert to and from plain
 FASTA (UniProt-style header strings), and `entry.to_proforma(mods="psimod"|"unimod",
-variants=...)` renders a ProForma 2.0 string. `to_records(path)` returns flat dicts
+variants=...)` renders a ProForma 2.0 string. `entry.apply_variants(...)` and
+`entry.variant_forms()` build the sequences a `\VariantSimple` or `\VariantComplex` describes,
+as `VariantForm` objects that remap every other annotation. `to_records(path)` returns flat dicts
 for `pandas.DataFrame(...)` / `polars.DataFrame(...)` (neither is a dependency). All models are frozen dataclasses importable from the
 package root (`SequenceEntry` is not hashable: it holds dicts). `PeffReader` must be used
 in a `with` block. Parsing is permissive: spec violations are reported as `PeffWarning`

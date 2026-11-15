@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `SequenceEntry.apply_variants()` and `SequenceEntry.variant_forms()`, with the new
+  `VariantForm` model: build the sequence a `\VariantSimple` or `\VariantComplex` describes
+  (§3.3.8, §3.3.9) instead of only reading the annotation. `VariantForm.entry` is an ordinary
+  `SequenceEntry`, so `to_proforma()`, `to_record()` and `write_peff()` work on it unchanged, and
+  `position_map` says where every original residue went. Modifications, `\Processed`,
+  `\Proteoform` and the un-applied variants are remapped onto the new coordinates; anything that
+  cannot be remapped is dropped with a `PeffWarning` rather than left pointing at the wrong
+  residue. `variant_forms()` yields the reference form and then one form per variant, with
+  `max_combination=`, a `limit=` checked before any sequence is built, `proteoforms=True` for the
+  combinations a file declares through annotation ids (§3.4.2), and `mandatory=True` for a
+  `ProteoformDb=true` database (§3.4.1).
+
 ### Fixed
 
 - A repeated `\Key=` on a description line no longer drops data. The spec forbids

@@ -19,6 +19,7 @@ from pefftacular._models import (
     SequenceRange,
     SpecificKeyDef,
     VariantComplex,
+    VariantForm,
     VariantSimple,
 )
 from pefftacular._parser import PeffReader, read_peff
@@ -65,6 +66,7 @@ __all__ = [
     "SequenceRange",
     "SpecificKeyDef",
     "VariantComplex",
+    "VariantForm",
     "VariantSimple",
     "from_records",
     "read_peff",
