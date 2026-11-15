@@ -341,6 +341,24 @@ class TestAnnotationRemapping:
         assert (proteoform.ranges[0].start, proteoform.ranges[0].end) == (4, 7)
         assert proteoform.annot_id_refs == (1,)
 
+    def test_site_already_past_the_sequence_end_is_dropped(self) -> None:
+        # The reader warns about such a site but keeps it; it cannot be remapped.
+        entry = _entry(r"\ModResPsi=(99|MOD:00046|O-phospho-L-serine) \VariantComplex=(4|6|)")
+        with pytest.warns(PeffWarning, match="the residue was removed"):
+            form = entry.apply_variants(entry.variant_complex)
+        assert form.entry.mod_res_psi == ()
+
+    def test_dropped_processed_takes_its_references_with_it(self) -> None:
+        entry = _entry(
+            r"\Processed=(1:5|10|PEFF:0001021|mature protein) \VariantComplex=(4|6|) "
+            r"\Proteoform=(pf1|1-7|1|the mature form)",
+            header_extra="# HasAnnotationIdentifiers=true\n",
+        )
+        with pytest.warns(PeffWarning, match="Processed .* a bound was removed"):
+            form = entry.apply_variants(entry.variant_complex)
+        assert form.entry.processed == ()
+        assert form.entry.proteoform == ()  # its only reference is gone
+
     def test_other_fields_and_custom_values_survive(self) -> None:
         entry = _entry(r"\PName=Insulin \GName=INS \NcbiTaxId=9606 \Unknown=x \VariantComplex=(4|6|)")
         form = _quiet(entry, entry.variant_complex)
@@ -438,6 +456,15 @@ class TestFormCounts:
             warnings.simplefilter("ignore", PeffWarning)
             forms = list(entry.variant_forms(proteoforms=True))
         assert len(forms) == 11
+
+    def test_a_proteoform_of_contradictory_variants_is_skipped(self) -> None:
+        entry = _entry(
+            r"\VariantSimple=(1:4|W)(2:4|Y) \Proteoform=(pf1|1-10|1,2|both at once)",
+            header_extra="# HasAnnotationIdentifiers=true\n",
+        )
+        with pytest.warns(PeffWarning, match="proteoform pf1 skipped: .* both change position 4"):
+            forms = list(entry.variant_forms(proteoforms=True))
+        assert forms == []
 
     def test_limit_raises_before_any_sequence_is_built(self) -> None:
         entry = self._insulin()

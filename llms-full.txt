@@ -512,8 +512,8 @@ The sequence line holds the reference sequence; `\VariantSimple` (§3.3.8) and
     ...                   variant_complex=(VariantComplex(4, 5, ""),))
     >>> e.apply_variants(e.variant_simple).sequence
     'MCTKW'
-    >>> [f.sequence for f in e.variant_forms()]
-    ['MSTKW', 'MCTKW', 'MST']
+    >>> tuple(f.sequence for f in e.variant_forms())
+    ('MSTKW', 'MCTKW', 'MST')
     >>> e.apply_variants(e.variant_complex).position_map
     (None, 1, 2, 3, None, None)
 

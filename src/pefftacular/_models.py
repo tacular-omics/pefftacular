@@ -449,8 +449,8 @@ class SequenceEntry:
             'MCTKW'
             >>> entry.apply_variants(entry.variant_complex).position_map
             (None, 1, 2, 3, None, None)
-            >>> [form.sequence for form in entry.variant_forms()]
-            ['MSTKW', 'MCTKW', 'MST']
+            >>> tuple(form.sequence for form in entry.variant_forms())
+            ('MSTKW', 'MCTKW', 'MST')
         """
         from pefftacular._variants import entry_apply_variants
 
