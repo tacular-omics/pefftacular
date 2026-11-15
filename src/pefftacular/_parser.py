@@ -699,7 +699,8 @@ def _warn_on_invalid_annotations(entry: SequenceEntry) -> None:
 
     Parsing stays permissive — the data is always returned as-is — but the
     reader flags the common validity violations from spec sections 3.3.8–3.3.13:
-    empty required fields, and residue positions outside ``1..len(sequence)``.
+    empty required fields, residue positions outside ``1..len(sequence)``,
+    reversed sequence ranges (start > end), and dangling annotation ID references.
     Positions given as non-integers (e.g. ``?`` for "unknown") are not bounded.
     Note that ``DisulfideBond`` values are annotation-ID references, not residue
     positions, so they are intentionally not range-checked here.
@@ -751,6 +752,52 @@ def _warn_on_invalid_annotations(entry: SequenceEntry) -> None:
             if not m.name.strip():
                 warnings.warn(f"Entry {uid!r}: {label} name must be provided", PeffWarning, stacklevel=2)
 
+    # --- Reversed ranges (start > end) ---
+    range_annotations: list[tuple[str, int | str, int | str]] = []
+    for vc in entry.variant_complex:
+        range_annotations.append(("VariantComplex", vc.start_pos, vc.end_pos))
+    for pr in entry.processed:
+        range_annotations.append(("Processed", pr.start_pos, pr.end_pos))
+    for pf in entry.proteoform:
+        for r in pf.ranges:
+            range_annotations.append(("Proteoform", r.start, r.end))
+
+    for label, start, end in range_annotations:
+        if isinstance(start, int) and isinstance(end, int) and start > end:
+            warnings.warn(
+                f"Entry {uid!r}: {label} range start {start} is greater than end {end}",
+                PeffWarning,
+                stacklevel=2,
+            )
+
+    # --- Dangling annotation ID references ---
+    known_annot_ids: set[int] = set()
+    for anns in (
+        entry.variant_simple,
+        entry.variant_complex,
+        entry.mod_res_unimod,
+        entry.mod_res_psi,
+        entry.mod_res,
+        entry.processed,
+        entry.disulfide_bond,
+        entry.proteoform,
+    ):
+        for a in anns:
+            if a.annot_id is not None:
+                known_annot_ids.add(a.annot_id)
+
+    for label, refs in (
+        ("DisulfideBond", [r for db in entry.disulfide_bond for r in db.annot_id_refs]),
+        ("Proteoform", [r for pf in entry.proteoform for r in pf.annot_id_refs]),
+    ):
+        for ref in refs:
+            if isinstance(ref, int) and ref not in known_annot_ids:
+                warnings.warn(
+                    f"Entry {uid!r}: {label} references unknown annotation ID {ref}",
+                    PeffWarning,
+                    stacklevel=2,
+                )
+
     # --- Position bounds (only when the sequence length is known) ---
     seq_len = len(entry.sequence)
     if seq_len == 0:
@@ -772,6 +819,10 @@ def _warn_on_invalid_annotations(entry: SequenceEntry) -> None:
     for pr in entry.processed:
         positions.append(("Processed", pr.start_pos))
         positions.append(("Processed", pr.end_pos))
+    for pf in entry.proteoform:
+        for r in pf.ranges:
+            positions.append(("Proteoform", r.start))
+            positions.append(("Proteoform", r.end))
 
     for label, pos in positions:
         if isinstance(pos, int) and not (1 <= pos <= seq_len):
