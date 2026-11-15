@@ -22,6 +22,10 @@ All notable changes to this project will be documented in this file.
   cannot hold, one with two consecutive backslashes or ending in one, still has every
   backslash escaped, since that is what reads back.
 
+### Documentation
+
+- Add a tables guide with the record-export API reference and executable pandas/polars examples.
+
 ## [1.3.0] (2026-11-14)
 
 ### Added

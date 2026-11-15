@@ -41,6 +41,7 @@ nav:
   - Guides:
     - Annotations: annotations.md
     - From FASTA and UniProt: fasta.md
+    - Tables with pandas or polars: tables.md
   - API reference:
     - Reading and writing: api/io.md
     - File and database headers: api/headers.md
