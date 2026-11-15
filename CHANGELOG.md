@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- The annotation validation pass now checks `\Proteoform` sequence ranges against the
+  entry's sequence bounds, warns on reversed sequence ranges (`start > end`) across
+  `VariantComplex`, `Processed`, and `Proteoform`, and warns on dangling annotation ID
+  references in `DisulfideBond` and `Proteoform`. Data parsing remains permissive while
+  emitting `PeffWarning` naming the entry and the offending values.
 - `write_peff()` no longer doubles the backslashes in a quoted `CustomKeyDef` value, so a
   header that declares a `RegExp` is written the way the spec writes it (§3.3.2 gives
   `RegExp="([0-9]+)\|([0-9]+)\|..."`, one backslash before each pipe). Reading the spec's
