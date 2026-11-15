@@ -145,6 +145,13 @@ Full signatures and examples: `llms-full.txt`.
 - **`DisulfideBond.annot_id_refs`** holds annotation-ID references to prior
   `ModResPsi` entries, **not** residue positions (spec §3.4.2). That is why it is
   excluded from position-range validation.
+- **Quoted header values keep their backslashes.** `_quote_keydef_value` escapes only `"`
+  in a `CustomKeyDef` `Description` or `RegExp`, because a backslash is literal there and
+  the spec's own example writes `RegExp="([0-9]+)\|..."` with one. It asks the reader
+  (`_parse_keydef_field`) whether the result reads back and falls back to escaping every
+  backslash for the values the literal form cannot hold: two consecutive backslashes, or a
+  trailing one. Do not simplify that to one escaping rule; each covers what the other
+  cannot.
 - **Header flag casing.** `ProteoformDb` / `HasAnnotationIdentifiers` are parsed
   case-insensitively (also `IsProteoformDB`, `HasAnnotationIdentifier`) because the
   spec's own examples disagree with its text. The writer always emits
