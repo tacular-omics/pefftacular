@@ -110,3 +110,33 @@ class TestSplitDescriptionKeys:
     def test_escaped_backslash_after_space_is_not_a_key(self):
         result = split_description_keys(r"\PName=a \\ID=b \Length=5")
         assert result == {"PName": r"a \\ID=b", "Length": "5"}
+
+
+class TestRepeatedKeysInLexer:
+    """``split_description_keys`` keeps last-wins and reports what it dropped."""
+
+    def test_mapping_keeps_the_last_value(self):
+        assert split_description_keys(r"\PName=a \PName=b") == {"PName": "b"}
+
+    def test_repeats_collects_every_earlier_value_in_file_order(self):
+        repeats: list[tuple[str, str]] = []
+        keys = split_description_keys(r"\ModRes=(1||a) \PName=x \ModRes=(2||b) \ModRes=(3||c)", repeats)
+        assert keys == {"ModRes": "(3||c)", "PName": "x"}
+        assert repeats == [("ModRes", "(1||a)"), ("ModRes", "(2||b)")]
+
+    def test_repeats_is_empty_without_a_repeat(self):
+        repeats: list[tuple[str, str]] = []
+        split_description_keys(r"\PName=a \Length=5", repeats)
+        assert repeats == []
+
+    def test_escaped_path_reports_repeats_too(self):
+        # An escape in the value forces the scanning path, not the fast path.
+        repeats: list[tuple[str, str]] = []
+        keys = split_description_keys(r"\ModRes=(1||a\|b) \ModRes=(2||c)", repeats)
+        assert keys == {"ModRes": "(2||c)"}
+        assert repeats == [("ModRes", r"(1||a\|b)")]
+
+    def test_valueless_key_repeated(self):
+        repeats: list[tuple[str, str]] = []
+        assert split_description_keys(r"\Decoy \Decoy", repeats) == {"Decoy": ""}
+        assert repeats == [("Decoy", "")]

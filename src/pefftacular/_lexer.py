@@ -210,7 +210,7 @@ def _split_fields_escaped(item: str) -> list[str]:
     return fields
 
 
-def split_description_keys(rest: str) -> dict[str, str]:
+def split_description_keys(rest: str, repeats: list[tuple[str, str]] | None = None) -> dict[str, str]:
     r"""Parse the annotation portion of a description line into ``{key: raw_value}``.
 
     Scans for ``\Key=value`` boundaries at paren depth 0.
@@ -220,11 +220,16 @@ def split_description_keys(rest: str) -> dict[str, str]:
     Spec escapes (section 3.3.3) are honoured: ``\(`` / ``\)`` do not change
     depth, and ``\\`` / ``\|`` never start a key, so an escaped unbalanced
     paren or an escaped backslash in a value cannot swallow or split keys.
+
+    The mapping keeps the **last** value of a repeated key. A key must not repeat
+    (spec section 3.3.3), but real files do, so pass *repeats* to learn about it:
+    every occurrence but the last appends ``(key, value)`` to it, in file order.
+    The caller decides what to do with those values; the lexer itself drops them.
     """
     if not rest:
         return {}
     if not any(esc in rest for esc in _ESCAPES):
-        return _split_description_keys_plain(rest)
+        return _split_description_keys_plain(rest, repeats)
 
     keys: dict[str, str] = {}
     depth = 0
@@ -245,18 +250,18 @@ def split_description_keys(rest: str) -> dict[str, str]:
             case "\\" if depth == 0 and (i == 0 or rest[i - 1] == " "):
                 # Close previous key-value if one is open
                 if current_start is not None:
-                    _store_key_value(keys, rest[current_start:i].rstrip())
+                    _store_key_value(keys, rest[current_start:i].rstrip(), repeats)
                 current_start = i
         i += 1
 
     # Store last token
     if current_start is not None:
-        _store_key_value(keys, rest[current_start:])
+        _store_key_value(keys, rest[current_start:], repeats)
 
     return keys
 
 
-def _split_description_keys_plain(rest: str) -> dict[str, str]:
+def _split_description_keys_plain(rest: str, repeats: list[tuple[str, str]] | None = None) -> dict[str, str]:
     """``split_description_keys`` for text without escapes.
 
     Every paren counts, so a `` \\`` is a key start when the parens before it
@@ -270,23 +275,27 @@ def _split_description_keys_plain(rest: str) -> dict[str, str]:
     for part in parts[1:]:
         if depth == 0:
             if token is not None:
-                _store_key_value(keys, " \\".join(token).rstrip())
+                _store_key_value(keys, " \\".join(token).rstrip(), repeats)
             token = ["\\" + part]
         elif token is not None:
             token.append(part)
         depth += part.count("(") - part.count(")")
     if token is not None:
-        _store_key_value(keys, " \\".join(token))
+        _store_key_value(keys, " \\".join(token), repeats)
     return keys
 
 
-def _store_key_value(keys: dict[str, str], token: str) -> None:
-    r"""Parse a ``\Key=value`` token and insert into *keys*."""
+def _store_key_value(keys: dict[str, str], token: str, repeats: list[tuple[str, str]] | None = None) -> None:
+    r"""Parse a ``\Key=value`` token and insert into *keys*.
+
+    A repeated key overwrites, as it always has; *repeats*, when given, collects
+    the value that is overwritten so the caller can keep it.
+    """
     # Strip leading backslash
     token = token.lstrip("\\")
     eq_idx = token.find("=")
-    if eq_idx == -1:
-        # Key with no value (e.g. ``\Decoy``)
-        keys[token] = ""
-    else:
-        keys[token[:eq_idx]] = token[eq_idx + 1 :]
+    # A key with no value (e.g. ``\Decoy``) holds the empty string.
+    name = token if eq_idx == -1 else token[:eq_idx]
+    if repeats is not None and name in keys:
+        repeats.append((name, keys[name]))
+    keys[name] = "" if eq_idx == -1 else token[eq_idx + 1 :]

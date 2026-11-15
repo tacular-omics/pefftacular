@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- A repeated `\Key=` on a description line no longer drops data. The spec forbids
+  repeating a key (§3.3.3), but files do it, including the PSI's own `PEFF_Tiny_Valid`
+  example, where `\ModResUnimod` appears twice and pefftacular kept only the second site,
+  silently, on read and on write. A repeated key whose value is a list of items - an
+  annotation key or a header-declared custom key - now keeps the items of every
+  occurrence, in file order; any other repeated key keeps the last value as before and
+  warns with a `PeffWarning` naming the value it drops.
 - The annotation validation pass now checks `\Proteoform` sequence ranges against the
   entry's sequence bounds, warns on reversed sequence ranges (`start > end`) across
   `VariantComplex`, `Processed`, and `Proteoform`, and warns on dangling annotation ID
