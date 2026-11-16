@@ -187,6 +187,40 @@ class TestCustomValueCoercion:
         assert kv.fields["n"] == "not_a_number"
         assert any("cannot coerce" in str(w.message) for w in caught)
 
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("true", True),
+            ("True", True),
+            ("TRUE", True),
+            ("1", True),
+            ("yes", True),
+            ("YES", True),
+            ("false", False),
+            ("False", False),
+            ("FALSE", False),
+            ("0", False),
+            ("no", False),
+            ("NO", False),
+        ],
+    )
+    def test_boolean_recognised_spellings(self, value, expected):
+        kv = self._read(
+            '(KeyName=Foo|Description="b"|FieldNames=v|FieldTypes=boolean)',
+            f"({value})",
+        )
+        assert kv.fields["v"] is expected
+
+    def test_boolean_unrecognised_warns_and_keeps_string(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            kv = self._read(
+                '(KeyName=Foo|Description="b"|FieldNames=v|FieldTypes=boolean)',
+                "(maybe)",
+            )
+        assert kv.fields["v"] == "maybe"
+        assert any("cannot coerce" in str(w.message) for w in caught)
+
     def test_regex_mismatch_warns(self):
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
