@@ -20,6 +20,10 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- An unrecognised value in a header-declared `boolean` custom field is now reported with a
+  `PeffWarning` and kept as the raw string, like every other field type, instead of being
+  silently read as `False`. `true`, `1`, `yes`, `false`, `0` and `no` are still recognised,
+  case-insensitively, and coerce to the matching `bool`.
 - A repeated `\Key=` on a description line no longer drops data. The spec forbids
   repeating a key (§3.3.3), but files do it, including the PSI's own `PEFF_Tiny_Valid`
   example, where `\ModResUnimod` appears twice and pefftacular kept only the second site,

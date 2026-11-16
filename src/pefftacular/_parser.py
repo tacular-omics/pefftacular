@@ -345,7 +345,17 @@ def _coerce_field(raw: str, xsd_type: str | None, *, key_name: str, field_name: 
         if t == "decimal":
             return float(raw)
         if t == "boolean":
-            return raw.strip().lower() in ("true", "1", "yes")
+            normalized = raw.strip().lower()
+            if normalized in ("true", "1", "yes"):
+                return True
+            if normalized in ("false", "0", "no"):
+                return False
+            warnings.warn(
+                f"Custom key {key_name!r}: cannot coerce field {field_name!r}={raw!r} to {t}",
+                PeffWarning,
+                stacklevel=3,
+            )
+            return raw
         if t == "date":
             return date.fromisoformat(raw)
         if t == "time":
