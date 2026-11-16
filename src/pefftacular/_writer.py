@@ -31,7 +31,7 @@ from pefftacular._models import (
     VariantSimple,
 )
 from pefftacular._parser import _parse_custom_value, _parse_entry, _parse_file_header
-from pefftacular.errors import PeffError, PeffWriteError
+from pefftacular.errors import PeffError, PeffWarning, PeffWriteError
 
 logger = logging.getLogger("pefftacular.writer")
 
@@ -529,6 +529,13 @@ def write_peff(
     unchanged, or that you have already written once. The basic checks (empty or
     malformed prefix, id or sequence, line breaks, duplicate keys) always run.
 
+    A ``PeffWarning`` (never an exception) is issued when the entries written disagree with
+    the header: a database's ``NumberOfEntries`` differs from the entries written under its
+    prefix, an entry's prefix matches no database block (once per prefix), an entry's
+    ``Length`` differs from its sequence, or a ``prefix:DbUniqueId`` is written twice. These
+    run whatever ``verify`` is, and a header without ``NumberOfEntries`` or without database
+    blocks makes no claim, so it gets no count warning.
+
     ``compression`` works like the pandas argument of that name. With ``"infer"`` (the
     default) a path ending in ``.gz``, ``.bz2`` or ``.xz`` (any case) is written
     compressed in that format and any other path or an open handle as plain text.
@@ -561,7 +568,7 @@ def write_peff(
         max_size=_SPOOL_BYTES, mode="w+", encoding="utf-8", errors="surrogatepass", newline=""
     )
     with spool:
-        count = _format_entries(entries, defs_by_prefix, spool, verify=verify)
+        count = _format_entries(entries, defs_by_prefix, spool, verify=verify, header=header)
         spool.seek(0)
         if isinstance(dest, (str, Path)):
             path = Path(dest)
@@ -678,9 +685,19 @@ def _format_entries(
     out: IO[str],
     *,
     verify: bool,
+    header: FileHeader,
 ) -> int:
-    """Validate and format each entry into *out*; return the number of entries."""
+    """Validate and format each entry into *out*; return the number of entries.
+
+    Also reports, as ``PeffWarning``, what the reader would complain about on the file
+    being written, plus a repeated ``prefix:DbUniqueId`` which it never reports. The
+    messages are collected inside the block that silences the verify re-parse and emitted
+    after it, still before anything reaches the destination.
+    """
     count = 0
+    pending: list[str] = []
+    counts_by_prefix: dict[str, int] = {}
+    seen_ids: set[tuple[str, str]] = set()
     # Re-parsing warns on spec violations the reader tolerates; the writer only raises.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -766,6 +783,47 @@ def _format_entries(
                     _check_entry_reads_back(entry, text, defs_by_prefix.get(entry.prefix, {}))
                 except PeffWriteError as err:
                     raise PeffWriteError(str(err), index=index, hint=err.hint) from err
+            # Facts only the writer can see: a Length that disagrees with the sequence and an
+            # identifier written twice (the reader notices neither).
+            if entry.length is not None and entry.length != len(entry.sequence):
+                pending.append(
+                    f"Entry {entry.prefix}:{entry.db_unique_id!r}: Length={entry.length} but sequence has "
+                    f"{len(entry.sequence)} residues"
+                )
+            key = (entry.prefix, entry.db_unique_id)
+            if key in seen_ids:
+                pending.append(f"Entry {entry.prefix}:{entry.db_unique_id!r} is written more than once")
+            else:
+                seen_ids.add(key)
+            counts_by_prefix[entry.prefix] = counts_by_prefix.get(entry.prefix, 0) + 1
             out.write(text)
             count += 1
+    pending.extend(_header_count_messages(header, counts_by_prefix))
+    for message in pending:
+        warnings.warn(message, PeffWarning, stacklevel=3)
     return count
+
+
+def _header_count_messages(header: FileHeader, counts_by_prefix: dict[str, int]) -> list[str]:
+    """Describe where the entries written disagree with the header's database blocks.
+
+    The count wording matches the reader's. A database with no ``NumberOfEntries`` is not
+    checked, and when the header declares no database at all nothing is undeclared, so
+    entries are not reported against a header that makes no claim about them.
+    """
+    messages: list[str] = []
+    declared = {db.prefix for db in header.databases if db.prefix}
+    for db in header.databases:
+        if db.prefix and db.number_of_entries is not None:
+            actual = counts_by_prefix.get(db.prefix, 0)
+            if actual != db.number_of_entries:
+                messages.append(
+                    f"Database {db.prefix!r}: NumberOfEntries={db.number_of_entries} but file contains {actual} entries"
+                )
+    if declared:
+        for prefix, written in counts_by_prefix.items():
+            if prefix not in declared:
+                messages.append(
+                    f"Entry prefix {prefix!r} matches no database in the header ({written} entries written)"
+                )
+    return messages
