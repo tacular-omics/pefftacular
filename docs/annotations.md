@@ -294,7 +294,9 @@ for value in entry.custom_values["SecondaryStructure"]:
 
 Supported `FieldTypes` are `string`, `integer`, `decimal`, `boolean`, `date`, `time` and
 `enumeration(a|b|c)`. A value that does not fit its type stays a string and raises a
-`PeffWarning`. With no `RegExp`, the value is split on `|` and paired with `FieldNames` in order.
+`PeffWarning`: a `boolean` field accepts `true`, `1`, `yes`, `false`, `0` and `no`,
+case-insensitively, and any other value warns and stays a string rather than being read as
+`False`. With no `RegExp`, the value is split on `|` and paired with `FieldNames` in order.
 
 `raw` keeps the original text. The writer uses it only while it still matches `fields`, so a
 read-then-write round trip reproduces the value exactly, and an edit made with
