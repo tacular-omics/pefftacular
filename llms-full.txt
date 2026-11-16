@@ -657,9 +657,11 @@ How values are parsed, for each parenthesized item (or a single bare value):
    did not participate are omitted. A non-matching item warns and gets empty `fields`.
 2. Otherwise the item is split on unescaped `|` and zipped with `field_names`.
 3. Each field is coerced by the matching `field_types` entry: `integer` → int, `decimal` →
-   float, `boolean` → `true`/`1`/`yes`, `date`/`time` → ISO `datetime.date`/`datetime.time`,
-   `string` → str, `enumeration(a|b|c)` → str (warns if not a member). A failed coercion
-   warns and keeps the raw string. Missing or unknown types stay str.
+   float, `boolean` → bool from `true`/`1`/`yes`/`false`/`0`/`no` (case-insensitive, outer
+   whitespace ignored; any other value warns and keeps the raw string, it is not read as
+   `False`), `date`/`time` → ISO `datetime.date`/`datetime.time`, `string` → str,
+   `enumeration(a|b|c)` → str (warns if not a member). A failed coercion warns and keeps the
+   raw string. Missing or unknown types stay str.
 4. An invalid `regexp` warns (on every value) and the value is then split on `|` instead.
 
 ```python
