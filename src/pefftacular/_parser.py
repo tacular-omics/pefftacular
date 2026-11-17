@@ -860,12 +860,25 @@ _LIST_VALUED_KEYS = frozenset(
 )
 
 
-def _ends_with_item(value: str) -> bool:
-    """True when *value* ends with an unescaped ``)``, so it is a list of items."""
+def _is_item_list(value: str) -> bool:
+    """True when *value* is a list of parenthesized items another list can follow.
+
+    Ending with an unescaped ``)`` is necessary but not sufficient: free text can end
+    that way too. ``\\Note=see (ref)`` is one, and concatenating it with a following
+    ``(two)`` gives ``see (ref)(two)``, which is neither text nor items - 1.4.0 raised a
+    ``PeffParseError`` on it where 1.3.0 kept the last value. So the value must also
+    tokenize, which is exactly the test the merged value will face.
+    """
     if not value.endswith(")"):
         return False
     backslashes = len(value[:-1]) - len(value[:-1].rstrip("\\"))
-    return backslashes % 2 == 0
+    if backslashes % 2:
+        return False
+    try:
+        split_items(value)
+    except PeffParseError:
+        return False
+    return True
 
 
 def _merge_repeated_keys(
@@ -887,7 +900,7 @@ def _merge_repeated_keys(
         kept = raw_keys[name]
         earlier = earlier.rstrip()
         list_valued = name in _LIST_VALUED_KEYS or (custom_key_defs is not None and name in custom_key_defs)
-        if list_valued and _ends_with_item(earlier) and kept.startswith("("):
+        if list_valued and _is_item_list(earlier) and kept.startswith("("):
             raw_keys[name] = earlier + kept
             continue
         warnings.warn(

@@ -246,6 +246,31 @@ class TestRepeatedDescriptionKeys:
             e = self._read(r"\Foo=a \Foo=b", header_extra=self.CUSTOM)
         assert [v.fields["f"] for v in e.custom_values["Foo"]] == ["b"]
 
+    def test_text_that_merely_ends_in_a_parenthesis_is_not_an_item_list(self):
+        """1.4.0 raised a PeffParseError here; 1.3.0 read the last value (no warning)."""
+        import pytest
+
+        from pefftacular import PeffWarning
+
+        with pytest.warns(PeffWarning, match=r"key 'Foo' appears more than once.*'see \(ref\)' is dropped"):
+            e = self._read(r"\Foo=see (ref) \Foo=(two)", header_extra=self.CUSTOM)
+        assert [v.fields["f"] for v in e.custom_values["Foo"]] == ["two"]
+
+    def test_annotation_key_after_free_text_keeps_the_last_value(self):
+        """The same for an annotation key: ``see (ref)(2|UNIMOD:1|Acetyl)`` cannot be read."""
+        import pytest
+
+        from pefftacular import PeffWarning
+
+        with pytest.warns(PeffWarning, match="key 'ModResUnimod' appears more than once"):
+            e = self._read(r"\ModResUnimod=see (ref) \ModResUnimod=(2|UNIMOD:1|Acetyl)")
+        assert [(m.positions, m.name) for m in e.mod_res_unimod] == [((2,), "Acetyl")]
+
+    def test_a_real_item_list_still_merges_every_occurrence(self):
+        # The point of the merge, unchanged: both occurrences are lists of items.
+        e = self._read_quietly(r"\ModResUnimod=(1|UNIMOD:1|a)(2|UNIMOD:2|b) \ModResUnimod=(3|UNIMOD:3|c)")
+        assert [(m.positions, m.name) for m in e.mod_res_unimod] == [((1,), "a"), ((2,), "b"), ((3,), "c")]
+
     def test_warning_names_the_entry(self):
         import pytest
 
