@@ -21,8 +21,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - The `to_records()` docstring no longer says its list of keys is in `RECORD_KEYS` order: the list is
-  grouped by type, and the sentence now says so, as the README does. A test checks that the list
-  names exactly the keys in `RECORD_KEYS`, each once.
+  grouped by type, and the sentence now says so, as the README does.
 - An unrecognised value in a header-declared `boolean` custom field is now reported with a
   `PeffWarning` and kept as the raw string, like every other field type, instead of being
   silently read as `False`. `true`, `1`, `yes`, `false`, `0` and `no` are still recognised,
@@ -49,7 +48,6 @@ All notable changes to this project will be documented in this file.
   back to the same regex and is now rewritten in the spec's form. A value the literal form
   cannot hold, one with two consecutive backslashes or ending in one, still has every
   backslash escaped, since that is what reads back.
-
 - `write_peff()` now reports, with a `PeffWarning`, what its own reader would complain about
   on the file it just wrote, plus one thing the reader never reports. It warns when the
   entries written under a prefix disagree with that database's `NumberOfEntries` (the reader's
