@@ -375,7 +375,7 @@ def test_from_records_after_a_pandas_round_trip() -> None:
     assert from_records(frame.to_dict("records"), header) == entries
 
 
-def test_to_records_docstring_lists_every_record_key_once():
+def test_to_records_docstring_lists_every_record_key_once() -> None:
     # The bullet list (first bullet to the end of the list) is grouped by type, not in
     # RECORD_KEYS order, so compare the names as a set. The prose above it names prefix,
     # db_unique_id and variant_simple again, so it is left out.
@@ -383,5 +383,5 @@ def test_to_records_docstring_lists_every_record_key_once():
     assert "in this order" not in doc  # the list is grouped by type, not in RECORD_KEYS order
     start = doc.index("\n- ")
     end = doc.index("\n\n", start)
-    names = re.findall(r"``([a-z_]+)``", doc[start:end])
+    names = re.findall(r"``([a-z0-9_]+)``", doc[start:end])
     assert sorted(names) == sorted(RECORD_KEYS)
