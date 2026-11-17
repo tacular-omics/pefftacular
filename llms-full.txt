@@ -843,9 +843,11 @@ logging.getLogger("pefftacular").setLevel(logging.DEBUG)
   an `extra` key that is a known PEFF key or contains `=`, an unbalanced paren in a position).
 - **A repeated key keeps every item.** The spec forbids repeating a key on a description
   line (§3.3.3), but files do it. When the value is a list of items - an annotation key
-  or a header-declared custom key - the items of every occurrence are kept, in file order,
-  exactly as if they had been written under one key. Any other repeated key keeps the last
-  value and warns (`PeffWarning`) naming the value it drops.
+  or a header-declared custom key, with the earlier occurrence tokenizing as items rather
+  than merely ending in `)` - the items of every occurrence are kept, in file order,
+  exactly as if they had been written under one key. Any other repeated key, free text
+  with a parenthetical included, keeps the last value and warns (`PeffWarning`) naming the
+  value it drops.
 - **`verify=False` trusts the entries.** A hand-built or edited value holding PEFF
   syntax is then written as is and may read back differently. Keep the default for them.
 - **Readers iterate once.** Create a new `PeffReader` to read the file again.

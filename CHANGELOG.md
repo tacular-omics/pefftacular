@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- A repeated `\Key=` whose earlier value is not a list of items no longer raises. 1.4.0 merged the
+  occurrences whenever the earlier one merely ended with an unescaped `)`, so free text with a
+  parenthetical was glued onto the following list: `\Note=see (ref) \Note=(two)` and
+  `\ModResUnimod=see (ref) \ModResUnimod=(2|UNIMOD:1|Acetyl)` both raised a `PeffParseError` on the
+  merged value, where 1.3.0 read the last value. The occurrences are merged only when the earlier
+  value is a list of items, which is tested by tokenising it; anything else keeps the last value and
+  warns naming the value it drops, as every other repeated key does. A repeated key that really is a
+  list of items still keeps the items of every occurrence, in file order.
 - `apply_variants()` now treats a variant as applied when it **equals** one of the entry's
   annotations, not when it is the same object. Passing `VariantSimple(2, "C")` rather than the
   instance from `entry.variant_simple` applied the substitution and still listed the variant as
