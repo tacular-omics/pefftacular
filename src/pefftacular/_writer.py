@@ -35,6 +35,9 @@ from pefftacular.errors import PeffError, PeffWarning, PeffWriteError
 
 logger = logging.getLogger("pefftacular.writer")
 
+# Entries named in a grouped consistency warning before it says how many more there are.
+_WARN_SAMPLE = 3
+
 _SEQ_LINE_WIDTH = 60
 # Same characters as str.isspace(); one C-level scan instead of a per-character generator.
 _WHITESPACE = re.compile(r"\s")
@@ -531,10 +534,12 @@ def write_peff(
 
     A ``PeffWarning`` (never an exception) is issued when the entries written disagree with
     the header: a database's ``NumberOfEntries`` differs from the entries written under its
-    prefix, an entry's prefix matches no database block (once per prefix), an entry's
-    ``Length`` differs from its sequence, or a ``prefix:DbUniqueId`` is written twice. These
-    run whatever ``verify`` is, and a header without ``NumberOfEntries`` or without database
-    blocks makes no claim, so it gets no count warning.
+    prefix, an entry's prefix matches no database block, an entry's ``Length`` differs from
+    its sequence, or a ``prefix:DbUniqueId`` is written twice. These run whatever ``verify``
+    is, and a header without ``NumberOfEntries`` or without database blocks makes no claim,
+    so it gets no count warning. Each kind is reported once, however many entries it
+    covers: one occurrence is worded like the reader's own warning, and more than one is
+    counted with the first few named.
 
     ``compression`` works like the pandas argument of that name. With ``"infer"`` (the
     default) a path ending in ``.gz``, ``.bz2`` or ``.xz`` (any case) is written
@@ -692,12 +697,17 @@ def _format_entries(
     Also reports, as ``PeffWarning``, what the reader would complain about on the file
     being written, plus a repeated ``prefix:DbUniqueId`` which it never reports. The
     messages are collected inside the block that silences the verify re-parse and emitted
-    after it, still before anything reaches the destination.
+    after it, still before anything reaches the destination. Each kind is one warning: a
+    single occurrence reads like the reader's own, and more than one is counted with the
+    first ``_WARN_SAMPLE`` named, so nothing here grows with the number of entries.
     """
     count = 0
-    pending: list[str] = []
     counts_by_prefix: dict[str, int] = {}
     seen_ids: set[tuple[str, str]] = set()
+    bad_length = 0
+    bad_length_sample: list[str] = []
+    repeated = 0
+    repeated_sample: list[str] = []
     # Re-parsing warns on spec violations the reader tolerates; the writer only raises.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -784,24 +794,53 @@ def _format_entries(
                 except PeffWriteError as err:
                     raise PeffWriteError(str(err), index=index, hint=err.hint) from err
             # Facts only the writer can see: a Length that disagrees with the sequence and an
-            # identifier written twice (the reader notices neither).
+            # identifier written twice (the reader notices neither). Only the first
+            # _WARN_SAMPLE of each are kept, so a file where every entry is wrong costs a
+            # counter rather than a message per entry.
             if entry.length is not None and entry.length != len(entry.sequence):
-                pending.append(
-                    f"Entry {entry.prefix}:{entry.db_unique_id!r}: Length={entry.length} but sequence has "
-                    f"{len(entry.sequence)} residues"
-                )
+                bad_length += 1
+                if len(bad_length_sample) < _WARN_SAMPLE:
+                    bad_length_sample.append(
+                        f"{entry.db_unique_id!r}: Length={entry.length} but sequence has {len(entry.sequence)} residues"
+                    )
             key = (entry.prefix, entry.db_unique_id)
             if key in seen_ids:
-                pending.append(f"Entry {entry.prefix}:{entry.db_unique_id!r} is written more than once")
+                repeated += 1
+                if len(repeated_sample) < _WARN_SAMPLE:
+                    repeated_sample.append(f"{entry.prefix}:{entry.db_unique_id}")
             else:
                 seen_ids.add(key)
             counts_by_prefix[entry.prefix] = counts_by_prefix.get(entry.prefix, 0) + 1
             out.write(text)
             count += 1
-    pending.extend(_header_count_messages(header, counts_by_prefix))
-    for message in pending:
+    messages: list[str] = []
+    if bad_length == 1:
+        messages.append(f"Entry {bad_length_sample[0]}")
+    elif bad_length:
+        messages.append(
+            _grouped("entries have a Length that differs from their sequence", bad_length_sample, bad_length)
+        )
+    if repeated:
+        quoted = [repr(ident) for ident in repeated_sample]
+        if repeated == 1:
+            messages.append(f"Entry {quoted[0]} is written more than once")
+        else:
+            messages.append(_grouped("entries are written more than once", quoted, repeated))
+    messages += _header_count_messages(header, counts_by_prefix)
+    for message in messages:
         warnings.warn(message, PeffWarning, stacklevel=3)
     return count
+
+
+def _grouped(kind: str, samples: list[str], total: int) -> str:
+    """One sentence for *total* occurrences of *kind*, naming the *samples* collected.
+
+    The single-occurrence message is written out at each call site instead, so that it can
+    read exactly like the reader's own warning about the same fact.
+    """
+    shown = "; ".join(samples)
+    more = f" and {total - len(samples)} more" if total > len(samples) else ""
+    return f"{total} {kind}: {shown}{more}"
 
 
 def _header_count_messages(header: FileHeader, counts_by_prefix: dict[str, int]) -> list[str]:
@@ -810,6 +849,10 @@ def _header_count_messages(header: FileHeader, counts_by_prefix: dict[str, int])
     The count wording matches the reader's. A database with no ``NumberOfEntries`` is not
     checked, and when the header declares no database at all nothing is undeclared, so
     entries are not reported against a header that makes no claim about them.
+
+    One message per database, as the reader does: the header bounds how many there can be.
+    Undeclared prefixes are grouped like the per-entry warnings, since the entries decide
+    how many there are.
     """
     messages: list[str] = []
     declared = {db.prefix for db in header.databases if db.prefix}
@@ -820,10 +863,13 @@ def _header_count_messages(header: FileHeader, counts_by_prefix: dict[str, int])
                 messages.append(
                     f"Database {db.prefix!r}: NumberOfEntries={db.number_of_entries} but file contains {actual} entries"
                 )
-    if declared:
-        for prefix, written in counts_by_prefix.items():
-            if prefix not in declared:
-                messages.append(
-                    f"Entry prefix {prefix!r} matches no database in the header ({written} entries written)"
-                )
+    if not declared:
+        return messages
+    undeclared = [(prefix, n) for prefix, n in counts_by_prefix.items() if prefix not in declared]
+    if len(undeclared) == 1:
+        prefix, n = undeclared[0]
+        messages.append(f"Entry prefix {prefix!r} matches no database in the header ({n} entries written)")
+    elif undeclared:
+        samples = [f"{prefix!r} ({n} entries written)" for prefix, n in undeclared[:_WARN_SAMPLE]]
+        messages.append(_grouped("entry prefixes match no database in the header", samples, len(undeclared)))
     return messages
