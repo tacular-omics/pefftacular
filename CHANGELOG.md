@@ -20,6 +20,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- The `to_records()` docstring no longer says its list of keys is in `RECORD_KEYS` order: the list is
+  grouped by type, and the sentence now says so, as the README does. A test checks that the list
+  names exactly the keys in `RECORD_KEYS`, each once.
 - An unrecognised value in a header-declared `boolean` custom field is now reported with a
   `PeffWarning` and kept as the raw string, like every other field type, instead of being
   silently read as `False`. `true`, `1`, `yes`, `false`, `0` and `no` are still recognised,
