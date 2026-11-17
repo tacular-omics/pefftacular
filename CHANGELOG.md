@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.1] (2026-11-16)
+
 ### Fixed
 
 - A repeated `\Key=` whose earlier value is not a list of items no longer raises. 1.4.0 merged the
