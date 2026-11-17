@@ -1,4 +1,5 @@
 import dataclasses
+import inspect
 import io
 import re
 import warnings
@@ -372,3 +373,15 @@ def test_from_records_after_a_pandas_round_trip() -> None:
     header, entries = _read(FIXTURES / "custom_keys.peff")
     frame = pd.DataFrame(to_records(entries))
     assert from_records(frame.to_dict("records"), header) == entries
+
+
+def test_to_records_docstring_lists_every_record_key_once():
+    # The bullet list (first bullet to the end of the list) is grouped by type, not in
+    # RECORD_KEYS order, so compare the names as a set. The prose above it names prefix,
+    # db_unique_id and variant_simple again, so it is left out.
+    doc = inspect.cleandoc(to_records.__doc__ or "")
+    assert "in this order" not in doc  # the list is grouped by type, not in RECORD_KEYS order
+    start = doc.index("\n- ")
+    end = doc.index("\n\n", start)
+    names = re.findall(r"``([a-z_]+)``", doc[start:end])
+    assert sorted(names) == sorted(RECORD_KEYS)

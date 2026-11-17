@@ -96,8 +96,8 @@ def to_records(
     ``source`` is a path (``str`` or ``Path``, may be compressed), an open text handle,
     or an iterable of :class:`SequenceEntry` (e.g. the list from :func:`read_peff`).
     ``compression`` applies to a path or handle and is described on :class:`PeffReader`.
-    The file header is not included. Every record has the same keys, in this order
-    (``RECORD_KEYS``); a key whose value is absent is ``None``:
+    The file header is not included. Every record has the same keys, grouped by type below; the
+    record's own key order is ``RECORD_KEYS``. A key whose value is absent is ``None``:
 
     - ``prefix``, ``db_unique_id``: the identifier ``prefix:db_unique_id`` (str).
     - ``id`` (``\\ID``), ``db_unique_id_key`` (``\\DbUniqueId``), ``pname``, ``gname``,
