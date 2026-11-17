@@ -1,0 +1,1859 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A pure-Python library for reading and writing PEFF (PSI Extended FASTA Format) files.">
+      
+      
+      
+        <link rel="canonical" href="https://tacular-omics.github.io/pefftacular/api/io/">
+      
+      
+        <link rel="prev" href="../../tables/">
+      
+      
+        <link rel="next" href="../headers/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+    
+    
+      
+        <title>Reading and writing - pefftacular</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#reading-and-writing" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="pefftacular" class="md-header__button md-logo" aria-label="pefftacular" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            pefftacular
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Reading and writing
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/tacular-omics/pefftacular" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tacular-omics/pefftacular
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="pefftacular" class="md-nav__button md-logo" aria-label="pefftacular" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    pefftacular
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/tacular-omics/pefftacular" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tacular-omics/pefftacular
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../annotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../fasta/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From FASTA and UniProt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tables with pandas or polars
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading and writing
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading and writing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#pefftacular.read_peff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_peff
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pefftacular.PeffReader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PeffReader
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PeffReader">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pefftacular.PeffReader.header" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        header
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pefftacular.PeffReader.to_records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_records
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pefftacular.write_peff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write_peff
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Records
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pefftacular.from_records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_records
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compression
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pefftacular.Compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compression
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../headers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File and database headers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../entries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sequence entries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../annotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors and warnings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../citation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Citation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#pefftacular.read_peff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_peff
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pefftacular.PeffReader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PeffReader
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PeffReader">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pefftacular.PeffReader.header" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        header
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pefftacular.PeffReader.to_records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_records
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pefftacular.write_peff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write_peff
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Records
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pefftacular.from_records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_records
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compression
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pefftacular.Compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compression
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="reading-and-writing">Reading and writing<a class="headerlink" href="#reading-and-writing" title="Permanent link">&para;</a></h1>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="pefftacular.read_peff" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">pefftacular.read_peff</span>
+
+
+<a href="#pefftacular.read_peff" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">read_peff</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">source</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">|</span> <span class="n"><span title="pathlib.Path">Path</span></span> <span class="o">|</span> <span class="n"><span title="typing.IO">IO</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">|</span> <span class="n"><span title="typing.IO">IO</span></span><span class="p">[</span><span class="n"><span title="bytes">bytes</span></span><span class="p">],</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">compression</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            pefftacular.Compression
+
+
+  
+      module-attribute
+   (pefftacular._compression.Compression)" href="#pefftacular.Compression">Compression</a></span> <span class="o">=</span> <span class="s2">"infer"</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="tuple">tuple</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="            pefftacular.FileHeader
+
+
+  
+      dataclass
+   (pefftacular._models.FileHeader)" href="../headers/#pefftacular.FileHeader">FileHeader</a></span><span class="p">,</span> <span class="n"><span title="list">list</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="            pefftacular.SequenceEntry
+
+
+  
+      dataclass
+   (pefftacular._models.SequenceEntry)" href="../entries/#pefftacular.SequenceEntry">SequenceEntry</a></span><span class="p">]]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Convenience: parse an entire PEFF file into header + list of entries.</p>
+<p>A path may be plain or gzip/bzip2/xz compressed; <code>compression</code> is described on
+:class:<code>PeffReader</code> (<code>"infer"</code> sniffs the magic bytes). Undecodable (non-UTF-8)
+or corrupt compressed input raises <code>PeffParseError</code> chained to the cause.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/pefftacular/_parser.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1443">1443</a></span>
+<span class="normal"><a href="#__codelineno-0-1444">1444</a></span>
+<span class="normal"><a href="#__codelineno-0-1445">1445</a></span>
+<span class="normal"><a href="#__codelineno-0-1446">1446</a></span>
+<span class="normal"><a href="#__codelineno-0-1447">1447</a></span>
+<span class="normal"><a href="#__codelineno-0-1448">1448</a></span>
+<span class="normal"><a href="#__codelineno-0-1449">1449</a></span>
+<span class="normal"><a href="#__codelineno-0-1450">1450</a></span>
+<span class="normal"><a href="#__codelineno-0-1451">1451</a></span>
+<span class="normal"><a href="#__codelineno-0-1452">1452</a></span>
+<span class="normal"><a href="#__codelineno-0-1453">1453</a></span>
+<span class="normal"><a href="#__codelineno-0-1454">1454</a></span>
+<span class="normal"><a href="#__codelineno-0-1455">1455</a></span>
+<span class="normal"><a href="#__codelineno-0-1456">1456</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1443" name="__codelineno-0-1443"></a><span class="k">def</span><span class="w"> </span><span class="nf">read_peff</span><span class="p">(</span>
+<a id="__codelineno-0-1444" name="__codelineno-0-1444"></a>    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">IO</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">compression</span><span class="p">:</span> <span class="n">Compression</span> <span class="o">=</span> <span class="s2">"infer"</span>
+<a id="__codelineno-0-1445" name="__codelineno-0-1445"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">FileHeader</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">SequenceEntry</span><span class="p">]]:</span>
+<a id="__codelineno-0-1446" name="__codelineno-0-1446"></a><span class="w">    </span><span class="sd">"""Convenience: parse an entire PEFF file into header + list of entries.</span>
+<a id="__codelineno-0-1447" name="__codelineno-0-1447"></a>
+<a id="__codelineno-0-1448" name="__codelineno-0-1448"></a><span class="sd">    A path may be plain or gzip/bzip2/xz compressed; ``compression`` is described on</span>
+<a id="__codelineno-0-1449" name="__codelineno-0-1449"></a><span class="sd">    :class:`PeffReader` (``"infer"`` sniffs the magic bytes). Undecodable (non-UTF-8)</span>
+<a id="__codelineno-0-1450" name="__codelineno-0-1450"></a><span class="sd">    or corrupt compressed input raises ``PeffParseError`` chained to the cause.</span>
+<a id="__codelineno-0-1451" name="__codelineno-0-1451"></a><span class="sd">    """</span>
+<a id="__codelineno-0-1452" name="__codelineno-0-1452"></a>    <span class="k">with</span> <span class="n">PeffReader</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">compression</span><span class="o">=</span><span class="n">compression</span><span class="p">)</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+<a id="__codelineno-0-1453" name="__codelineno-0-1453"></a>        <span class="n">header</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">header</span>
+<a id="__codelineno-0-1454" name="__codelineno-0-1454"></a>        <span class="n">entries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+<a id="__codelineno-0-1455" name="__codelineno-0-1455"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"read_peff: parsed </span><span class="si">%d</span><span class="s2"> entries across </span><span class="si">%d</span><span class="s2"> database(s)"</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">entries</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">header</span><span class="o">.</span><span class="n">databases</span><span class="p">))</span>
+<a id="__codelineno-0-1456" name="__codelineno-0-1456"></a>    <span class="k">return</span> <span class="n">header</span><span class="p">,</span> <span class="n">entries</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="pefftacular.PeffReader" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">pefftacular.PeffReader</span>
+
+
+<a href="#pefftacular.PeffReader" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PeffReader</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">source</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">|</span> <span class="n"><span title="pathlib.Path">Path</span></span> <span class="o">|</span> <span class="n"><span title="typing.IO">IO</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">|</span> <span class="n"><span title="typing.IO">IO</span></span><span class="p">[</span><span class="n"><span title="bytes">bytes</span></span><span class="p">],</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">compression</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            pefftacular.Compression
+
+
+  
+      module-attribute
+   (pefftacular._compression.Compression)" href="#pefftacular.Compression">Compression</a></span> <span class="o">=</span> <span class="s2">"infer"</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Lazy reader for PEFF files.</p>
+<p>Use it as a context manager, like <code>fastatacular.FastaReader</code>: a path is opened
+in <code>__enter__</code> (UTF-8, a leading BOM is skipped) and closed in <code>__exit__</code>; a
+stream you pass in is read but never closed.</p>
+<p><code>compression</code> works like the pandas argument of that name. <code>"infer"</code> (the
+default) decompresses a gzip, bzip2 or xz path detected from its magic bytes, not
+its suffix, and reads an open handle as it is. <code>"gzip"</code>, <code>"bz2"</code> or <code>"xz"</code>
+forces that format (<code>PeffParseError</code> if the bytes are not in it); an open handle
+must then be binary (<code>open(path, "rb")</code>). <code>None</code> reads plain text even if the
+bytes look compressed. Any other value raises <code>PeffError</code>. Accessing <code>header</code> or iterating
+outside the <code>with</code> block raises :class:<code>RuntimeError</code>. Entries can be
+iterated once; a second iteration over the same reader yields nothing.</p>
+<p>Example::</p>
+<div class="highlight"><pre><span></span><code>with PeffReader("proteins.peff") as reader:
+    header = reader.header
+    for entry in reader:
+        ...
+</code></pre></div>
+
+
+
+
+
+
+
+
+                  <details class="mkdocstrings-source">
+                    <summary>Source code in <code>src/pefftacular/_parser.py</code></summary>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1264">1264</a></span>
+<span class="normal"><a href="#__codelineno-0-1265">1265</a></span>
+<span class="normal"><a href="#__codelineno-0-1266">1266</a></span>
+<span class="normal"><a href="#__codelineno-0-1267">1267</a></span>
+<span class="normal"><a href="#__codelineno-0-1268">1268</a></span>
+<span class="normal"><a href="#__codelineno-0-1269">1269</a></span>
+<span class="normal"><a href="#__codelineno-0-1270">1270</a></span>
+<span class="normal"><a href="#__codelineno-0-1271">1271</a></span>
+<span class="normal"><a href="#__codelineno-0-1272">1272</a></span>
+<span class="normal"><a href="#__codelineno-0-1273">1273</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1264" name="__codelineno-0-1264"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">IO</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">compression</span><span class="p">:</span> <span class="n">Compression</span> <span class="o">=</span> <span class="s2">"infer"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-1265" name="__codelineno-0-1265"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_source</span> <span class="o">=</span> <span class="n">source</span>
+<a id="__codelineno-0-1266" name="__codelineno-0-1266"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_compression</span> <span class="o">=</span> <span class="n">check_compression</span><span class="p">(</span><span class="n">compression</span><span class="p">)</span>
+<a id="__codelineno-0-1267" name="__codelineno-0-1267"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_fh</span><span class="p">:</span> <span class="n">IO</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-1268" name="__codelineno-0-1268"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_owns_fh</span> <span class="o">=</span> <span class="kc">False</span>
+<a id="__codelineno-0-1269" name="__codelineno-0-1269"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_lines</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-1270" name="__codelineno-0-1270"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_header</span><span class="p">:</span> <span class="n">FileHeader</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-1271" name="__codelineno-0-1271"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_remaining</span><span class="p">:</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-0-1272" name="__codelineno-0-1272"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_first_entry_line_no</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+<a id="__codelineno-0-1273" name="__codelineno-0-1273"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_defs_by_prefix</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">CustomKeyDef</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+</code></pre></div></td></tr></table></div>
+                  </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="pefftacular.PeffReader.header" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">header</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#pefftacular.PeffReader.header" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">header</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            pefftacular.FileHeader
+
+
+  
+      dataclass
+   (pefftacular._models.FileHeader)" href="../headers/#pefftacular.FileHeader">FileHeader</a></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Parse and return the file header (cached after first access).</p>
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="pefftacular.PeffReader.to_records" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">to_records</span>
+
+
+<a href="#pefftacular.PeffReader.to_records" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">to_records</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><span title="list">list</span></span><span class="p">[</span><span class="n"><span title="dict">dict</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="str">str</span></span> <span class="o">|</span> <span class="n"><span title="int">int</span></span> <span class="o">|</span> <span class="n"><span title="bool">bool</span></span> <span class="o">|</span> <span class="kc">None</span><span class="p">]]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Read the remaining entries as flat dicts (see :func:<code>pefftacular.to_records</code>).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/pefftacular/_parser.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1291">1291</a></span>
+<span class="normal"><a href="#__codelineno-0-1292">1292</a></span>
+<span class="normal"><a href="#__codelineno-0-1293">1293</a></span>
+<span class="normal"><a href="#__codelineno-0-1294">1294</a></span>
+<span class="normal"><a href="#__codelineno-0-1295">1295</a></span>
+<span class="normal"><a href="#__codelineno-0-1296">1296</a></span>
+<span class="normal"><a href="#__codelineno-0-1297">1297</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1291" name="__codelineno-0-1291"></a><span class="k">def</span><span class="w"> </span><span class="nf">to_records</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]]:</span>
+<a id="__codelineno-0-1292" name="__codelineno-0-1292"></a><span class="w">    </span><span class="sd">"""Read the remaining entries as flat dicts (see :func:`pefftacular.to_records`)."""</span>
+<a id="__codelineno-0-1293" name="__codelineno-0-1293"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">pefftacular._records</span><span class="w"> </span><span class="kn">import</span> <span class="n">entry_to_record</span>
+<a id="__codelineno-0-1294" name="__codelineno-0-1294"></a>
+<a id="__codelineno-0-1295" name="__codelineno-0-1295"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_header</span><span class="p">()</span>
+<a id="__codelineno-0-1296" name="__codelineno-0-1296"></a>    <span class="n">defs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_defs_by_prefix</span>
+<a id="__codelineno-0-1297" name="__codelineno-0-1297"></a>    <span class="k">return</span> <span class="p">[</span><span class="n">entry_to_record</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">defs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">prefix</span><span class="p">))</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">]</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="pefftacular.write_peff" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">pefftacular.write_peff</span>
+
+
+<a href="#pefftacular.write_peff" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">write_peff</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">header</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            pefftacular.FileHeader
+
+
+  
+      dataclass
+   (pefftacular._models.FileHeader)" href="../headers/#pefftacular.FileHeader">FileHeader</a></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">entries</span><span class="p">:</span> <span class="n"><span title="collections.abc.Iterable">Iterable</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="            pefftacular.SequenceEntry
+
+
+  
+      dataclass
+   (pefftacular._models.SequenceEntry)" href="../entries/#pefftacular.SequenceEntry">SequenceEntry</a></span><span class="p">],</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">dest</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">|</span> <span class="n"><span title="pathlib.Path">Path</span></span> <span class="o">|</span> <span class="n"><span title="typing.IO">IO</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">|</span> <span class="n"><span title="typing.IO">IO</span></span><span class="p">[</span><span class="n"><span title="bytes">bytes</span></span><span class="p">],</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">verify</span><span class="p">:</span> <span class="n"><span title="bool">bool</span></span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">compression</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            pefftacular.Compression
+
+
+  
+      module-attribute
+   (pefftacular._compression.Compression)" href="#pefftacular.Compression">Compression</a></span> <span class="o">=</span> <span class="s2">"infer"</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Write a complete PEFF file.</p>
+<p>Every entry is validated and formatted before anything is written to <code>dest</code>:
+on a <code>PeffWriteError</code> a path is not created or truncated and nothing is
+written to a handle. <code>entries</code> is consumed once, as a stream; formatted text
+is spooled to a temporary file past 32 MiB instead of being held in memory.</p>
+<p>With <code>verify=True</code> (the default) each formatted entry is parsed back and
+compared with the entry, so a value holding PEFF syntax (<code>\Key=</code> text, an
+unbalanced paren) raises instead of writing a file that reads back
+differently. <code>verify=False</code> skips that read-back (about 3/4 of the write
+time); use it for entries that came from <code>read_peff</code> / <code>PeffReader</code>
+unchanged, or that you have already written once. The basic checks (empty or
+malformed prefix, id or sequence, line breaks, duplicate keys) always run.</p>
+<p>A <code>PeffWarning</code> (never an exception) is issued when the entries written disagree with
+the header: a database's <code>NumberOfEntries</code> differs from the entries written under its
+prefix, an entry's prefix matches no database block, an entry's <code>Length</code> differs from
+its sequence, or a <code>prefix:DbUniqueId</code> is written twice. These run whatever <code>verify</code>
+is, and a header without <code>NumberOfEntries</code> or without database blocks makes no claim,
+so it gets no count warning. Each kind is reported once, however many entries it
+covers: one occurrence is worded like the reader's own warning, and more than one is
+counted with the first few named.</p>
+<p><code>compression</code> works like the pandas argument of that name. With <code>"infer"</code> (the
+default) a path ending in <code>.gz</code>, <code>.bz2</code> or <code>.xz</code> (any case) is written
+compressed in that format and any other path or an open handle as plain text.
+<code>"gzip"</code>, <code>"bz2"</code> or <code>"xz"</code> compresses in that format whatever the suffix; an
+open handle must then be binary (<code>open(path, "wb")</code>), and it is left open. <code>None</code>
+always writes plain text. gzip output has <code>mtime=0</code>, so the same entries give
+byte-identical files. <code>read_peff</code> / <code>PeffReader</code> read all of these back.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/pefftacular/_writer.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-512">512</a></span>
+<span class="normal"><a href="#__codelineno-0-513">513</a></span>
+<span class="normal"><a href="#__codelineno-0-514">514</a></span>
+<span class="normal"><a href="#__codelineno-0-515">515</a></span>
+<span class="normal"><a href="#__codelineno-0-516">516</a></span>
+<span class="normal"><a href="#__codelineno-0-517">517</a></span>
+<span class="normal"><a href="#__codelineno-0-518">518</a></span>
+<span class="normal"><a href="#__codelineno-0-519">519</a></span>
+<span class="normal"><a href="#__codelineno-0-520">520</a></span>
+<span class="normal"><a href="#__codelineno-0-521">521</a></span>
+<span class="normal"><a href="#__codelineno-0-522">522</a></span>
+<span class="normal"><a href="#__codelineno-0-523">523</a></span>
+<span class="normal"><a href="#__codelineno-0-524">524</a></span>
+<span class="normal"><a href="#__codelineno-0-525">525</a></span>
+<span class="normal"><a href="#__codelineno-0-526">526</a></span>
+<span class="normal"><a href="#__codelineno-0-527">527</a></span>
+<span class="normal"><a href="#__codelineno-0-528">528</a></span>
+<span class="normal"><a href="#__codelineno-0-529">529</a></span>
+<span class="normal"><a href="#__codelineno-0-530">530</a></span>
+<span class="normal"><a href="#__codelineno-0-531">531</a></span>
+<span class="normal"><a href="#__codelineno-0-532">532</a></span>
+<span class="normal"><a href="#__codelineno-0-533">533</a></span>
+<span class="normal"><a href="#__codelineno-0-534">534</a></span>
+<span class="normal"><a href="#__codelineno-0-535">535</a></span>
+<span class="normal"><a href="#__codelineno-0-536">536</a></span>
+<span class="normal"><a href="#__codelineno-0-537">537</a></span>
+<span class="normal"><a href="#__codelineno-0-538">538</a></span>
+<span class="normal"><a href="#__codelineno-0-539">539</a></span>
+<span class="normal"><a href="#__codelineno-0-540">540</a></span>
+<span class="normal"><a href="#__codelineno-0-541">541</a></span>
+<span class="normal"><a href="#__codelineno-0-542">542</a></span>
+<span class="normal"><a href="#__codelineno-0-543">543</a></span>
+<span class="normal"><a href="#__codelineno-0-544">544</a></span>
+<span class="normal"><a href="#__codelineno-0-545">545</a></span>
+<span class="normal"><a href="#__codelineno-0-546">546</a></span>
+<span class="normal"><a href="#__codelineno-0-547">547</a></span>
+<span class="normal"><a href="#__codelineno-0-548">548</a></span>
+<span class="normal"><a href="#__codelineno-0-549">549</a></span>
+<span class="normal"><a href="#__codelineno-0-550">550</a></span>
+<span class="normal"><a href="#__codelineno-0-551">551</a></span>
+<span class="normal"><a href="#__codelineno-0-552">552</a></span>
+<span class="normal"><a href="#__codelineno-0-553">553</a></span>
+<span class="normal"><a href="#__codelineno-0-554">554</a></span>
+<span class="normal"><a href="#__codelineno-0-555">555</a></span>
+<span class="normal"><a href="#__codelineno-0-556">556</a></span>
+<span class="normal"><a href="#__codelineno-0-557">557</a></span>
+<span class="normal"><a href="#__codelineno-0-558">558</a></span>
+<span class="normal"><a href="#__codelineno-0-559">559</a></span>
+<span class="normal"><a href="#__codelineno-0-560">560</a></span>
+<span class="normal"><a href="#__codelineno-0-561">561</a></span>
+<span class="normal"><a href="#__codelineno-0-562">562</a></span>
+<span class="normal"><a href="#__codelineno-0-563">563</a></span>
+<span class="normal"><a href="#__codelineno-0-564">564</a></span>
+<span class="normal"><a href="#__codelineno-0-565">565</a></span>
+<span class="normal"><a href="#__codelineno-0-566">566</a></span>
+<span class="normal"><a href="#__codelineno-0-567">567</a></span>
+<span class="normal"><a href="#__codelineno-0-568">568</a></span>
+<span class="normal"><a href="#__codelineno-0-569">569</a></span>
+<span class="normal"><a href="#__codelineno-0-570">570</a></span>
+<span class="normal"><a href="#__codelineno-0-571">571</a></span>
+<span class="normal"><a href="#__codelineno-0-572">572</a></span>
+<span class="normal"><a href="#__codelineno-0-573">573</a></span>
+<span class="normal"><a href="#__codelineno-0-574">574</a></span>
+<span class="normal"><a href="#__codelineno-0-575">575</a></span>
+<span class="normal"><a href="#__codelineno-0-576">576</a></span>
+<span class="normal"><a href="#__codelineno-0-577">577</a></span>
+<span class="normal"><a href="#__codelineno-0-578">578</a></span>
+<span class="normal"><a href="#__codelineno-0-579">579</a></span>
+<span class="normal"><a href="#__codelineno-0-580">580</a></span>
+<span class="normal"><a href="#__codelineno-0-581">581</a></span>
+<span class="normal"><a href="#__codelineno-0-582">582</a></span>
+<span class="normal"><a href="#__codelineno-0-583">583</a></span>
+<span class="normal"><a href="#__codelineno-0-584">584</a></span>
+<span class="normal"><a href="#__codelineno-0-585">585</a></span>
+<span class="normal"><a href="#__codelineno-0-586">586</a></span>
+<span class="normal"><a href="#__codelineno-0-587">587</a></span>
+<span class="normal"><a href="#__codelineno-0-588">588</a></span>
+<span class="normal"><a href="#__codelineno-0-589">589</a></span>
+<span class="normal"><a href="#__codelineno-0-590">590</a></span>
+<span class="normal"><a href="#__codelineno-0-591">591</a></span>
+<span class="normal"><a href="#__codelineno-0-592">592</a></span>
+<span class="normal"><a href="#__codelineno-0-593">593</a></span>
+<span class="normal"><a href="#__codelineno-0-594">594</a></span>
+<span class="normal"><a href="#__codelineno-0-595">595</a></span>
+<span class="normal"><a href="#__codelineno-0-596">596</a></span>
+<span class="normal"><a href="#__codelineno-0-597">597</a></span>
+<span class="normal"><a href="#__codelineno-0-598">598</a></span>
+<span class="normal"><a href="#__codelineno-0-599">599</a></span>
+<span class="normal"><a href="#__codelineno-0-600">600</a></span>
+<span class="normal"><a href="#__codelineno-0-601">601</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-512" name="__codelineno-0-512"></a><span class="k">def</span><span class="w"> </span><span class="nf">write_peff</span><span class="p">(</span>
+<a id="__codelineno-0-513" name="__codelineno-0-513"></a>    <span class="n">header</span><span class="p">:</span> <span class="n">FileHeader</span><span class="p">,</span>
+<a id="__codelineno-0-514" name="__codelineno-0-514"></a>    <span class="n">entries</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">SequenceEntry</span><span class="p">],</span>
+<a id="__codelineno-0-515" name="__codelineno-0-515"></a>    <span class="n">dest</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">IO</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">],</span>
+<a id="__codelineno-0-516" name="__codelineno-0-516"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-517" name="__codelineno-0-517"></a>    <span class="n">verify</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-0-518" name="__codelineno-0-518"></a>    <span class="n">compression</span><span class="p">:</span> <span class="n">Compression</span> <span class="o">=</span> <span class="s2">"infer"</span><span class="p">,</span>
+<a id="__codelineno-0-519" name="__codelineno-0-519"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-520" name="__codelineno-0-520"></a><span class="w">    </span><span class="sd">"""Write a complete PEFF file.</span>
+<a id="__codelineno-0-521" name="__codelineno-0-521"></a>
+<a id="__codelineno-0-522" name="__codelineno-0-522"></a><span class="sd">    Every entry is validated and formatted before anything is written to ``dest``:</span>
+<a id="__codelineno-0-523" name="__codelineno-0-523"></a><span class="sd">    on a ``PeffWriteError`` a path is not created or truncated and nothing is</span>
+<a id="__codelineno-0-524" name="__codelineno-0-524"></a><span class="sd">    written to a handle. ``entries`` is consumed once, as a stream; formatted text</span>
+<a id="__codelineno-0-525" name="__codelineno-0-525"></a><span class="sd">    is spooled to a temporary file past 32 MiB instead of being held in memory.</span>
+<a id="__codelineno-0-526" name="__codelineno-0-526"></a>
+<a id="__codelineno-0-527" name="__codelineno-0-527"></a><span class="sd">    With ``verify=True`` (the default) each formatted entry is parsed back and</span>
+<a id="__codelineno-0-528" name="__codelineno-0-528"></a><span class="sd">    compared with the entry, so a value holding PEFF syntax (``\\Key=`` text, an</span>
+<a id="__codelineno-0-529" name="__codelineno-0-529"></a><span class="sd">    unbalanced paren) raises instead of writing a file that reads back</span>
+<a id="__codelineno-0-530" name="__codelineno-0-530"></a><span class="sd">    differently. ``verify=False`` skips that read-back (about 3/4 of the write</span>
+<a id="__codelineno-0-531" name="__codelineno-0-531"></a><span class="sd">    time); use it for entries that came from ``read_peff`` / ``PeffReader``</span>
+<a id="__codelineno-0-532" name="__codelineno-0-532"></a><span class="sd">    unchanged, or that you have already written once. The basic checks (empty or</span>
+<a id="__codelineno-0-533" name="__codelineno-0-533"></a><span class="sd">    malformed prefix, id or sequence, line breaks, duplicate keys) always run.</span>
+<a id="__codelineno-0-534" name="__codelineno-0-534"></a>
+<a id="__codelineno-0-535" name="__codelineno-0-535"></a><span class="sd">    A ``PeffWarning`` (never an exception) is issued when the entries written disagree with</span>
+<a id="__codelineno-0-536" name="__codelineno-0-536"></a><span class="sd">    the header: a database's ``NumberOfEntries`` differs from the entries written under its</span>
+<a id="__codelineno-0-537" name="__codelineno-0-537"></a><span class="sd">    prefix, an entry's prefix matches no database block, an entry's ``Length`` differs from</span>
+<a id="__codelineno-0-538" name="__codelineno-0-538"></a><span class="sd">    its sequence, or a ``prefix:DbUniqueId`` is written twice. These run whatever ``verify``</span>
+<a id="__codelineno-0-539" name="__codelineno-0-539"></a><span class="sd">    is, and a header without ``NumberOfEntries`` or without database blocks makes no claim,</span>
+<a id="__codelineno-0-540" name="__codelineno-0-540"></a><span class="sd">    so it gets no count warning. Each kind is reported once, however many entries it</span>
+<a id="__codelineno-0-541" name="__codelineno-0-541"></a><span class="sd">    covers: one occurrence is worded like the reader's own warning, and more than one is</span>
+<a id="__codelineno-0-542" name="__codelineno-0-542"></a><span class="sd">    counted with the first few named.</span>
+<a id="__codelineno-0-543" name="__codelineno-0-543"></a>
+<a id="__codelineno-0-544" name="__codelineno-0-544"></a><span class="sd">    ``compression`` works like the pandas argument of that name. With ``"infer"`` (the</span>
+<a id="__codelineno-0-545" name="__codelineno-0-545"></a><span class="sd">    default) a path ending in ``.gz``, ``.bz2`` or ``.xz`` (any case) is written</span>
+<a id="__codelineno-0-546" name="__codelineno-0-546"></a><span class="sd">    compressed in that format and any other path or an open handle as plain text.</span>
+<a id="__codelineno-0-547" name="__codelineno-0-547"></a><span class="sd">    ``"gzip"``, ``"bz2"`` or ``"xz"`` compresses in that format whatever the suffix; an</span>
+<a id="__codelineno-0-548" name="__codelineno-0-548"></a><span class="sd">    open handle must then be binary (``open(path, "wb")``), and it is left open. ``None``</span>
+<a id="__codelineno-0-549" name="__codelineno-0-549"></a><span class="sd">    always writes plain text. gzip output has ``mtime=0``, so the same entries give</span>
+<a id="__codelineno-0-550" name="__codelineno-0-550"></a><span class="sd">    byte-identical files. ``read_peff`` / ``PeffReader`` read all of these back.</span>
+<a id="__codelineno-0-551" name="__codelineno-0-551"></a><span class="sd">    """</span>
+<a id="__codelineno-0-552" name="__codelineno-0-552"></a>    <span class="n">compression</span> <span class="o">=</span> <span class="n">check_compression</span><span class="p">(</span><span class="n">compression</span><span class="p">)</span>
+<a id="__codelineno-0-553" name="__codelineno-0-553"></a>    <span class="k">if</span> <span class="n">header</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-554" name="__codelineno-0-554"></a>        <span class="k">raise</span> <span class="n">PeffWriteError</span><span class="p">(</span><span class="s2">"header must not be None"</span><span class="p">,</span> <span class="n">hint</span><span class="o">=</span><span class="s2">"Pass a FileHeader instance, e.g. from read_peff()"</span><span class="p">)</span>
+<a id="__codelineno-0-555" name="__codelineno-0-555"></a>
+<a id="__codelineno-0-556" name="__codelineno-0-556"></a>    <span class="n">bad</span> <span class="o">=</span> <span class="n">_line_break_at</span><span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="s2">"header"</span><span class="p">)</span>
+<a id="__codelineno-0-557" name="__codelineno-0-557"></a>    <span class="k">if</span> <span class="n">bad</span><span class="p">:</span>
+<a id="__codelineno-0-558" name="__codelineno-0-558"></a>        <span class="k">raise</span> <span class="n">PeffWriteError</span><span class="p">(</span>
+<a id="__codelineno-0-559" name="__codelineno-0-559"></a>            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">bad</span><span class="si">}</span><span class="s2"> contains a line break"</span><span class="p">,</span> <span class="n">hint</span><span class="o">=</span><span class="s2">"PEFF header values are single-line; remove the </span><span class="se">\\</span><span class="s2">n or </span><span class="se">\\</span><span class="s2">r"</span>
+<a id="__codelineno-0-560" name="__codelineno-0-560"></a>        <span class="p">)</span>
+<a id="__codelineno-0-561" name="__codelineno-0-561"></a>
+<a id="__codelineno-0-562" name="__codelineno-0-562"></a>    <span class="n">header_text</span> <span class="o">=</span> <span class="n">_format_header</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+<a id="__codelineno-0-563" name="__codelineno-0-563"></a>    <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+<a id="__codelineno-0-564" name="__codelineno-0-564"></a>        <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">"ignore"</span><span class="p">)</span>
+<a id="__codelineno-0-565" name="__codelineno-0-565"></a>        <span class="n">_check_header_reads_back</span><span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="n">header_text</span><span class="p">)</span>
+<a id="__codelineno-0-566" name="__codelineno-0-566"></a>
+<a id="__codelineno-0-567" name="__codelineno-0-567"></a>    <span class="n">defs_by_prefix</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">CustomKeyDef</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-0-568" name="__codelineno-0-568"></a>    <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">header</span><span class="o">.</span><span class="n">databases</span><span class="p">:</span>
+<a id="__codelineno-0-569" name="__codelineno-0-569"></a>        <span class="k">if</span> <span class="n">db</span><span class="o">.</span><span class="n">prefix</span> <span class="ow">and</span> <span class="n">db</span><span class="o">.</span><span class="n">custom_key_defs</span><span class="p">:</span>
+<a id="__codelineno-0-570" name="__codelineno-0-570"></a>            <span class="n">defs_by_prefix</span><span class="p">[</span><span class="n">db</span><span class="o">.</span><span class="n">prefix</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">ckd</span><span class="o">.</span><span class="n">key_name</span><span class="p">:</span> <span class="n">ckd</span> <span class="k">for</span> <span class="n">ckd</span> <span class="ow">in</span> <span class="n">db</span><span class="o">.</span><span class="n">custom_key_defs</span><span class="p">}</span>
+<a id="__codelineno-0-571" name="__codelineno-0-571"></a>
+<a id="__codelineno-0-572" name="__codelineno-0-572"></a>    <span class="n">spool</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">SpooledTemporaryFile</span><span class="p">(</span>
+<a id="__codelineno-0-573" name="__codelineno-0-573"></a>        <span class="n">max_size</span><span class="o">=</span><span class="n">_SPOOL_BYTES</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"w+"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">"surrogatepass"</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s2">""</span>
+<a id="__codelineno-0-574" name="__codelineno-0-574"></a>    <span class="p">)</span>
+<a id="__codelineno-0-575" name="__codelineno-0-575"></a>    <span class="k">with</span> <span class="n">spool</span><span class="p">:</span>
+<a id="__codelineno-0-576" name="__codelineno-0-576"></a>        <span class="n">count</span> <span class="o">=</span> <span class="n">_format_entries</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="n">defs_by_prefix</span><span class="p">,</span> <span class="n">spool</span><span class="p">,</span> <span class="n">verify</span><span class="o">=</span><span class="n">verify</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">header</span><span class="p">)</span>
+<a id="__codelineno-0-577" name="__codelineno-0-577"></a>        <span class="n">spool</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-0-578" name="__codelineno-0-578"></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
+<a id="__codelineno-0-579" name="__codelineno-0-579"></a>            <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span>
+<a id="__codelineno-0-580" name="__codelineno-0-580"></a>            <span class="n">kind</span> <span class="o">=</span> <span class="n">from_suffix</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">if</span> <span class="n">compression</span> <span class="o">==</span> <span class="s2">"infer"</span> <span class="k">else</span> <span class="n">compression</span>
+<a id="__codelineno-0-581" name="__codelineno-0-581"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"writing PEFF file: </span><span class="si">%s</span><span class="s2"> (</span><span class="si">%d</span><span class="s2"> entries, compression=</span><span class="si">%s</span><span class="s2">)"</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="n">kind</span><span class="p">)</span>
+<a id="__codelineno-0-582" name="__codelineno-0-582"></a>            <span class="k">with</span> <span class="n">_open_for_write</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">kind</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<a id="__codelineno-0-583" name="__codelineno-0-583"></a>                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">header_text</span><span class="p">)</span>
+<a id="__codelineno-0-584" name="__codelineno-0-584"></a>                <span class="n">shutil</span><span class="o">.</span><span class="n">copyfileobj</span><span class="p">(</span><span class="n">spool</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+<a id="__codelineno-0-585" name="__codelineno-0-585"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-586" name="__codelineno-0-586"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"writing PEFF to in-memory stream: </span><span class="si">%s</span><span class="s2"> (</span><span class="si">%d</span><span class="s2"> entries)"</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span>
+<a id="__codelineno-0-587" name="__codelineno-0-587"></a>            <span class="n">kind</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">compression</span> <span class="o">==</span> <span class="s2">"infer"</span> <span class="k">else</span> <span class="n">compression</span>
+<a id="__codelineno-0-588" name="__codelineno-0-588"></a>            <span class="k">if</span> <span class="ow">not</span> <span class="n">is_binary</span><span class="p">(</span><span class="n">dest</span><span class="p">):</span>
+<a id="__codelineno-0-589" name="__codelineno-0-589"></a>                <span class="k">if</span> <span class="n">kind</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-590" name="__codelineno-0-590"></a>                    <span class="n">err</span> <span class="o">=</span> <span class="n">PeffError</span><span class="p">(</span>
+<a id="__codelineno-0-591" name="__codelineno-0-591"></a>                        <span class="sa">f</span><span class="s2">"compression=</span><span class="si">{</span><span class="n">kind</span><span class="si">!r}</span><span class="s2"> needs a binary handle, got a text handle (</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">)"</span>
+<a id="__codelineno-0-592" name="__codelineno-0-592"></a>                    <span class="p">)</span>
+<a id="__codelineno-0-593" name="__codelineno-0-593"></a>                    <span class="n">err</span><span class="o">.</span><span class="n">add_note</span><span class="p">(</span><span class="s1">'hint: open in binary mode, open(path, "wb"), or pass the path itself'</span><span class="p">)</span>
+<a id="__codelineno-0-594" name="__codelineno-0-594"></a>                    <span class="k">raise</span> <span class="n">err</span>
+<a id="__codelineno-0-595" name="__codelineno-0-595"></a>                <span class="n">text_dest</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"IO[str]"</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+<a id="__codelineno-0-596" name="__codelineno-0-596"></a>                <span class="n">text_dest</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">header_text</span><span class="p">)</span>
+<a id="__codelineno-0-597" name="__codelineno-0-597"></a>                <span class="n">shutil</span><span class="o">.</span><span class="n">copyfileobj</span><span class="p">(</span><span class="n">spool</span><span class="p">,</span> <span class="n">text_dest</span><span class="p">)</span>
+<a id="__codelineno-0-598" name="__codelineno-0-598"></a>            <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-599" name="__codelineno-0-599"></a>                <span class="n">_write_binary</span><span class="p">(</span><span class="n">header_text</span><span class="p">,</span> <span class="n">spool</span><span class="p">,</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"IO[bytes]"</span><span class="p">,</span> <span class="n">dest</span><span class="p">),</span> <span class="n">kind</span><span class="p">)</span>
+<a id="__codelineno-0-600" name="__codelineno-0-600"></a>
+<a id="__codelineno-0-601" name="__codelineno-0-601"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"write_peff: wrote </span><span class="si">%d</span><span class="s2"> entries across </span><span class="si">%d</span><span class="s2"> database(s)"</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">header</span><span class="o">.</span><span class="n">databases</span><span class="p">))</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div><h2 id="records">Records<a class="headerlink" href="#records" title="Permanent link">&para;</a></h2>
+<p><code>to_records</code> turns entries into flat dicts for a data frame (the
+<a href="../../tables/">tables guide</a> has the record schema and examples). <code>from_records</code> is its
+inverse and takes the file header, whose <code>CustomKeyDef</code> declarations are what keep custom
+key values from being read back as unknown keys.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="pefftacular.from_records" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">pefftacular.from_records</span>
+
+
+<a href="#pefftacular.from_records" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">from_records</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">records</span><span class="p">:</span> <span class="n"><span title="collections.abc.Iterable">Iterable</span></span><span class="p">[</span><span class="n"><span title="collections.abc.Mapping">Mapping</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n"><span title="object">object</span></span><span class="p">]],</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">header</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            pefftacular.FileHeader
+
+
+  
+      dataclass
+   (pefftacular._models.FileHeader)" href="../headers/#pefftacular.FileHeader">FileHeader</a></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="list">list</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="            pefftacular.SequenceEntry
+
+
+  
+      dataclass
+   (pefftacular._models.SequenceEntry)" href="../entries/#pefftacular.SequenceEntry">SequenceEntry</a></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Build :class:<code>SequenceEntry</code> objects from flat records, the inverse of :func:<code>to_records</code>.</p>
+<p>Writes a data frame back to PEFF::</p>
+<div class="highlight"><pre><span></span><code>header, entries = read_peff("in.peff")
+df = pandas.DataFrame(to_records(entries))
+write_peff(header, from_records(df.to_dict("records"), header), "out.peff")
+</code></pre></div>
+<p>Each record is a mapping with <strong>every</strong> key in :data:<code>RECORD_KEYS</code>. A key that is not
+one of them, or one of them left out, raises: a dropped column is how a caller loses
+data without noticing. <code>None</code>, float <code>NaN</code> and the pandas/polars missing markers
+mean the entry has no value for that key, so the key is left out of the entry; <code>""</code>
+is an empty value and is kept, because a PEFF file can hold one (<code>\PName=</code> reads
+back as <code>""</code>). <code>prefix</code>, <code>db_unique_id</code> and <code>sequence</code> are required.</p>
+<p><code>header</code> is only read for its :class:<code>CustomKeyDef</code> declarations, matched to each
+record by <code>prefix</code>. It is needed whenever a record has <code>custom_values</code>, because
+only a declared key is read back as a custom value rather than an unknown one, and
+passing it is what keeps those values from being silently dropped. The entries are
+returned on their own, as :func:<code>to_records</code> takes them, so the caller keeps owning
+the header and passes it to :func:<code>write_peff</code> unchanged.</p>
+<p><code>ncbi_tax_id</code>, <code>length</code>, <code>sv</code>, <code>ev</code> and <code>pe</code> accept ints, integral floats
+(<code>9606.0</code>, from a frame column with gaps) and digit strings. <code>decoy</code> accepts
+<code>True</code>, <code>0</code>, <code>1</code> and <code>"true"</code>/<code>"false"</code>. The annotation columns,
+<code>custom_values</code> and <code>extra</code> are the PEFF value text :func:<code>to_records</code> emits, and
+are used as given.</p>
+<p>Every entry is parsed from the description line that :func:<code>write_peff</code> would have
+written, then turned back into a record and compared with the one that came in, so a
+column that could not be honoured raises instead of changing the data.</p>
+
+
+<details class="example" open>
+  <summary>Example</summary>
+  <blockquote>
+<blockquote>
+<blockquote>
+<p>from pefftacular import SequenceEntry, from_records, to_records
+entry = SequenceEntry(prefix="sp", db_unique_id="P1", sequence="ACDE", pname="Alpha")
+record = to_records([entry])[0]
+record.get("pname"), record.get("variant_simple")
+('Alpha', None)
+from_records([record]) == [entry]
+True</p>
+</blockquote>
+</blockquote>
+</blockquote>
+</details>
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="            pefftacular.PeffWriteError (pefftacular.errors.PeffWriteError)" href="../errors/#pefftacular.PeffWriteError">PeffWriteError</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A missing or unknown key, a bad value, a key set twice, a
+<code>custom_values</code> key no <code>CustomKeyDef</code> declares, or a value that would not
+read back as itself. <code>index</code> is the record's position.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>src/pefftacular/_records.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-351">351</a></span>
+<span class="normal"><a href="#__codelineno-0-352">352</a></span>
+<span class="normal"><a href="#__codelineno-0-353">353</a></span>
+<span class="normal"><a href="#__codelineno-0-354">354</a></span>
+<span class="normal"><a href="#__codelineno-0-355">355</a></span>
+<span class="normal"><a href="#__codelineno-0-356">356</a></span>
+<span class="normal"><a href="#__codelineno-0-357">357</a></span>
+<span class="normal"><a href="#__codelineno-0-358">358</a></span>
+<span class="normal"><a href="#__codelineno-0-359">359</a></span>
+<span class="normal"><a href="#__codelineno-0-360">360</a></span>
+<span class="normal"><a href="#__codelineno-0-361">361</a></span>
+<span class="normal"><a href="#__codelineno-0-362">362</a></span>
+<span class="normal"><a href="#__codelineno-0-363">363</a></span>
+<span class="normal"><a href="#__codelineno-0-364">364</a></span>
+<span class="normal"><a href="#__codelineno-0-365">365</a></span>
+<span class="normal"><a href="#__codelineno-0-366">366</a></span>
+<span class="normal"><a href="#__codelineno-0-367">367</a></span>
+<span class="normal"><a href="#__codelineno-0-368">368</a></span>
+<span class="normal"><a href="#__codelineno-0-369">369</a></span>
+<span class="normal"><a href="#__codelineno-0-370">370</a></span>
+<span class="normal"><a href="#__codelineno-0-371">371</a></span>
+<span class="normal"><a href="#__codelineno-0-372">372</a></span>
+<span class="normal"><a href="#__codelineno-0-373">373</a></span>
+<span class="normal"><a href="#__codelineno-0-374">374</a></span>
+<span class="normal"><a href="#__codelineno-0-375">375</a></span>
+<span class="normal"><a href="#__codelineno-0-376">376</a></span>
+<span class="normal"><a href="#__codelineno-0-377">377</a></span>
+<span class="normal"><a href="#__codelineno-0-378">378</a></span>
+<span class="normal"><a href="#__codelineno-0-379">379</a></span>
+<span class="normal"><a href="#__codelineno-0-380">380</a></span>
+<span class="normal"><a href="#__codelineno-0-381">381</a></span>
+<span class="normal"><a href="#__codelineno-0-382">382</a></span>
+<span class="normal"><a href="#__codelineno-0-383">383</a></span>
+<span class="normal"><a href="#__codelineno-0-384">384</a></span>
+<span class="normal"><a href="#__codelineno-0-385">385</a></span>
+<span class="normal"><a href="#__codelineno-0-386">386</a></span>
+<span class="normal"><a href="#__codelineno-0-387">387</a></span>
+<span class="normal"><a href="#__codelineno-0-388">388</a></span>
+<span class="normal"><a href="#__codelineno-0-389">389</a></span>
+<span class="normal"><a href="#__codelineno-0-390">390</a></span>
+<span class="normal"><a href="#__codelineno-0-391">391</a></span>
+<span class="normal"><a href="#__codelineno-0-392">392</a></span>
+<span class="normal"><a href="#__codelineno-0-393">393</a></span>
+<span class="normal"><a href="#__codelineno-0-394">394</a></span>
+<span class="normal"><a href="#__codelineno-0-395">395</a></span>
+<span class="normal"><a href="#__codelineno-0-396">396</a></span>
+<span class="normal"><a href="#__codelineno-0-397">397</a></span>
+<span class="normal"><a href="#__codelineno-0-398">398</a></span>
+<span class="normal"><a href="#__codelineno-0-399">399</a></span>
+<span class="normal"><a href="#__codelineno-0-400">400</a></span>
+<span class="normal"><a href="#__codelineno-0-401">401</a></span>
+<span class="normal"><a href="#__codelineno-0-402">402</a></span>
+<span class="normal"><a href="#__codelineno-0-403">403</a></span>
+<span class="normal"><a href="#__codelineno-0-404">404</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-351" name="__codelineno-0-351"></a><span class="k">def</span><span class="w"> </span><span class="nf">from_records</span><span class="p">(</span><span class="n">records</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]],</span> <span class="n">header</span><span class="p">:</span> <span class="n">FileHeader</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SequenceEntry</span><span class="p">]:</span>
+<a id="__codelineno-0-352" name="__codelineno-0-352"></a><span class="w">    </span><span class="sd">"""Build :class:`SequenceEntry` objects from flat records, the inverse of :func:`to_records`.</span>
+<a id="__codelineno-0-353" name="__codelineno-0-353"></a>
+<a id="__codelineno-0-354" name="__codelineno-0-354"></a><span class="sd">    Writes a data frame back to PEFF::</span>
+<a id="__codelineno-0-355" name="__codelineno-0-355"></a>
+<a id="__codelineno-0-356" name="__codelineno-0-356"></a><span class="sd">        header, entries = read_peff("in.peff")</span>
+<a id="__codelineno-0-357" name="__codelineno-0-357"></a><span class="sd">        df = pandas.DataFrame(to_records(entries))</span>
+<a id="__codelineno-0-358" name="__codelineno-0-358"></a><span class="sd">        write_peff(header, from_records(df.to_dict("records"), header), "out.peff")</span>
+<a id="__codelineno-0-359" name="__codelineno-0-359"></a>
+<a id="__codelineno-0-360" name="__codelineno-0-360"></a><span class="sd">    Each record is a mapping with **every** key in :data:`RECORD_KEYS`. A key that is not</span>
+<a id="__codelineno-0-361" name="__codelineno-0-361"></a><span class="sd">    one of them, or one of them left out, raises: a dropped column is how a caller loses</span>
+<a id="__codelineno-0-362" name="__codelineno-0-362"></a><span class="sd">    data without noticing. ``None``, float ``NaN`` and the pandas/polars missing markers</span>
+<a id="__codelineno-0-363" name="__codelineno-0-363"></a><span class="sd">    mean the entry has no value for that key, so the key is left out of the entry; ``""``</span>
+<a id="__codelineno-0-364" name="__codelineno-0-364"></a><span class="sd">    is an empty value and is kept, because a PEFF file can hold one (``\\PName=`` reads</span>
+<a id="__codelineno-0-365" name="__codelineno-0-365"></a><span class="sd">    back as ``""``). ``prefix``, ``db_unique_id`` and ``sequence`` are required.</span>
+<a id="__codelineno-0-366" name="__codelineno-0-366"></a>
+<a id="__codelineno-0-367" name="__codelineno-0-367"></a><span class="sd">    ``header`` is only read for its :class:`CustomKeyDef` declarations, matched to each</span>
+<a id="__codelineno-0-368" name="__codelineno-0-368"></a><span class="sd">    record by ``prefix``. It is needed whenever a record has ``custom_values``, because</span>
+<a id="__codelineno-0-369" name="__codelineno-0-369"></a><span class="sd">    only a declared key is read back as a custom value rather than an unknown one, and</span>
+<a id="__codelineno-0-370" name="__codelineno-0-370"></a><span class="sd">    passing it is what keeps those values from being silently dropped. The entries are</span>
+<a id="__codelineno-0-371" name="__codelineno-0-371"></a><span class="sd">    returned on their own, as :func:`to_records` takes them, so the caller keeps owning</span>
+<a id="__codelineno-0-372" name="__codelineno-0-372"></a><span class="sd">    the header and passes it to :func:`write_peff` unchanged.</span>
+<a id="__codelineno-0-373" name="__codelineno-0-373"></a>
+<a id="__codelineno-0-374" name="__codelineno-0-374"></a><span class="sd">    ``ncbi_tax_id``, ``length``, ``sv``, ``ev`` and ``pe`` accept ints, integral floats</span>
+<a id="__codelineno-0-375" name="__codelineno-0-375"></a><span class="sd">    (``9606.0``, from a frame column with gaps) and digit strings. ``decoy`` accepts</span>
+<a id="__codelineno-0-376" name="__codelineno-0-376"></a><span class="sd">    ``True``, ``0``, ``1`` and ``"true"``/``"false"``. The annotation columns,</span>
+<a id="__codelineno-0-377" name="__codelineno-0-377"></a><span class="sd">    ``custom_values`` and ``extra`` are the PEFF value text :func:`to_records` emits, and</span>
+<a id="__codelineno-0-378" name="__codelineno-0-378"></a><span class="sd">    are used as given.</span>
+<a id="__codelineno-0-379" name="__codelineno-0-379"></a>
+<a id="__codelineno-0-380" name="__codelineno-0-380"></a><span class="sd">    Every entry is parsed from the description line that :func:`write_peff` would have</span>
+<a id="__codelineno-0-381" name="__codelineno-0-381"></a><span class="sd">    written, then turned back into a record and compared with the one that came in, so a</span>
+<a id="__codelineno-0-382" name="__codelineno-0-382"></a><span class="sd">    column that could not be honoured raises instead of changing the data.</span>
+<a id="__codelineno-0-383" name="__codelineno-0-383"></a>
+<a id="__codelineno-0-384" name="__codelineno-0-384"></a><span class="sd">    Example:</span>
+<a id="__codelineno-0-385" name="__codelineno-0-385"></a><span class="sd">        &gt;&gt;&gt; from pefftacular import SequenceEntry, from_records, to_records</span>
+<a id="__codelineno-0-386" name="__codelineno-0-386"></a><span class="sd">        &gt;&gt;&gt; entry = SequenceEntry(prefix="sp", db_unique_id="P1", sequence="ACDE", pname="Alpha")</span>
+<a id="__codelineno-0-387" name="__codelineno-0-387"></a><span class="sd">        &gt;&gt;&gt; record = to_records([entry])[0]</span>
+<a id="__codelineno-0-388" name="__codelineno-0-388"></a><span class="sd">        &gt;&gt;&gt; record.get("pname"), record.get("variant_simple")</span>
+<a id="__codelineno-0-389" name="__codelineno-0-389"></a><span class="sd">        ('Alpha', None)</span>
+<a id="__codelineno-0-390" name="__codelineno-0-390"></a><span class="sd">        &gt;&gt;&gt; from_records([record]) == [entry]</span>
+<a id="__codelineno-0-391" name="__codelineno-0-391"></a><span class="sd">        True</span>
+<a id="__codelineno-0-392" name="__codelineno-0-392"></a>
+<a id="__codelineno-0-393" name="__codelineno-0-393"></a><span class="sd">    Raises:</span>
+<a id="__codelineno-0-394" name="__codelineno-0-394"></a><span class="sd">        PeffWriteError: A missing or unknown key, a bad value, a key set twice, a</span>
+<a id="__codelineno-0-395" name="__codelineno-0-395"></a><span class="sd">            ``custom_values`` key no ``CustomKeyDef`` declares, or a value that would not</span>
+<a id="__codelineno-0-396" name="__codelineno-0-396"></a><span class="sd">            read back as itself. ``index`` is the record's position.</span>
+<a id="__codelineno-0-397" name="__codelineno-0-397"></a><span class="sd">    """</span>
+<a id="__codelineno-0-398" name="__codelineno-0-398"></a>    <span class="c1"># Built the way PeffReader builds it (_parser.py:1153), so a record is read back with</span>
+<a id="__codelineno-0-399" name="__codelineno-0-399"></a>    <span class="c1"># the same defs the file itself would have been read with.</span>
+<a id="__codelineno-0-400" name="__codelineno-0-400"></a>    <span class="n">defs_by_prefix</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">CustomKeyDef</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-0-401" name="__codelineno-0-401"></a>    <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">header</span><span class="o">.</span><span class="n">databases</span> <span class="k">if</span> <span class="n">header</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">():</span>
+<a id="__codelineno-0-402" name="__codelineno-0-402"></a>        <span class="k">if</span> <span class="n">db</span><span class="o">.</span><span class="n">prefix</span> <span class="ow">and</span> <span class="n">db</span><span class="o">.</span><span class="n">custom_key_defs</span><span class="p">:</span>
+<a id="__codelineno-0-403" name="__codelineno-0-403"></a>            <span class="n">defs_by_prefix</span><span class="p">[</span><span class="n">db</span><span class="o">.</span><span class="n">prefix</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">ckd</span><span class="o">.</span><span class="n">key_name</span><span class="p">:</span> <span class="n">ckd</span> <span class="k">for</span> <span class="n">ckd</span> <span class="ow">in</span> <span class="n">db</span><span class="o">.</span><span class="n">custom_key_defs</span><span class="p">}</span>
+<a id="__codelineno-0-404" name="__codelineno-0-404"></a>    <span class="k">return</span> <span class="p">[</span><span class="n">_record_entry</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">defs_by_prefix</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">record</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">records</span><span class="p">)]</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div><h2 id="compression">Compression<a class="headerlink" href="#compression" title="Permanent link">&para;</a></h2>
+<p><code>Compression</code> types the <code>compression</code> argument of <code>read_peff</code>, <code>PeffReader</code>, <code>write_peff</code>
+and <code>to_records</code>.</p>
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h2 id="pefftacular.Compression" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">pefftacular.Compression</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#pefftacular.Compression" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">Compression</span> <span class="o">=</span> <span class="n"><span title="typing.Literal">Literal</span></span><span class="p">[</span><span class="s1">'infer'</span><span class="p">,</span> <span class="s1">'gzip'</span><span class="p">,</span> <span class="s1">'bz2'</span><span class="p">,</span> <span class="s1">'xz'</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>How a PEFF file is (de)compressed, like the <code>compression</code> argument of pandas.</p>
+<ul>
+<li><code>"infer"</code> (the default): readers detect gzip, bzip2 or xz from the magic bytes;
+  writers compress by the path suffix (<code>.gz</code>, <code>.bz2</code>, <code>.xz</code>, any case). An open
+  handle is read and written as plain text.</li>
+<li><code>"gzip"</code>, <code>"bz2"</code>, <code>"xz"</code>: always that format, whatever the suffix or content.</li>
+<li><code>None</code>: never compressed.</li>
+</ul>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../../tables/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Tables with pandas or polars">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Tables with pandas or polars
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../headers/" class="md-footer__link md-footer__link--next" aria-label="Next: File and database headers">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                File and database headers
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; the pefftacular authors. MIT licence.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.footer", "content.code.copy", "search.highlight", "search.suggest"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>
