@@ -47,6 +47,17 @@ All notable changes to this project will be documented in this file.
   cannot hold, one with two consecutive backslashes or ending in one, still has every
   backslash escaped, since that is what reads back.
 
+- `write_peff()` now reports, with a `PeffWarning`, what its own reader would complain about
+  on the file it just wrote, plus one thing the reader never reports. It warns when the
+  entries written under a prefix disagree with that database's `NumberOfEntries` (the reader's
+  wording), when an entry's prefix matches no database block (once per prefix, naming it),
+  when an entry's `Length` differs from its sequence, and when a `prefix:DbUniqueId` is
+  written twice. The warnings are collected while the entries are formatted and raised before
+  anything reaches the destination, so a file is still written unless the caller turns the
+  warning into an error. A header with no `NumberOfEntries`, or with no database blocks at all,
+  makes no claim about the entries and gets no warning. Remembering the identifiers costs one
+  set of `(prefix, id)` pairs.
+
 ### Documentation
 
 - Add a tables guide with the record-export API reference and executable pandas/polars examples.

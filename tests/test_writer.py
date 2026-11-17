@@ -2,6 +2,7 @@
 
 import io
 import sys
+import warnings
 from io import StringIO
 
 import pytest
@@ -22,7 +23,7 @@ from pefftacular._models import (
     VariantSimple,
 )
 from pefftacular._writer import write_peff
-from pefftacular.errors import PeffWriteError
+from pefftacular.errors import PeffWarning, PeffWriteError
 
 
 def _make_minimal_header() -> FileHeader:
@@ -440,3 +441,108 @@ class TestWriteVerification:
         buf = io.StringIO()
         write_peff(_make_minimal_header(), [entry], buf)
         assert "\\VariantSimple=(2|A)" in buf.getvalue()
+
+
+class TestWriterConsistencyWarnings:
+    """The writer reports what the reader would complain about, and a repeated id."""
+
+    @staticmethod
+    def _entry(uid: str = "P1", prefix: str = "sp", **kw) -> SequenceEntry:
+        return SequenceEntry(prefix=prefix, db_unique_id=uid, sequence="ACDEF", **kw)
+
+    @staticmethod
+    def _messages(header: FileHeader, entries: list[SequenceEntry]) -> list[str]:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            write_peff(header, entries, io.StringIO())
+        assert all(issubclass(w.category, PeffWarning) for w in caught)
+        return [str(w.message) for w in caught]
+
+    def test_consistent_file_writes_without_warning(self) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PeffWarning)
+            write_peff(_make_minimal_header(), [self._entry(length=5)], io.StringIO())
+
+    def test_count_mismatch_warns_with_reader_wording(self) -> None:
+        header = _make_minimal_header()
+        msgs = self._messages(header, [self._entry("P1"), self._entry("P2")])
+        assert msgs == ["Database 'sp': NumberOfEntries=1 but file contains 2 entries"]
+
+    def test_no_entries_for_declared_count_warns(self) -> None:
+        assert self._messages(_make_minimal_header(), []) == [
+            "Database 'sp': NumberOfEntries=1 but file contains 0 entries"
+        ]
+
+    def test_undeclared_prefix_warns_naming_it(self) -> None:
+        msgs = self._messages(_make_minimal_header(), [self._entry("P1"), self._entry("Z1", prefix="zz")])
+        assert len(msgs) == 1
+        assert "'zz'" in msgs[0]
+        assert "matches no database" in msgs[0]
+
+    def test_undeclared_prefix_warns_once_per_prefix(self) -> None:
+        entries = [self._entry("P1"), self._entry("Z1", prefix="zz"), self._entry("Z2", prefix="zz")]
+        assert sum("'zz'" in m for m in self._messages(_make_minimal_header(), entries)) == 1
+
+    def test_duplicate_id_warns(self) -> None:
+        header = _make_minimal_header()
+        msgs = self._messages(header, [self._entry("P1"), self._entry("P1")])
+        assert any("sp:'P1'" in m and "more than once" in m for m in msgs)
+
+    def test_same_id_under_different_prefixes_is_not_a_duplicate(self) -> None:
+        header = FileHeader(
+            peff_version="1.0",
+            databases=tuple(
+                DatabaseHeader(
+                    prefix=p,
+                    db_name="d",
+                    db_version="1",
+                    db_sources=("x",),
+                    number_of_entries=1,
+                    sequence_type="AA",
+                )
+                for p in ("sp", "tr")
+            ),
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PeffWarning)
+            write_peff(header, [self._entry("P1"), self._entry("P1", prefix="tr")], io.StringIO())
+
+    def test_length_mismatch_warns(self) -> None:
+        msgs = self._messages(_make_minimal_header(), [self._entry(length=999)])
+        assert msgs == ["Entry sp:'P1': Length=999 but sequence has 5 residues"]
+
+    def test_length_mismatch_warns_without_verify(self) -> None:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            write_peff(_make_minimal_header(), [self._entry(length=999)], io.StringIO(), verify=False)
+        assert [w.category for w in caught] == [PeffWarning]
+
+    def test_header_without_number_of_entries_does_not_warn(self) -> None:
+        header = FileHeader(
+            peff_version="1.0",
+            databases=(
+                DatabaseHeader(prefix="sp", db_name="d", db_version="1", db_sources=("x",), sequence_type="AA"),
+            ),
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PeffWarning)
+            write_peff(header, [self._entry("P1"), self._entry("P2")], io.StringIO())
+
+    def test_header_without_databases_does_not_warn(self) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PeffWarning)
+            write_peff(FileHeader(peff_version="1.0", databases=()), [self._entry()], io.StringIO())
+
+    def test_warning_is_not_an_exception_and_file_is_still_written(self) -> None:
+        buf = io.StringIO()
+        with pytest.warns(PeffWarning):
+            write_peff(_make_minimal_header(), [self._entry(), self._entry()], buf)
+        assert buf.getvalue().count(">sp:P1") == 2
+
+    def test_warning_as_error_leaves_destination_untouched(self, tmp_path) -> None:
+        path = tmp_path / "out.peff"
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", PeffWarning)
+            with pytest.raises(PeffWarning):
+                write_peff(_make_minimal_header(), [self._entry(), self._entry()], path)
+        assert not path.exists()
