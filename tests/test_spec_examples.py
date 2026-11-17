@@ -12,7 +12,9 @@ survive write -> read unchanged. Each example the spec marks ILLEGAL must give a
 ``PeffWarning`` or a ``PeffParseError``, never a silent success.
 """
 
+import dataclasses
 import warnings
+from collections import Counter
 from io import StringIO
 from pathlib import Path
 
@@ -65,7 +67,20 @@ def _write(header: FileHeader, entries: list[SequenceEntry]) -> str:
 
 
 def _assert_round_trip(header: FileHeader, entries: list[SequenceEntry]) -> None:
-    """write -> read gives equal models, and a second write gives the same text."""
+    """write -> read gives equal models, and a second write gives the same text.
+
+    The header is first made to declare the number of entries it is written with, so the
+    round trip is of a file consistent with itself; writing fewer entries than the header
+    claims is its own warning, tested in ``tests/test_writer.py``.
+    """
+    counted = Counter(entry.prefix for entry in entries)
+    header = dataclasses.replace(
+        header,
+        databases=tuple(
+            db if db.number_of_entries is None else dataclasses.replace(db, number_of_entries=counted[db.prefix])
+            for db in header.databases
+        ),
+    )
     text = _write(header, entries)
     if entries:
         header2, entries2 = _read_strict(text)
@@ -640,10 +655,16 @@ def test_valid_file_reads_writes_with_verify_and_round_trips(
             header, entries = read_peff(path)
 
     out = tmp_path / ("out.peff.xz" if compression == "infer" else "out.peff")
-    write_peff(header, entries, out, verify=True, compression=compression)  # type: ignore[arg-type]
+    with warnings.catch_warnings():
+        # A valid fixture written back as it was read gives the writer nothing to report;
+        # the 3.3.1 header example has no entries, so its own counts disagree.
+        warnings.simplefilter("ignore" if path.name in _HEADER_ONLY else "error", PeffWarning)
+        write_peff(header, entries, out, verify=True, compression=compression)  # type: ignore[arg-type]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore" if path.name in _HEADER_ONLY else "error", PeffWarning)
         header2, entries2 = read_peff(out, compression=compression)  # type: ignore[arg-type]
     assert header2 == header
     assert entries2 == entries
-    assert _write(header2, entries2) == _write(header, entries)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore" if path.name in _HEADER_ONLY else "error", PeffWarning)
+        assert _write(header2, entries2) == _write(header, entries)
