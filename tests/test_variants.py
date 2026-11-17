@@ -516,6 +516,87 @@ class TestFormCounts:
         assert next(iterator).is_reference  # never builds the 57,226 forms
 
 
+# ---------------------------------------------------------------------------
+# 7. What counts as applied, and what may follow a stop
+# ---------------------------------------------------------------------------
+
+
+class TestWhatCountsAsApplied:
+    """The models are frozen values, so an equal variant is the same variant."""
+
+    def test_an_equal_variant_is_the_one_applied(self) -> None:
+        entry = _entry(r"\VariantSimple=(4|W)")
+        rebuilt = VariantSimple(4, "W")
+        assert rebuilt == entry.variant_simple[0] and rebuilt is not entry.variant_simple[0]
+        form = _quiet(entry, [rebuilt])
+        assert form.sequence == "ACDWFGHIKL"
+        # It is in the sequence now, so it must not still be listed as pending.
+        assert form.entry.variant_simple == ()
+
+    def test_an_equal_complex_variant_is_the_one_applied(self) -> None:
+        entry = _entry(r"\VariantComplex=(4|6|KPA)")
+        form = _quiet(entry, [VariantComplex(4, 6, "KPA")])
+        assert (form.sequence, form.entry.variant_complex) == ("ACDKPAHIKL", ())
+
+    def test_a_variant_listed_twice_keeps_the_second_as_pending(self) -> None:
+        # One application consumes one occurrence, so the duplicate survives.
+        entry = _entry(r"\VariantSimple=(4|W)(4|W)")
+        assert entry.variant_simple == (VariantSimple(4, "W"), VariantSimple(4, "W"))
+        form = _quiet(entry, [entry.variant_simple[0]])
+        assert form.entry.variant_simple == (VariantSimple(4, "W"),)
+
+
+class TestNothingFollowsAStop:
+    def test_a_variant_after_a_stop_raises(self) -> None:
+        # The protein ends at the stop (spec section 3.3.8), so position 8 does not
+        # exist in this form and cannot be substituted in it.
+        entry = _entry(r"\VariantSimple=(4|*)(8|Q)")
+        with pytest.raises(PeffError, match=r"VariantSimple\(8\|Q\) is after the stop VariantSimple\(4\|\*\) at 4"):
+            entry.apply_variants(entry.variant_simple)
+
+    def test_a_complex_variant_after_a_stop_raises(self) -> None:
+        entry = _entry(r"\VariantSimple=(4|*) \VariantComplex=(7|8|KK)")
+        with pytest.raises(PeffError, match="is after the stop"):
+            entry.apply_variants([*entry.variant_simple, *entry.variant_complex])
+
+    def test_a_stop_last_applies_every_variant_it_lists(self) -> None:
+        entry = _entry(r"\VariantSimple=(2|Q)(4|*)")
+        form = _quiet(entry, entry.variant_simple)
+        assert (form.sequence, form.truncated_at) == ("AQD", 4)
+        assert form.applied == entry.variant_simple  # every one of them is in the sequence
+
+    def test_variant_forms_skips_the_impossible_combination(self) -> None:
+        entry = _entry(r"\VariantSimple=(4|*)(8|Q)")
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            forms = list(entry.variant_forms(max_combination=2))
+        # The reference and the two single-variant forms; the pair is refused, not yielded.
+        assert [form.sequence for form in forms] == [SEQ, "ACD", "ACDEFGHQKL"]
+        skipped = [str(w.message) for w in caught if "combination skipped" in str(w.message)]
+        assert len(skipped) == 1 and "is after the stop" in skipped[0]
+
+
+class TestComplexReplacementIsValidated:
+    """Spec section 3.3.9: residue letters, or nothing at all."""
+
+    @pytest.mark.parametrize("new_sequence", ["Q*", "*", " Q ", "q1", "-", "[AEQ]P", "K P"])
+    def test_a_replacement_that_is_not_residue_letters_raises(self, new_sequence: str) -> None:
+        entry = _entry(r"\PName=x")
+        with pytest.raises(PeffError, match="is not amino acid letters A-Z"):
+            entry.apply_variants([VariantComplex(4, 5, new_sequence)])
+
+    def test_the_asterisk_is_refused_rather_than_truncating(self) -> None:
+        # Section 3.3.9 never gives the asterisk a meaning; the nonsense codon is a
+        # VariantSimple (section 3.3.8). So this is refused instead of spliced in.
+        entry = _entry(r"\PName=x")
+        with pytest.raises(PeffError, match=r"no '\*' \(the stop codon is a VariantSimple"):
+            entry.apply_variants([VariantComplex(4, 5, "Q*")])
+
+    def test_an_empty_replacement_is_still_a_deletion(self) -> None:
+        entry = _entry(r"\PName=x")
+        assert _quiet(entry, [VariantComplex(4, 5, "")]).sequence == "ACDGHIKL"  # E and F removed
+
+
 def test_variant_form_is_unhashable_like_the_entry() -> None:
     entry = _entry(r"\VariantSimple=(4|W)")
     form = entry.apply_variants(entry.variant_simple)

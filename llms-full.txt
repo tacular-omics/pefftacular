@@ -488,7 +488,7 @@ The sequence line holds the reference sequence; `\VariantSimple` (§3.3.8) and
 
 | field | meaning |
 |---|---|
-| `entry` | the derived `SequenceEntry`: variant sequence, applied variants removed, every other annotation remapped |
+| `entry` | the derived `SequenceEntry`: variant sequence, the applied variants removed (by equality, so a rebuilt variant removes the right one), every other annotation remapped |
 | `applied` | the variants applied, in the order given |
 | `position_map` | 1-based original position -> 1-based new position, `None` where the residue is gone; index 0 unused |
 | `truncated_at` | 1-based position of a `*` (nonsense) substitution, before which the sequence ends, else `None` |
@@ -507,11 +507,15 @@ The sequence line holds the reference sequence; `\VariantSimple` (§3.3.8) and
   annotation is dropped when a reference no longer resolves. `length` is recomputed when the
   entry had one. Every drop emits a `PeffWarning`.
 - A non-numeric position, a position outside the sequence, a new residue that is not one letter
-  or `*`, and two variants that change the same position all raise `PeffError`: the spec does not
-  define how overlapping variants combine, so one per form.
+  or `*`, a `VariantComplex` replacement that is neither residue letters nor empty (§3.3.9, so no
+  `*`: the stop codon is a `VariantSimple`), a variant downstream of a `*` stop, which ends the
+  protein so the later positions do not exist in that form, and two variants that change the same
+  position all raise `PeffError`: the spec does not define how overlapping variants combine, so
+  one per form.
 - `variant_forms` yields the reference form and then one form per variant, because a variant is
   optional by default ("MAY be substituted", §3.3.8). `max_combination=k` applies up to k at
-  once and skips overlapping combinations with a warning; `limit` is checked before any sequence
+  once and skips with a warning any combination it cannot apply (overlapping variants, or one
+  downstream of a `*` stop); `limit` is checked before any sequence
   is built; `proteoforms=True` applies the variants each `\Proteoform` references by id (§3.4.2);
   `mandatory=True` gives the single form with everything applied, for a database whose header has
   `ProteoformDb=true` (§3.4.1, read it from `DatabaseHeader.proteoform_db`). The iterator is
@@ -839,9 +843,11 @@ logging.getLogger("pefftacular").setLevel(logging.DEBUG)
   an `extra` key that is a known PEFF key or contains `=`, an unbalanced paren in a position).
 - **A repeated key keeps every item.** The spec forbids repeating a key on a description
   line (§3.3.3), but files do it. When the value is a list of items - an annotation key
-  or a header-declared custom key - the items of every occurrence are kept, in file order,
-  exactly as if they had been written under one key. Any other repeated key keeps the last
-  value and warns (`PeffWarning`) naming the value it drops.
+  or a header-declared custom key, with the earlier occurrence tokenizing as items rather
+  than merely ending in `)` - the items of every occurrence are kept, in file order,
+  exactly as if they had been written under one key. Any other repeated key, free text
+  with a parenthetical included, keeps the last value and warns (`PeffWarning`) naming the
+  value it drops.
 - **`verify=False` trusts the entries.** A hand-built or edited value holding PEFF
   syntax is then written as is and may read back differently. Keep the default for them.
 - **Readers iterate once.** Create a new `PeffReader` to read the file again.

@@ -181,7 +181,11 @@ Full signatures and examples: `llms-full.txt`.
   returns last-wins and reports the dropped values through its `repeats` out-parameter,
   which is what keeps `tests/test_lexer_fast_paths.py` comparing equal to the 1.0
   reference. `_merge_repeated_keys` in `_parser.py` applies the rule, and warns for any
-  other repeated key. In a FASTA header read by `from_fasta` the **first**
+  other repeated key. "A list of items" is decided by `_is_item_list`, which tokenizes the
+  earlier value as well as checking that it ends in an unescaped `)`: free text with a
+  parenthetical (`\Note=see (ref)`) ends that way without being a list, and merging it onto
+  the next occurrence raised a `PeffParseError` in 1.4.0 where 1.3.0 kept the last value.
+  Do not weaken that back to a last-character test. In a FASTA header read by `from_fasta` the **first**
   `KEY=value` wins and later occurrences are dropped, matching fastatacular; they are not
   moved to `extra`, or the entry would report two values for one key and `to_fasta` would
   write it twice. `to_fasta` also writes a key held by both a typed field and `extra`

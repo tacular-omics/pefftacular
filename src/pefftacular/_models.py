@@ -420,7 +420,8 @@ class SequenceEntry:
           reference no longer resolves, including a reference to a variant this form
           applied. A reference that was already dangling is left alone.
         - ``length`` is recomputed when the entry had one; the applied variants are
-          removed from ``variant_simple`` / ``variant_complex``.
+          removed from ``variant_simple`` / ``variant_complex`` by equality, so passing a
+          rebuilt variant rather than the entry's own instance removes the right one.
 
         Each drop emits a :class:`PeffWarning`; nothing is silent.
 
@@ -436,9 +437,12 @@ class SequenceEntry:
         Raises:
             PeffError: Unknown ``errors`` (always). With ``errors="raise"`` also a position
                 that is not a number, a position outside the sequence, a ``VariantSimple``
-                whose new residue is not a single letter or ``*``, or two variants that
-                change the same position: the spec does not define how overlapping
-                variants combine, so one per form.
+                whose new residue is not a single letter or ``*``, a ``VariantComplex``
+                whose replacement is neither residue letters nor empty (§3.3.9), a variant
+                downstream of a ``*`` stop, which ends the protein (§3.3.8) so the later
+                positions do not exist in that form, or two variants that change the same
+                position: the spec does not define how overlapping variants combine, so one
+                per form.
 
         Example:
             >>> from pefftacular import SequenceEntry, VariantComplex, VariantSimple

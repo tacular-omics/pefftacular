@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- A repeated `\Key=` whose earlier value is not a list of items no longer raises. 1.4.0 merged the
+  occurrences whenever the earlier one merely ended with an unescaped `)`, so free text with a
+  parenthetical was glued onto the following list: `\Note=see (ref) \Note=(two)` and
+  `\ModResUnimod=see (ref) \ModResUnimod=(2|UNIMOD:1|Acetyl)` both raised a `PeffParseError` on the
+  merged value, where 1.3.0 read the last value. The occurrences are merged only when the earlier
+  value is a list of items, which is tested by tokenising it; anything else keeps the last value and
+  warns naming the value it drops, as every other repeated key does. A repeated key that really is a
+  list of items still keeps the items of every occurrence, in file order.
+- `apply_variants()` now treats a variant as applied when it **equals** one of the entry's
+  annotations, not when it is the same object. Passing `VariantSimple(2, "C")` rather than the
+  instance from `entry.variant_simple` applied the substitution and still listed the variant as
+  pending on the derived entry, so the form claimed a variant its sequence already contained. The
+  models are frozen values, so an equal variant is the same variant; one occurrence is consumed per
+  application, and an entry that lists the same variant twice still keeps the second as pending.
+- `apply_variants()` no longer accepts a variant downstream of a `*` stop. A nonsense variant ends
+  the protein (§3.3.8), so the later positions do not exist in that form: applying
+  `(5|*)` and `(8|Q)` together truncated the sequence at 5, never applied the `Q`, and still listed
+  both in `VariantForm.applied`, with no warning. It now raises `PeffError` naming both variants, so
+  everything `applied` lists is in the sequence. `variant_forms()` reports such a combination as
+  skipped and carries on, as it already did for overlapping variants, and a stop that is the last
+  variant of a form still applies every one of them.
+- `apply_variants()` now validates a `\VariantComplex` replacement the way it validates a
+  `\VariantSimple` substitution. `(4|5|Q*)`, `(4|5| Q )` and `(4|5|q1)` were spliced into the
+  sequence verbatim, so a form could hold an asterisk, a space or a digit where a residue belongs,
+  and a `Q*` produced no truncation. The replacement must now be amino acid letters, or empty for
+  the deletion §3.3.9 writes as `(100|100|)`. The asterisk is refused rather than treated as a
+  stop: §3.3.9 gives it no meaning, and the nonsense codon is a `VariantSimple` (§3.3.8).
+
 ## [1.4.0] (2026-11-16)
 
 ### Added
