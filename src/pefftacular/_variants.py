@@ -16,7 +16,8 @@ import dataclasses
 import itertools
 import math
 import warnings
-from collections.abc import Iterable, Iterator, Sequence
+from collections import Counter
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from typing import Literal, overload
 
 from pefftacular._models import (
@@ -99,6 +100,24 @@ def _check_new_amino_acid(variant: VariantSimple, pos: int, name: str) -> None:
         )
 
 
+def _check_new_sequence(variant: VariantComplex, start: int, end: int, name: str) -> None:
+    """A ``VariantComplex`` replaces residues with residue letters, or with nothing.
+
+    Spec §3.3.9 gives ``(100|100|)`` for a deletion and says no character may stand for
+    one, allows no regular expressions, and never gives the asterisk a meaning here: the
+    nonsense codon belongs to ``VariantSimple`` (§3.3.8). So the replacement is either
+    empty or amino acid letters, checked the way ``_check_new_amino_acid`` checks one.
+    """
+    new = variant.new_sequence
+    if new == "" or all("A" <= char <= "Z" for char in new):
+        return
+    raise _error(
+        f"{name}: VariantComplex ({start}|{end}|{new}): new sequence {new!r} is not amino acid letters A-Z",
+        "spec section 3.3.9: the new sequence is residue letters, or empty for a deletion - no dash, "
+        "no regular expression, and no '*' (the stop codon is a VariantSimple, section 3.3.8)",
+    )
+
+
 def _ordered(variants: Iterable[Variant], length: int, name: str) -> list[tuple[int, int, Variant]]:
     """Validate the variants and return them sorted by position, rejecting overlaps.
 
@@ -110,15 +129,17 @@ def _ordered(variants: Iterable[Variant], length: int, name: str) -> list[tuple[
         start, end = _source_span(variant, length, name)
         if isinstance(variant, VariantSimple):
             _check_new_amino_acid(variant, start, name)
-        elif variant.new_sequence == variant.new_sequence.strip() and len(variant.new_sequence) == 1 and start == end:
-            # (100|100|A) is a single-residue substitution and MUST be a VariantSimple
-            # (spec section 3.3.9). Reading is permissive, so apply it and say so.
-            warnings.warn(
-                f"{name}: VariantComplex ({start}|{end}|{variant.new_sequence}) is a single-residue "
-                "substitution and should be a VariantSimple (spec section 3.3.9)",
-                PeffWarning,
-                stacklevel=5,
-            )
+        else:
+            _check_new_sequence(variant, start, end, name)
+            if len(variant.new_sequence) == 1 and start == end:
+                # (100|100|A) is a single-residue substitution and MUST be a VariantSimple
+                # (spec section 3.3.9). Reading is permissive, so apply it and say so.
+                warnings.warn(
+                    f"{name}: VariantComplex ({start}|{end}|{variant.new_sequence}) is a single-residue "
+                    "substitution and should be a VariantSimple (spec section 3.3.9)",
+                    PeffWarning,
+                    stacklevel=5,
+                )
         spans.append((start, end, variant))
 
     spans.sort(key=lambda item: (item[0], item[1]))
@@ -128,6 +149,16 @@ def _ordered(variants: Iterable[Variant], length: int, name: str) -> list[tuple[
                 f"{name}: variants {_describe(variant)} and {_describe(next_variant)} both change "
                 f"position {next_start}",
                 "the spec does not define how overlapping variants combine; apply one per form",
+            )
+    for index, (start, _end, variant) in enumerate(spans[:-1]):
+        if isinstance(variant, VariantSimple) and variant.new_amino_acid == STOP:
+            # The protein ends here (spec section 3.3.8), so the positions the later
+            # variants name do not exist in this form. Refusing keeps ``applied``
+            # honest: every variant it lists is in the sequence.
+            raise _error(
+                f"{name}: {_describe(spans[index + 1][2])} is after the stop {_describe(variant)} at {start}",
+                "a nonsense variant ends the protein (spec section 3.3.8), so nothing downstream of it "
+                "can be applied in the same form; apply them in separate forms",
             )
     return spans
 
@@ -275,15 +306,24 @@ def _remap_processed(
 
 def _remap_pending_variants(
     entry: SequenceEntry,
-    applied: set[int],
+    applied: Mapping[Variant, int],
     position_map: Sequence[int | None],
     name: str,
     dropped_ids: set[int],
 ) -> tuple[tuple[VariantSimple, ...], tuple[VariantComplex, ...]]:
-    """Carry the variants that were *not* applied onto the new coordinates."""
+    """Carry the variants that were *not* applied onto the new coordinates.
+
+    An annotation counts as applied when it *equals* one that was applied, not when it is
+    the same object: the models are frozen values, so a caller that rebuilds a variant
+    instead of passing the entry's own instance means the same variant. One occurrence is
+    consumed per application, so an entry that lists the same variant twice keeps the
+    second as pending.
+    """
+    pending = Counter(applied)
     simple: list[VariantSimple] = []
     for variant in entry.variant_simple:
-        if id(variant) in applied:
+        if pending[variant]:
+            pending[variant] -= 1
             continue
         mapped = _map_one(variant.position, position_map)
         if mapped is None:
@@ -295,7 +335,8 @@ def _remap_pending_variants(
 
     complexes: list[VariantComplex] = []
     for variant in entry.variant_complex:
-        if id(variant) in applied:
+        if pending[variant]:
+            pending[variant] -= 1
             continue
         mapped_range = _remap_range(variant.start_pos, variant.end_pos, position_map)
         if mapped_range is None:
@@ -359,7 +400,7 @@ def _apply(entry: SequenceEntry, variants: Sequence[Variant]) -> VariantForm:
     spans = _ordered(variants, len(entry.sequence), name)
     sequence, position_map, substituted, truncated_at = _splice(entry.sequence, spans)
 
-    applied_ids = {id(variant) for _, _, variant in spans}
+    applied_counts = Counter(variant for _, _, variant in spans)
     known_ids = {
         annotation.annot_id
         for group in (
@@ -379,7 +420,7 @@ def _apply(entry: SequenceEntry, variants: Sequence[Variant]) -> VariantForm:
     # \Proteoform that references it describes this form rather than one reachable from it.
     gone_ids = {variant.annot_id for _, _, variant in spans if variant.annot_id is not None}
 
-    simple, complexes = _remap_pending_variants(entry, applied_ids, position_map, name, gone_ids)
+    simple, complexes = _remap_pending_variants(entry, applied_counts, position_map, name, gone_ids)
     remapped = {
         "variant_simple": simple,
         "variant_complex": complexes,

@@ -92,13 +92,16 @@ print(form.sequence[:15], len(form.sequence))
 ```
 
 A `VariantSimple` never changes the length (spec §3.3.8). A `*` is a nonsense mutation: the
-sequence ends before that position and `form.truncated_at` holds it.
+sequence ends before that position and `form.truncated_at` holds it, so nothing downstream of it can
+be applied in the same form and `apply_variants` says so rather than dropping it silently.
 
 ### `VariantComplex`: a stretch changes
 
 `(startPosition|endPosition|newSequence|tag)`. Residues `start_pos` to `end_pos` inclusive are
 replaced by `new_sequence`. An empty `new_sequence` is a deletion; a `new_sequence` longer than the
-range is an insertion.
+range is an insertion. The replacement is residue letters or nothing, and `apply_variants` refuses
+anything else, the asterisk included: section 3.3.9 gives it no meaning there, and the stop codon is
+a `VariantSimple`.
 
 ```python
 vc = insulin.variant_complex[0]
