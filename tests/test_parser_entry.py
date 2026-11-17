@@ -266,6 +266,16 @@ class TestRepeatedDescriptionKeys:
             e = self._read(r"\ModResUnimod=see (ref) \ModResUnimod=(2|UNIMOD:1|Acetyl)")
         assert [(m.positions, m.name) for m in e.mod_res_unimod] == [((2,), "Acetyl")]
 
+    def test_an_escaped_closing_paren_does_not_end_an_item_list(self):
+        r"""``(a)\)`` ends with a literal ``)``, so it is not a list another list can follow."""
+        import pytest
+
+        from pefftacular import PeffWarning
+
+        with pytest.warns(PeffWarning, match="key 'ModRes' appears more than once"):
+            e = self._read(r"\ModRes=(1||a)\) \ModRes=(2||b)")
+        assert [(m.positions, m.name) for m in e.mod_res] == [((2,), "b")]
+
     def test_a_real_item_list_still_merges_every_occurrence(self):
         # The point of the merge, unchanged: both occurrences are lists of items.
         e = self._read_quietly(r"\ModResUnimod=(1|UNIMOD:1|a)(2|UNIMOD:2|b) \ModResUnimod=(3|UNIMOD:3|c)")

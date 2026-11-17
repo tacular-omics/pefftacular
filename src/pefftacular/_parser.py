@@ -869,10 +869,8 @@ def _is_item_list(value: str) -> bool:
     ``PeffParseError`` on it where 1.3.0 kept the last value. So the value must also
     tokenize, which is exactly the test the merged value will face.
     """
-    if not value.endswith(")"):
-        return False
     backslashes = len(value[:-1]) - len(value[:-1].rstrip("\\"))
-    if backslashes % 2:
+    if not value.endswith(")") or backslashes % 2:
         return False
     try:
         split_items(value)
