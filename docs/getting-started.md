@@ -277,7 +277,8 @@ time. For entries read from a file and not changed, skip it with
 `write_peff(header, entries, dest, verify=False)`.
 
 It does **not** fill in `Length` or `NumberOfEntries` for you. Set them yourself if you want
-them in the file; the reader warns if they disagree with the data.
+them in the file; `write_peff` warns if they disagree with the entries it is given, and so does
+the reader when it reads the result.
 
 ### Filtering a file
 
@@ -285,26 +286,27 @@ Read, transform, write. `PeffReader` streams the input; `write_peff` collects th
 given into a list before writing, so the entries you keep must fit in memory:
 
 ```python
+from dataclasses import replace
+
 from pefftacular import PeffReader, write_peff
 
 with PeffReader("proteins.peff") as reader:
     header = reader.header
     kept = [e for e in reader if e.variant_simple]
 
-write_peff(header, kept, "with_variants.peff")
+# The header has to describe what is written, so declare how many entries are kept.
+db = replace(header.databases[0], number_of_entries=len(kept))
+write_peff(replace(header, databases=(db,)), kept, "with_variants.peff")
 print([e.db_unique_id for e in kept])
 # ['P68871']
 ```
 
-If you filter entries out, the header's `NumberOfEntries` still says the old count and the
-reader will warn when it reads the new file. Update it with `dataclasses.replace`:
-
-```python
-from dataclasses import replace
-
-db = replace(header.databases[0], number_of_entries=len(kept))
-write_peff(replace(header, databases=(db,)), kept, "with_variants.peff")
-```
+Leave `NumberOfEntries` as it was and `write_peff` warns with a `PeffWarning` naming the
+database, as the reader does when it reads the file. `dataclasses.replace` is the way to
+update it; a file with several databases needs its own count for each one, so rebuild the
+whole `databases` tuple. The same warning reports an entry whose prefix matches no database
+in the header, an entry whose `Length` does not match its sequence, and a
+`prefix:DbUniqueId` written twice.
 
 ## Errors and warnings
 

@@ -28,6 +28,7 @@ import os
 import string
 import tempfile
 import warnings
+from collections import Counter
 from datetime import date, time
 from io import BytesIO, StringIO
 from pathlib import Path
@@ -75,6 +76,25 @@ def _read(text: str) -> tuple[FileHeader, list[SequenceEntry]]:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         return read_peff(StringIO(text))
+
+
+def _declare_counts(header: FileHeader, entries: list[SequenceEntry]) -> FileHeader:
+    """Make each database declare the number of entries it really gets.
+
+    The header and the entries are drawn independently, so a drawn ``NumberOfEntries``
+    almost never matches what is written and ``write_peff`` rightly warns about every such
+    file. These properties are about data surviving a round trip, so they generate
+    consistent files; the warnings themselves are asserted in ``tests/test_writer.py``.
+    A database that declares no count makes no claim and is left alone.
+    """
+    written = Counter(entry.prefix for entry in entries)
+    return dataclasses.replace(
+        header,
+        databases=tuple(
+            db if db.number_of_entries is None else dataclasses.replace(db, number_of_entries=written[db.prefix])
+            for db in header.databases
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -216,7 +236,22 @@ sequence_entry = st.builds(
     proteoform=_tuple(proteoform),
     custom_values=st.just({}),
     extra=extra_values,
+).map(
+    # An entry whose \\Length= disagrees with its sequence is a file the writer and the
+    # reader both warn about; that case is asserted in tests/test_writer.py and
+    # tests/test_parser_entry.py. Here the key only has to survive a round trip.
+    lambda e: e if e.length is None else dataclasses.replace(e, length=len(e.sequence))
 )
+
+
+def entry_lists(**kwargs) -> st.SearchStrategy:
+    """Entries with distinct identifiers.
+
+    Two entries sharing a ``prefix:DbUniqueId`` are a file ``write_peff`` warns about, and
+    that warning has its own tests in ``tests/test_writer.py``. See `_declare_counts`.
+    """
+    return st.lists(sequence_entry, unique_by=lambda e: e.db_unique_id, **kwargs)
+
 
 # ---------------------------------------------------------------------------
 # Header strategies
@@ -309,8 +344,9 @@ file_header = st.builds(
 # ---------------------------------------------------------------------------
 
 
-@given(header=file_header, entries=st.lists(sequence_entry, max_size=3))
+@given(header=file_header, entries=entry_lists(max_size=3))
 def test_write_read_write_is_stable(header: FileHeader, entries: list[SequenceEntry]) -> None:
+    header = _declare_counts(header, entries)
     text = _write(header, entries)
     header2, entries2 = _read(text)
     assert header2 == header
@@ -318,7 +354,7 @@ def test_write_read_write_is_stable(header: FileHeader, entries: list[SequenceEn
     assert _write(header2, entries2) == text
 
 
-@given(entries=st.lists(sequence_entry, min_size=1, max_size=3))
+@given(entries=entry_lists(min_size=1, max_size=3))
 def test_read_write_is_idempotent_on_written_text(entries: list[SequenceEntry]) -> None:
     header = FileHeader(peff_version="1.0", databases=(DatabaseHeader(prefix="sp", db_name="x"),))
     text = _write(header, entries)
@@ -436,7 +472,7 @@ def peff_file(draw: st.DrawFn) -> tuple[FileHeader, list[SequenceEntry]]:
     header = dataclasses.replace(header, databases=(sp, tr))
 
     entries = []
-    for entry in draw(st.lists(sequence_entry, max_size=3)):
+    for entry in draw(entry_lists(max_size=3)):
         if draw(st.booleans()):
             entries.append(dataclasses.replace(entry, prefix="tr"))
             continue
@@ -449,7 +485,7 @@ def peff_file(draw: st.DrawFn) -> tuple[FileHeader, list[SequenceEntry]]:
             if values:
                 custom[ckd.key_name] = tuple(values)
         entries.append(dataclasses.replace(entry, custom_values=custom))
-    return header, entries
+    return _declare_counts(header, entries), entries
 
 
 def _without_raw(entries: list[SequenceEntry]) -> list[SequenceEntry]:
@@ -629,13 +665,13 @@ def test_malformed_header_raises_only_peff_error(body: str) -> None:
 
 @given(
     header=file_header,
-    entries=st.lists(sequence_entry, min_size=1, max_size=2),
+    entries=entry_lists(min_size=1, max_size=2),
     data=st.data(),
 )
 def test_mutated_valid_file_raises_only_peff_error(
     header: FileHeader, entries: list[SequenceEntry], data: st.DataObject
 ) -> None:
-    text = _write(header, entries)
+    text = _write(_declare_counts(header, entries), entries)
     assume(text)
     for _ in range(data.draw(st.integers(1, 4))):
         i = data.draw(st.integers(0, len(text)))

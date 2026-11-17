@@ -275,7 +275,7 @@ class TestCustomKeysRoundTrip:
         bad = CustomKeyValue(key_name="Score", fields={"method": "m", "value": 1.5, "passed": True}, raw="a(b")
         entry = dataclasses.replace(entries[0], custom_values={"Score": (bad,)})
         buf = StringIO()
-        write_peff(header, [entry], buf)
+        write_peff(header, [entry, *entries[1:]], buf)
         assert r"\Score=(m|1.5|true)" in buf.getvalue()
 
     def test_raw_for_undeclared_key_is_written_verbatim(self):
@@ -283,7 +283,7 @@ class TestCustomKeysRoundTrip:
         v = CustomKeyValue(key_name="Undeclared", fields={"x": "other"}, raw="kept|as|is")
         entry = dataclasses.replace(entries[0], custom_values={"Undeclared": (v,)})
         buf = StringIO()
-        write_peff(header, [entry], buf)
+        write_peff(header, [entry, *entries[1:]], buf)
         assert r"\Undeclared=(kept|as|is)" in buf.getvalue()
 
     def test_write_from_constructed_fields_when_raw_empty(self):

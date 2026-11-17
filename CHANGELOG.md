@@ -50,13 +50,16 @@ All notable changes to this project will be documented in this file.
 - `write_peff()` now reports, with a `PeffWarning`, what its own reader would complain about
   on the file it just wrote, plus one thing the reader never reports. It warns when the
   entries written under a prefix disagree with that database's `NumberOfEntries` (the reader's
-  wording), when an entry's prefix matches no database block (once per prefix, naming it),
-  when an entry's `Length` differs from its sequence, and when a `prefix:DbUniqueId` is
-  written twice. The warnings are collected while the entries are formatted and raised before
-  anything reaches the destination, so a file is still written unless the caller turns the
-  warning into an error. A header with no `NumberOfEntries`, or with no database blocks at all,
-  makes no claim about the entries and gets no warning. Remembering the identifiers costs one
-  set of `(prefix, id)` pairs.
+  wording), when an entry's prefix matches no database block, when an entry's `Length` differs
+  from its sequence (the reader's wording again, naming the entry the same way), and when a
+  `prefix:DbUniqueId` is written twice. The warnings are collected while the entries are
+  formatted and raised before anything reaches the destination, so a file is still written
+  unless the caller turns the warning into an error. A header with no `NumberOfEntries`, or
+  with no database blocks at all, makes no claim about the entries and gets no warning. Each
+  kind is one warning however many entries it covers: a single occurrence reads exactly like
+  the reader's sentence about it, and more than one is counted with the first three named, so
+  a file where every entry is wrong costs one message rather than one per entry. Remembering
+  the identifiers costs one set of `(prefix, id)` pairs.
 
 ### Documentation
 

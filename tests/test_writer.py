@@ -26,7 +26,7 @@ from pefftacular._writer import write_peff
 from pefftacular.errors import PeffWarning, PeffWriteError
 
 
-def _make_minimal_header() -> FileHeader:
+def _make_minimal_header(number_of_entries: int = 1) -> FileHeader:
     return FileHeader(
         peff_version="1.0",
         databases=(
@@ -35,7 +35,7 @@ def _make_minimal_header() -> FileHeader:
                 db_name="testdb",
                 db_version="2024-01",
                 db_sources=("http://example.com",),
-                number_of_entries=1,
+                number_of_entries=number_of_entries,
                 sequence_type="AA",
             ),
         ),
@@ -45,7 +45,7 @@ def _make_minimal_header() -> FileHeader:
 class TestHeaderWriting:
     def test_version_line(self):
         buf = StringIO()
-        write_peff(_make_minimal_header(), [], buf)
+        write_peff(_make_minimal_header(0), [], buf)
         lines = buf.getvalue().splitlines()
         assert lines[0] == "# PEFF 1.0"
 
@@ -65,12 +65,12 @@ class TestHeaderWriting:
 
     def test_database_block(self):
         buf = StringIO()
-        write_peff(_make_minimal_header(), [], buf)
+        write_peff(_make_minimal_header(0), [], buf)
         text = buf.getvalue()
         assert "# DbName=testdb\n" in text
         assert "# Prefix=sp\n" in text
         assert "# DbVersion=2024-01\n" in text
-        assert "# NumberOfEntries=1\n" in text
+        assert "# NumberOfEntries=0\n" in text  # what this header declares, and what is written
         assert "# SequenceType=AA\n" in text
 
     def test_custom_key_def(self):
@@ -486,7 +486,7 @@ class TestWriterConsistencyWarnings:
     def test_duplicate_id_warns(self) -> None:
         header = _make_minimal_header()
         msgs = self._messages(header, [self._entry("P1"), self._entry("P1")])
-        assert any("sp:'P1'" in m and "more than once" in m for m in msgs)
+        assert any("'sp:P1'" in m and "more than once" in m for m in msgs)
 
     def test_same_id_under_different_prefixes_is_not_a_duplicate(self) -> None:
         header = FileHeader(
@@ -509,7 +509,22 @@ class TestWriterConsistencyWarnings:
 
     def test_length_mismatch_warns(self) -> None:
         msgs = self._messages(_make_minimal_header(), [self._entry(length=999)])
-        assert msgs == ["Entry sp:'P1': Length=999 but sequence has 5 residues"]
+        assert msgs == ["Entry 'P1': Length=999 but sequence has 5 residues"]
+
+    def test_length_message_is_the_readers_own(self) -> None:
+        """The same fact gets the same sentence from the writer and from the reader."""
+        from pefftacular import read_peff
+
+        buf = io.StringIO()
+        with warnings.catch_warnings(record=True) as written:
+            warnings.simplefilter("always")
+            write_peff(_make_minimal_header(), [self._entry(length=999)], buf)
+        with warnings.catch_warnings(record=True) as read_back:
+            warnings.simplefilter("always")
+            read_peff(io.StringIO(buf.getvalue()))
+        from_writer = [str(w.message) for w in written if "Length=" in str(w.message)]
+        from_reader = [str(w.message) for w in read_back if "Length=" in str(w.message)]
+        assert from_writer == from_reader == ["Entry 'P1': Length=999 but sequence has 5 residues"]
 
     def test_length_mismatch_warns_without_verify(self) -> None:
         with warnings.catch_warnings(record=True) as caught:
@@ -532,6 +547,42 @@ class TestWriterConsistencyWarnings:
         with warnings.catch_warnings():
             warnings.simplefilter("error", PeffWarning)
             write_peff(FileHeader(peff_version="1.0", databases=()), [self._entry()], io.StringIO())
+
+    def test_many_length_mismatches_are_one_warning_with_a_count(self) -> None:
+        """A file where every entry is wrong costs one warning, not one per entry."""
+        entries = [self._entry(f"P{i}", length=999) for i in range(5000)]
+        msgs = self._messages(_make_minimal_header(number_of_entries=5000), entries)
+        assert len(msgs) == 1
+        assert msgs[0].startswith("5000 entries have a Length that differs from their sequence: ")
+        assert msgs[0].endswith(" and 4997 more")
+        assert sum(f"'P{i}'" in msgs[0] for i in range(5000)) == 3
+
+    def test_many_repeats_are_one_warning_with_a_count(self) -> None:
+        entries = [self._entry("P1") for _ in range(5000)]
+        msgs = self._messages(_make_minimal_header(number_of_entries=5000), entries)
+        assert len(msgs) == 1
+        assert msgs[0] == "4999 entries are written more than once: 'sp:P1'; 'sp:P1'; 'sp:P1' and 4996 more"
+
+    def test_many_undeclared_prefixes_are_one_warning_with_a_count(self) -> None:
+        entries = [self._entry("P1"), *[self._entry(f"Z{i}", prefix=f"z{i}") for i in range(5)]]
+        msgs = self._messages(_make_minimal_header(), entries)
+        assert len(msgs) == 1
+        assert msgs[0].startswith("5 entry prefixes match no database in the header: ")
+        assert msgs[0].endswith(" and 2 more")
+
+    def test_each_kind_is_reported_once_alongside_the_others(self) -> None:
+        entries = [
+            self._entry("P1", length=1),
+            self._entry("P1", length=2),
+            self._entry("Z1", prefix="zz"),
+            self._entry("Z2", prefix="zz"),
+        ]
+        msgs = self._messages(_make_minimal_header(), entries)
+        assert len(msgs) == 4
+        assert sum("Length" in m for m in msgs) == 1
+        assert sum("more than once" in m for m in msgs) == 1
+        assert sum("matches no database" in m for m in msgs) == 1
+        assert sum("NumberOfEntries" in m for m in msgs) == 1
 
     def test_warning_is_not_an_exception_and_file_is_still_written(self) -> None:
         buf = io.StringIO()
