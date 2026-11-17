@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.0] (2026-11-16)
+
 ### Added
 
 - `SequenceEntry.apply_variants()` and `SequenceEntry.variant_forms()`, with the new
