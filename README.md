@@ -283,9 +283,19 @@ entries that came unchanged from `read_peff`, pass `verify=False` to skip that c
 (about 3x faster writes):
 
 ```python
+from dataclasses import replace
+
 header, entries = read_peff("proteins.peff.gz")
-write_peff(header, (e for e in entries if e.variant_simple), "variants.peff", verify=False)
+kept = [e for e in entries if e.variant_simple]
+# The header must describe what is written, or write_peff warns about the file it just wrote.
+db = replace(header.databases[0], number_of_entries=len(kept))
+write_peff(replace(header, databases=(db,)), kept, "variants.peff", verify=False)
 ```
+
+`write_peff` issues a `PeffWarning` when the entries disagree with the header: a database's
+`NumberOfEntries` that does not match the entries written under its prefix, a prefix no
+database declares, a `Length` that does not match its sequence, or a `prefix:DbUniqueId`
+written twice. Each is reported once, with a count, however many entries it covers.
 
 ## Error handling
 

@@ -208,6 +208,18 @@ canonical order: `ID`, `DbUniqueId`, `Length`, `PName`, `GName`, `NcbiTaxId`, `T
 `extra` keys. File-system errors (missing directory, permissions) propagate as the usual
 `OSError` subclasses, not `PeffWriteError`.
 
+Facts that make the file disagree with its header are a `PeffWarning`, never an exception,
+raised after every entry is formatted and before anything reaches `dest` (so a warning
+turned into an error leaves no file behind): a database's `NumberOfEntries` that differs
+from the entries written under its prefix (one message per database, worded as the
+reader's), an entry prefix no database in the header declares, an entry whose `Length`
+differs from its sequence (worded as the reader's), and a `prefix:DbUniqueId` written
+twice. They run whatever `verify` is. A header without `NumberOfEntries`, or with no
+database block at all, makes no claim and gets no count warning. Each kind is reported
+once however many entries it covers: one occurrence reads like the reader's own sentence,
+and more than one is counted with the first three named (`3 entries have a Length that
+differs from their sequence: 'P1': ... and 1 more`).
+
 ```python
 import io
 from pefftacular import DatabaseHeader, FileHeader, ModResUnimod, SequenceEntry, write_peff
